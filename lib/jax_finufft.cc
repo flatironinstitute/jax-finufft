@@ -8,8 +8,6 @@
 
 #include "finufft.h"
 
-// using namespace kepler_jax;
-
 namespace {
 
 // https://en.cppreference.com/w/cpp/numeric/bit_cast
@@ -33,29 +31,41 @@ pybind11::capsule EncapsulateFunction(T *fn) {
 }
 
 template <typename T>
-void finufft1d1_(void *out, const void **in) {
+void finufft1d1_(void *out, void **in) {
   // Parse the inputs
-  const int N = *reinterpret_cast<const int *>(in[0]);
-  const int M = *reinterpret_cast<const int *>(in[1]);
-  const int tol = *reinterpret_cast<const T *>(in[2]);
-  const T *x = reinterpret_cast<const T *>(in[3]);
-  const std::complex<T> *c = reinterpret_cast<const std::complex<T> *>(in[4]);
-
+  int N = *reinterpret_cast<int *>(in[0]);
+  int M = *reinterpret_cast<int *>(in[1]);
+  T tol = *reinterpret_cast<T *>(in[2]);
+  T *x = reinterpret_cast<T *>(in[3]);
+  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(in[4]);
   std::complex<T> *F = reinterpret_cast<std::complex<T> *>(out);
-
   nufft_opts *opts = new nufft_opts;
-  finufft_default_opts(opts);
 
+#ifdef SINGLE
+  finufftf_default_opts(opts);
+  finufftf1d1(M, const_cast<T *>(x), const_cast<std::complex<T> *>(c), 1, tol, N, F, opts);
+#else
+  finufft_default_opts(opts);
   finufft1d1(M, const_cast<T *>(x), const_cast<std::complex<T> *>(c), 1, tol, N, F, opts);
+#endif
+
+  delete opts;
 }
 
 pybind11::dict Registrations() {
   pybind11::dict dict;
-  // dict["finufft1d1_f32"] = EncapsulateFunction(finufft1d1_<float>);
+#ifdef SINGLE
+  dict["finufft1d1_single"] = EncapsulateFunction(finufft1d1_<float>);
+#else
   dict["finufft1d1"] = EncapsulateFunction(finufft1d1_<double>);
+#endif
   return dict;
 }
 
+#ifdef SINGLE
+PYBIND11_MODULE(jax_finufft_single, m) { m.def("registrations", &Registrations); }
+#else
 PYBIND11_MODULE(jax_finufft, m) { m.def("registrations", &Registrations); }
+#endif
 
 }  // namespace
