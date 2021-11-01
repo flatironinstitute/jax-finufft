@@ -19,7 +19,7 @@ find_package(FFTW COMPONENTS FLOAT_LIB DOUBLE_LIB)
 include_directories(${FFTW_INCLUDE_DIRS})
 
 add_compile_options(-Wall -O3 -funroll-loops)
-include_directories(${CMAKE_CURRENT_LIST_DIR}/finufft/include)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include)
 
 set(FINUFFT_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft.cc
