@@ -1,4 +1,5 @@
 ```bash
+brew install fftw
 conda create -n jax-finufft python=3.9 numpy scipy
 python -m pip install "jax[cpu]"
 
