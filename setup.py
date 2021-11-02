@@ -78,16 +78,7 @@ class CMakeBuildExt(build_ext):
         )
 
 
-extensions = [
-    Extension(
-        "jax_finufft.jax_finufft",
-        ["lib/jax_finufft.cc"],
-    ),
-    Extension(
-        "jax_finufft.jax_finufft_single",
-        ["lib/jax_finufft.cc"],
-    ),
-]
+extensions = [Extension("jax_finufft.jax_finufft", ["lib/jax_finufft.cc"])]
 
 
 setup(

@@ -3,6 +3,7 @@
 __all__ = ["finufft1d1", "finufft1d2"]
 
 from functools import partial
+import jax
 
 import numpy as np
 from jax import numpy as jnp
@@ -11,49 +12,67 @@ from jax import core, dtypes, lax
 from jax.interpreters import ad, batching, xla
 from jax.abstract_arrays import ShapedArray
 
-# Register the CPU XLA custom calls
-from . import jax_finufft, jax_finufft_single
+from . import jax_finufft
 
 for _name, _value in jax_finufft.registrations().items():
-    xla_client.register_cpu_custom_call_target(_name, _value)
-for _name, _value in jax_finufft_single.registrations().items():
     xla_client.register_cpu_custom_call_target(_name, _value)
 
 xops = xla_client.ops
 
 
-def finufft1d1(N, x, c, *, tol=None):
-    x = jnp.asarray(x)
-    if tol is None:
-        tol = 1e-6
+def finufft1d1(N, x, c, *, iflag=1, eps=1e-6):
+    iflag = int(iflag)
+    eps = float(eps)
     N = int(N)
     assert N > 0
 
     def abstract_eval(x, c):
         x_dtype = dtypes.canonicalize_dtype(x.dtype)
         c_dtype = dtypes.canonicalize_dtype(c.dtype)
+
+        # Check supported and consistent dtypes
         assert (x_dtype == jnp.double and c_dtype == jnp.cdouble) or (
             x_dtype == jnp.single and c_dtype == jnp.csingle
         )
-        assert x.shape == c.shape
-        return ShapedArray((N,), c_dtype)
+
+        # x.shape = (..., n_j)
+        # c.shape = (..., n_transf, n_j)
+        assert len(x.shape) >= 2
+        assert x.shape[-1] == c.shape[-1]
+        assert x.shape[:-1] == c.shape[:-2]
+
+        # f.shape = (..., n_transf, N)
+        return ShapedArray(tuple(c.shape[:-1]) + (N,), c_dtype)
 
     def translation(ctx, x, c):
         x_shape = ctx.get_shape(x)
         c_shape = ctx.get_shape(c)
         x_dtype = x_shape.element_type()
         c_dtype = c_shape.element_type()
-        dims = x_shape.dimensions()
-        assert len(dims) == 1
-        assert c_shape.dimensions() == dims
+        x_dims = x_shape.dimensions()
+        c_dims = c_shape.dimensions()
+        assert len(x_dims) >= 2
+        assert x_dims[-1] == c_dims[-1]
+        assert x_dims[:-1] == c_dims[:-2]
         assert (x_dtype == jnp.double and c_dtype == jnp.cdouble) or (
             x_dtype == jnp.single and c_dtype == jnp.csingle
         )
 
+        f_dims = tuple(c_dims[:-1]) + (N,)
+
+        n_tot = np.prod(x_dims[:-1]).astype(np.int64)
+        n_transf = np.array(c_dims[-2]).astype(np.int32)
+        n_j = np.array(x_dims[-1]).astype(np.int64)
+        n_k = np.array(N, dtype=np.int64)
+
         if x_dtype == jnp.single:
-            op_name = b"finufft1d1_single"
+            op_name = b"nufft1d1f"
+            desc = jax_finufft.build_descriptor_1f(
+                eps, iflag, n_tot, n_transf, n_j, n_k
+            )
         elif x_dtype == jnp.double:
-            op_name = b"finufft1d1"
+            op_name = b"nufft1d1"
+            desc = jax_finufft.build_descriptor_1(eps, iflag, n_tot, n_transf, n_j, n_k)
         else:
             raise NotImplementedError(f"Unsupported dtype {x_dtype}")
 
@@ -62,23 +81,23 @@ def finufft1d1(N, x, c, *, tol=None):
             op_name,
             # The inputs:
             operands=(
-                xops.ConstantLiteral(ctx, jnp.int32(N)),
-                xops.ConstantLiteral(ctx, jnp.int32(dims[0])),
-                xops.ConstantLiteral(ctx, jnp.array(tol, dtype=x_dtype)),
+                xops.ConstantLiteral(ctx, np.frombuffer(desc, dtype=np.uint8)),
                 x,
                 c,
             ),
             # The input shapes:
             operand_shapes_with_layout=(
-                xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
-                xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
-                xla_client.Shape.array_shape(jnp.dtype(x_dtype), (), ()),
-                xla_client.Shape.array_shape(jnp.dtype(x_dtype), dims, (0,)),
-                xla_client.Shape.array_shape(jnp.dtype(c_dtype), dims, (0,)),
+                xla_client.Shape.array_shape(np.dtype(np.uint8), (len(desc),), (0,)),
+                xla_client.Shape.array_shape(
+                    x_dtype, x_dims, tuple(range(len(x_dims) - 1, -1, -1))
+                ),
+                xla_client.Shape.array_shape(
+                    c_dtype, c_dims, tuple(range(len(c_dims) - 1, -1, -1))
+                ),
             ),
             # The output shapes:
             shape_with_layout=xla_client.Shape.array_shape(
-                np.dtype(c_dtype), (N,), (0,)
+                c_dtype, f_dims, tuple(range(len(f_dims) - 1, -1, -1))
             ),
         )
 
