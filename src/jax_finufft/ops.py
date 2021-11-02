@@ -90,9 +90,17 @@ def finufft1d1(N, x, c, *, tol=None):
         def zero_tangent(tan, val):
             return lax.zeros_like_array(val) if type(tan) is ad.Zero else tan
 
-        df = prim.bind(x, zero_tangent(dc, c)) + jnp.arange(f.shape[0]) * prim.bind(
-            x, 1j * c * zero_tangent(dx, x)
-        )
+        # f(k) = sum[c(j) * exp[i k x(j)]]
+        # df(k) = sum(dc(j) * exp[i k x(j)]) + k * sum(c(j) * exp[i k x(j)] * (i dx(j)))
+
+        df = prim.bind(x, zero_tangent(dc, c))
+
+        # The x gradient doesn't seem to work... hmmm
+        # N = f.shape[0]
+        # k = jnp.arange(-(N - N % 2) // 2, (N - 2 + N % 2) // 2 + 1)
+        # k * prim.bind(x, 1.0j * c * zero_tangent(dx, x))
+        assert type(dx) is ad.Zero
+
         return f, df
 
     def transpose(ft, x, c):
@@ -100,7 +108,7 @@ def finufft1d1(N, x, c, *, tol=None):
         assert not ad.is_undefined_primal(x)
         if type(ft) is ad.Zero:
             return None, ad.Zero(c.aval)
-        return None, finufft1d2(x, ft, tol=tol)
+        return None, jnp.conj(finufft1d2(x, ft, tol=tol))
 
     prim = core.Primitive(f"finufft1d1_{N}")
     prim.def_impl(partial(xla.apply_primitive, prim))
