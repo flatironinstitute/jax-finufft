@@ -54,7 +54,7 @@ def nufft1(output_shape, source, *points, iflag=1, eps=1e-6):
     return jnp.reshape(prim.bind(source, *points), expected_output_shape)
 
 
-def nufft2(source, *points, iflag=1, eps=1e-6):
+def nufft2(source, *points, iflag=-1, eps=1e-6):
     iflag = int(iflag)
     eps = float(eps)
     ndim = len(points)

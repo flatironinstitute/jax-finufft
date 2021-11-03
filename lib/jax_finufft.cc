@@ -9,11 +9,6 @@ using namespace jax_finufft;
 
 namespace {
 
-// x, y, z: (ni, nj)
-// c: (ni, nt, nj)
-// f: (ni, nt, nu, nv, nw)
-// n: (ni, 3)
-
 template <typename T>
 struct index_into {
   template <int ndim>
@@ -84,38 +79,13 @@ void nufft1d2(void *out, void **in) {
   run_nufft<1, T>(2, in[0], x, y, z, c, F);
 }
 
-// template <typename T>
-// void finufft1d2_(void *out, void **in) {
-//   int N = *reinterpret_cast<int *>(in[0]);
-//   int M = *reinterpret_cast<int *>(in[1]);
-//   T tol = *reinterpret_cast<T *>(in[2]);
-//   T *x = reinterpret_cast<T *>(in[3]);
-//   std::complex<T> *F = reinterpret_cast<std::complex<T> *>(in[4]);
-//   std::complex<T> *c = reinterpret_cast<std::complex<T> *>(out);
-//   nufft_opts *opts = new nufft_opts;
-//   typename plan_type<T>::type plan;
-
-//   int64_t n_modes[] = {M, 1, 1};
-//   default_opts<T>(opts);
-//   makeplan<T>(2, 1, n_modes, 1, 1, tol, &plan, opts);
-//   setpts<T>(plan, M, x, NULL, NULL, N, NULL, NULL, NULL);
-//   execute<T>(plan, c, F);
-//   destroy<T>(plan);
-
-//   delete opts;
-// }
-
 pybind11::dict Registrations() {
   pybind11::dict dict;
   dict["nufft1d1f"] = encapsulate_function(nufft1d1<float>);
   dict["nufft1d2f"] = encapsulate_function(nufft1d2<float>);
-  // dict["nufft2d1f"] = encapsulate_function(nufft1d1<float>);
-  // dict["nufft3d1f"] = encapsulate_function(nufft1d1<float>);
 
   dict["nufft1d1"] = encapsulate_function(nufft1d1<double>);
   dict["nufft1d2"] = encapsulate_function(nufft1d2<double>);
-  // dict["nufft2d1"] = encapsulate_function(nufft1d1<double>);
-  // dict["nufft3d1"] = encapsulate_function(nufft1d1<double>);
 
   return dict;
 }
