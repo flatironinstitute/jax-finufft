@@ -62,14 +62,26 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
 
 template <typename T>
 void nufft1d1(void *out, void **in) {
-  T *x = reinterpret_cast<T *>(in[1]);
+  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(in[1]);
+  T *x = reinterpret_cast<T *>(in[2]);
   T *y = NULL;
   T *z = NULL;
 
-  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(in[2]);
   std::complex<T> *F = reinterpret_cast<std::complex<T> *>(out);
 
   run_nufft<1, T>(1, in[0], x, y, z, c, F);
+}
+
+template <typename T>
+void nufft1d2(void *out, void **in) {
+  std::complex<T> *F = reinterpret_cast<std::complex<T> *>(in[1]);
+  T *x = reinterpret_cast<T *>(in[2]);
+  T *y = NULL;
+  T *z = NULL;
+
+  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(out);
+
+  run_nufft<1, T>(2, in[0], x, y, z, c, F);
 }
 
 // template <typename T>
@@ -96,10 +108,12 @@ void nufft1d1(void *out, void **in) {
 pybind11::dict Registrations() {
   pybind11::dict dict;
   dict["nufft1d1f"] = encapsulate_function(nufft1d1<float>);
+  dict["nufft1d2f"] = encapsulate_function(nufft1d2<float>);
   // dict["nufft2d1f"] = encapsulate_function(nufft1d1<float>);
   // dict["nufft3d1f"] = encapsulate_function(nufft1d1<float>);
 
   dict["nufft1d1"] = encapsulate_function(nufft1d1<double>);
+  dict["nufft1d2"] = encapsulate_function(nufft1d2<double>);
   // dict["nufft2d1"] = encapsulate_function(nufft1d1<double>);
   // dict["nufft3d1"] = encapsulate_function(nufft1d1<double>);
 

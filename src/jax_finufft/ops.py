@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-__all__ = ["finufft1d1", "finufft1d2"]
+__all__ = ["nufft1", "nufft2"]
 
 from functools import partial
-import jax
 
 import numpy as np
 from jax import numpy as jnp
@@ -20,197 +19,226 @@ for _name, _value in jax_finufft.registrations().items():
 xops = xla_client.ops
 
 
-def finufft1d1(N, x, c, *, iflag=1, eps=1e-6):
+def nufft1(output_shape, source, *points, iflag=1, eps=1e-6):
     iflag = int(iflag)
     eps = float(eps)
-    N = int(N)
-    assert N > 0
+    ndim = len(points)
+    if not 1 <= ndim <= 3:
+        raise ValueError("Only 1-, 2-, and 3-dimensions are supported")
 
-    def abstract_eval(x, c):
-        x_dtype = dtypes.canonicalize_dtype(x.dtype)
-        c_dtype = dtypes.canonicalize_dtype(c.dtype)
+    # Support passing a scalar output_shape
+    output_shape = np.atleast_1d(output_shape).astype(np.int64)
+    if len(output_shape) != ndim:
+        raise ValueError(f"output_shape must have shape: ({ndim},)")
 
-        # Check supported and consistent dtypes
-        assert (x_dtype == jnp.double and c_dtype == jnp.cdouble) or (
-            x_dtype == jnp.single and c_dtype == jnp.csingle
+    # Handle broadcasting
+    expected_output_shape = source.shape[:-1] + tuple(output_shape)
+    source, points = pad_shapes(1, source, *points)
+    if points[0].shape[-1] != source.shape[-1]:
+        raise ValueError("The final dimension of 'source' must match 'points'")
+
+    prim = core.Primitive("nufft1")
+    prim.def_impl(partial(xla.apply_primitive, prim))
+    prim.def_abstract_eval(partial(abstract_eval, partial(type1_shapes, output_shape)))
+    xla.backend_specific_translations["cpu"][prim] = partial(
+        translation_rule,
+        1,
+        partial(type1_shapes, output_shape),
+        eps=float(eps),
+        iflag=int(iflag),
+    )
+    ad.primitive_jvps[prim] = partial(type1_jvp, prim)
+    ad.primitive_transposes[prim] = partial(type1_transpose, eps=eps, iflag=iflag)
+    batching.primitive_batchers[prim] = partial(batch, prim)
+
+    return jnp.reshape(prim.bind(source, *points), expected_output_shape)
+
+
+def nufft2(source, *points, iflag=1, eps=1e-6):
+    iflag = int(iflag)
+    eps = float(eps)
+    ndim = len(points)
+    if not 1 <= ndim <= 3:
+        raise ValueError("Only 1-, 2-, and 3-dimensions are supported")
+
+    # Handle broadcasting
+    expected_output_shape = source.shape[:-ndim]
+    source, points = pad_shapes(ndim, source, *points)
+    expected_output_shape = expected_output_shape + (points[0].shape[-1],)
+
+    prim = core.Primitive("nufft2")
+    prim.def_impl(partial(xla.apply_primitive, prim))
+    prim.def_abstract_eval(partial(abstract_eval, type2_shapes))
+    xla.backend_specific_translations["cpu"][prim] = partial(
+        translation_rule,
+        2,
+        type2_shapes,
+        eps=float(eps),
+        iflag=int(iflag),
+    )
+    # ad.primitive_jvps[prim] = partial(type1_jvp, prim)
+    # ad.primitive_transposes[prim] = transpose
+    batching.primitive_batchers[prim] = partial(batch, prim)
+
+    return jnp.reshape(prim.bind(source, *points), expected_output_shape)
+
+
+def type1_shapes(output_shape, source_shape, *points_shape):
+    ndim = len(points_shape)
+    assert len(output_shape) == ndim
+    assert len(points_shape[0]) >= 2
+    assert all(
+        x[-1] == source_shape[-1] and x[:-1] == source_shape[:-2] for x in points_shape
+    )
+    return tuple(source_shape[:-1]) + tuple(output_shape)
+
+
+def type2_shapes(source_shape, *points_shape):
+    ndim = len(points_shape)
+    assert len(points_shape[0]) >= 2
+    assert all(x[:-1] == source_shape[: -ndim - 1] for x in points_shape)
+    return tuple(source_shape[:-ndim]) + (points_shape[0][-1],)
+
+
+def abstract_eval(output_shape_func, source, *points):
+    ndim = len(points)
+    assert 1 <= ndim <= 3
+
+    source_dtype = dtypes.canonicalize_dtype(source.dtype)
+    points_dtype = [dtypes.canonicalize_dtype(x.dtype) for x in points]
+
+    # Check supported and consistent dtypes
+    single = source_dtype == np.csingle and all(x == np.single for x in points_dtype)
+    double = source_dtype == np.cdouble and all(x == np.double for x in points_dtype)
+    assert single or double
+
+    return ShapedArray(
+        output_shape_func(source.shape, *(x.shape for x in points)), source_dtype
+    )
+
+
+def translation_rule(type, output_shape_func, ctx, source, *points, eps=1e-6, iflag=1):
+    assert type == 1 or type == 2
+    ndim = len(points)
+    assert 1 <= ndim <= 3
+
+    source_shape_info = ctx.get_shape(source)
+    points_shape_info = list(map(ctx.get_shape, points))
+
+    # Check supported and consistent dtypes
+    source_dtype = source_shape_info.element_type()
+    single = source_dtype == np.csingle and all(
+        x.element_type() == np.single for x in points_shape_info
+    )
+    double = source_dtype == np.cdouble and all(
+        x.element_type() == np.double for x in points_shape_info
+    )
+    assert single or double
+
+    # Check shapes
+    source_shape = source_shape_info.dimensions()
+    points_shape = tuple(x.dimensions() for x in points_shape_info)
+    full_output_shape = output_shape_func(source_shape, *points_shape)
+
+    # Work out the other dimenstions of the problem
+    n_tot = np.prod(source_shape[: -ndim - 1]).astype(np.int64)
+    n_transf = np.array(source_shape[-ndim - 1]).astype(np.int32)
+    n_j = np.array(points_shape[0][-1]).astype(np.int64)
+    if type == 1:
+        n_k = np.array(full_output_shape[-ndim:], dtype=np.int64)
+    else:
+        n_k = np.array(source_shape[-ndim:], dtype=np.int64)
+
+    # Dispatch to the right op
+    suffix = "f" if source_dtype == np.csingle else ""
+    op_name = f"nufft{ndim}d{type}{suffix}".encode("ascii")
+    desc = getattr(jax_finufft, f"build_descriptor_{ndim}{suffix}")(
+        eps, iflag, n_tot, n_transf, n_j, *n_k
+    )
+
+    return xops.CustomCallWithLayout(
+        ctx,
+        op_name,
+        # The inputs:
+        operands=(
+            xops.ConstantLiteral(ctx, np.frombuffer(desc, dtype=np.uint8)),
+            source,
+            *points,
+        ),
+        # The input shapes:
+        operand_shapes_with_layout=(
+            xla_client.Shape.array_shape(np.dtype(np.uint8), (len(desc),), (0,)),
+            xla_client.Shape.array_shape(
+                source_dtype, source_shape, tuple(range(len(source_shape) - 1, -1, -1))
+            ),
         )
-
-        # x.shape = (..., n_j)
-        # c.shape = (..., n_transf, n_j)
-        assert len(x.shape) >= 2
-        assert x.shape[-1] == c.shape[-1]
-        assert x.shape[:-1] == c.shape[:-2]
-
-        # f.shape = (..., n_transf, N)
-        return ShapedArray(tuple(c.shape[:-1]) + (N,), c_dtype)
-
-    def translation(ctx, x, c):
-        x_shape = ctx.get_shape(x)
-        c_shape = ctx.get_shape(c)
-        x_dtype = x_shape.element_type()
-        c_dtype = c_shape.element_type()
-        x_dims = x_shape.dimensions()
-        c_dims = c_shape.dimensions()
-        assert len(x_dims) >= 2
-        assert x_dims[-1] == c_dims[-1]
-        assert x_dims[:-1] == c_dims[:-2]
-        assert (x_dtype == jnp.double and c_dtype == jnp.cdouble) or (
-            x_dtype == jnp.single and c_dtype == jnp.csingle
-        )
-
-        f_dims = tuple(c_dims[:-1]) + (N,)
-
-        n_tot = np.prod(x_dims[:-1]).astype(np.int64)
-        n_transf = np.array(c_dims[-2]).astype(np.int32)
-        n_j = np.array(x_dims[-1]).astype(np.int64)
-        n_k = np.array(N, dtype=np.int64)
-
-        if x_dtype == jnp.single:
-            op_name = b"nufft1d1f"
-            desc = jax_finufft.build_descriptor_1f(
-                eps, iflag, n_tot, n_transf, n_j, n_k
+        + tuple(
+            xla_client.Shape.array_shape(
+                x.element_type(),
+                x.dimensions(),
+                tuple(range(len(x.dimensions()) - 1, -1, -1)),
             )
-        elif x_dtype == jnp.double:
-            op_name = b"nufft1d1"
-            desc = jax_finufft.build_descriptor_1(eps, iflag, n_tot, n_transf, n_j, n_k)
-        else:
-            raise NotImplementedError(f"Unsupported dtype {x_dtype}")
+            for x in points_shape_info
+        ),
+        # The output shapes:
+        shape_with_layout=xla_client.Shape.array_shape(
+            source_dtype,
+            full_output_shape,
+            tuple(range(len(full_output_shape) - 1, -1, -1)),
+        ),
+    )
 
-        return xops.CustomCallWithLayout(
-            ctx,
-            op_name,
-            # The inputs:
-            operands=(
-                xops.ConstantLiteral(ctx, np.frombuffer(desc, dtype=np.uint8)),
-                x,
-                c,
-            ),
-            # The input shapes:
-            operand_shapes_with_layout=(
-                xla_client.Shape.array_shape(np.dtype(np.uint8), (len(desc),), (0,)),
-                xla_client.Shape.array_shape(
-                    x_dtype, x_dims, tuple(range(len(x_dims) - 1, -1, -1))
-                ),
-                xla_client.Shape.array_shape(
-                    c_dtype, c_dims, tuple(range(len(c_dims) - 1, -1, -1))
-                ),
-            ),
-            # The output shapes:
-            shape_with_layout=xla_client.Shape.array_shape(
-                c_dtype, f_dims, tuple(range(len(f_dims) - 1, -1, -1))
-            ),
+
+def type1_jvp(prim, args, tangents):
+    source, *points = args
+    dsource, *dpoints = tangents
+    f = prim.bind(source, *points)
+
+    def zero_tangent(tan, val):
+        return lax.zeros_like_array(val) if type(tan) is ad.Zero else tan
+
+    # f(k) = sum[c(j) * exp[i k x(j)]]
+    # df(k) = sum(dc(j) * exp[i k x(j)]) + k * sum(c(j) * exp[i k x(j)] * (i dx(j)))
+    df = prim.bind(zero_tangent(dsource, source), *points)
+
+    # The x gradient doesn't seem to work... hmmm
+    # N = f.shape[0]
+    # k = jnp.arange(-(N - N % 2) // 2, (N - 2 + N % 2) // 2 + 1)
+    # k * prim.bind(x, 1.0j * c * zero_tangent(dx, x))
+    assert all(type(dx) is ad.Zero for dx in dpoints)
+
+    return f, df
+
+
+def type1_transpose(ft, source, *points, eps=1e-6, iflag=1):
+    assert ad.is_undefined_primal(source)
+    assert not any(map(ad.is_undefined_primal, points))
+    if type(ft) is ad.Zero:
+        return tuple(None for _ in range(len(points) + 1))
+    return (None, jnp.conj(nufft2(ft, *points, eps=eps, iflag=iflag)))
+
+
+def batch(prim, args, axes):
+    # We can't batch over the last two dimensions of source
+    mx = args[0].ndim - 2
+    assert all(a < mx for a in axes)
+    assert all(a == axes[0] for a in axes[1:])
+    return prim.bind(*args), axes[0]
+
+
+def pad_shapes(output_dim, source, *points):
+    points = jnp.broadcast_arrays(*points)
+    if points[0].ndim == 0 or source.ndim == 0:
+        raise ValueError(
+            "0-dimensional arrays are not supported; are you vmap-ing somewhere "
+            "where you don't want to?"
         )
+    if points[0].ndim == source.ndim:
+        source = source[..., None, :]
+    if points[0].ndim != source.ndim - output_dim:
+        raise ValueError("'source' must have one more dimension than 'points'")
+    if source.ndim == output_dim + 1:
+        source = source[None, ...]
+        points = tuple(x[None, :] for x in points)
 
-    def jvp(args, tangents):
-        x, c = args
-        dx, dc = tangents
-        f = prim.bind(x, c)
-
-        def zero_tangent(tan, val):
-            return lax.zeros_like_array(val) if type(tan) is ad.Zero else tan
-
-        # f(k) = sum[c(j) * exp[i k x(j)]]
-        # df(k) = sum(dc(j) * exp[i k x(j)]) + k * sum(c(j) * exp[i k x(j)] * (i dx(j)))
-
-        df = prim.bind(x, zero_tangent(dc, c))
-
-        # The x gradient doesn't seem to work... hmmm
-        # N = f.shape[0]
-        # k = jnp.arange(-(N - N % 2) // 2, (N - 2 + N % 2) // 2 + 1)
-        # k * prim.bind(x, 1.0j * c * zero_tangent(dx, x))
-        assert type(dx) is ad.Zero
-
-        return f, df
-
-    def transpose(ft, x, c):
-        assert ad.is_undefined_primal(c)
-        assert not ad.is_undefined_primal(x)
-        if type(ft) is ad.Zero:
-            return None, ad.Zero(c.aval)
-        return None, jnp.conj(finufft1d2(x, ft, tol=tol))
-
-    prim = core.Primitive(f"finufft1d1_{N}")
-    prim.def_impl(partial(xla.apply_primitive, prim))
-    prim.def_abstract_eval(abstract_eval)
-    xla.backend_specific_translations["cpu"][prim] = translation
-    ad.primitive_jvps[prim] = jvp
-    ad.primitive_transposes[prim] = transpose
-
-    return prim.bind(x, c)
-
-
-def finufft1d2(x, f, *, tol=None):
-    x = jnp.asarray(x)
-    if tol is None:
-        tol = 1e-6
-
-    def abstract_eval(x, f):
-        x_dtype = dtypes.canonicalize_dtype(x.dtype)
-        f_dtype = dtypes.canonicalize_dtype(f.dtype)
-        assert (x_dtype == jnp.double and f_dtype == jnp.cdouble) or (
-            x_dtype == jnp.single and f_dtype == jnp.csingle
-        )
-        return ShapedArray(x.shape, f_dtype)
-
-    def translation(ctx, x, f):
-        x_shape = ctx.get_shape(x)
-        f_shape = ctx.get_shape(f)
-        x_dtype = x_shape.element_type()
-        f_dtype = f_shape.element_type()
-        x_dims = x_shape.dimensions()
-        f_dims = f_shape.dimensions()
-        assert len(x_dims) == 1
-        assert len(f_dims) == 1
-        assert (x_dtype == jnp.double and f_dtype == jnp.cdouble) or (
-            x_dtype == jnp.single and f_dtype == jnp.csingle
-        )
-
-        # We dispatch a different call depending on the dtype
-        if x_dtype == jnp.single:
-            op_name = b"finufft1d2_single"
-        elif x_dtype == jnp.double:
-            op_name = b"finufft1d2"
-        else:
-            raise NotImplementedError(f"Unsupported dtype {x_dtype}")
-
-        # On the CPU, we pass the size of the data as a the first input
-        # argument
-        return xops.CustomCallWithLayout(
-            ctx,
-            op_name,
-            # The inputs:
-            operands=(
-                xops.ConstantLiteral(ctx, jnp.int32(f_dims[0])),
-                xops.ConstantLiteral(ctx, jnp.int32(x_dims[0])),
-                xops.ConstantLiteral(ctx, jnp.array(tol, dtype=x_dtype)),
-                x,
-                f,
-            ),
-            # The input shapes:
-            operand_shapes_with_layout=(
-                xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
-                xla_client.Shape.array_shape(jnp.dtype(jnp.int32), (), ()),
-                xla_client.Shape.array_shape(jnp.dtype(x_dtype), (), ()),
-                xla_client.Shape.array_shape(jnp.dtype(x_dtype), x_dims, (0,)),
-                xla_client.Shape.array_shape(jnp.dtype(f_dtype), f_dims, (0,)),
-            ),
-            # The output shapes:
-            shape_with_layout=xla_client.Shape.array_shape(
-                np.dtype(f_dtype), x_dims, (0,)
-            ),
-        )
-
-    def jvp(args, tangents):
-        assert 0
-
-    def transpose(ct, x, f):
-        assert 0
-
-    prim = core.Primitive(f"finufft1d2")
-    prim.def_impl(partial(xla.apply_primitive, prim))
-    prim.def_abstract_eval(abstract_eval)
-    xla.backend_specific_translations["cpu"][prim] = translation
-    ad.primitive_jvps[prim] = jvp
-    ad.primitive_transposes[prim] = transpose
-
-    return prim.bind(x, f)
+    return source, points
