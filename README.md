@@ -1,5 +1,5 @@
 ```bash
-conda create -n jax-finufft python=3.9 numpy scipy
+conda create -n jax-finufft python=3.9 numpy scipy fftw
 python -m pip install "jax[cpu]"
 
 git clone --recursive https://github.com/dfm/jax-finufft
