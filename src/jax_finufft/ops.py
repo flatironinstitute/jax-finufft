@@ -148,7 +148,7 @@ def translation_rule(type, output_shape_func, ctx, source, *points, eps=1e-6, if
         n_k = np.array(full_output_shape[-ndim:], dtype=np.int64)
     else:
         n_tot = np.prod(source_shape[: -ndim - 1]).astype(np.int64)
-        n_transf = np.array(source_shape[-ndim]).astype(np.int32)
+        n_transf = np.array(source_shape[-ndim - 1]).astype(np.int32)
         n_k = np.array(source_shape[-ndim:], dtype=np.int64)
 
     # The backend expects the output shape in Fortran order so we'll just
@@ -240,10 +240,14 @@ def pad_shapes(output_dim, source, *points):
             "0-dimensional arrays are not supported; are you vmap-ing somewhere "
             "where you don't want to?"
         )
-    if points[0].ndim == source.ndim:
-        source = source[..., None, :]
+
+    if points[0].ndim == source.ndim - output_dim + 1:
+        new_shape = source.shape[:-output_dim] + (1,) + source.shape[-output_dim:]
+        source = jnp.reshape(source, new_shape)
     if points[0].ndim != source.ndim - output_dim:
-        raise ValueError("'source' must have one more dimension than 'points'")
+        raise ValueError(
+            f"'source' must have {output_dim} more dimension than 'points'"
+        )
     if source.ndim == output_dim + 1:
         source = source[None, ...]
         points = tuple(x[None, :] for x in points)
