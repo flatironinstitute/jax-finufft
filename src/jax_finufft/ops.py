@@ -141,12 +141,14 @@ def translation_rule(type, output_shape_func, ctx, source, *points, eps=1e-6, if
     full_output_shape = output_shape_func(source_shape, *points_shape)
 
     # Work out the other dimenstions of the problem
-    n_tot = np.prod(source_shape[: -ndim - 1]).astype(np.int64)
-    n_transf = np.array(source_shape[-ndim - 1]).astype(np.int32)
     n_j = np.array(points_shape[0][-1]).astype(np.int64)
     if type == 1:
+        n_tot = np.prod(source_shape[:-2]).astype(np.int64)
+        n_transf = np.array(source_shape[-2]).astype(np.int32)
         n_k = np.array(full_output_shape[-ndim:], dtype=np.int64)
     else:
+        n_tot = np.prod(source_shape[: -ndim - 1]).astype(np.int64)
+        n_transf = np.array(source_shape[-ndim]).astype(np.int32)
         n_k = np.array(source_shape[-ndim:], dtype=np.int64)
 
     # The backend expects the output shape in Fortran order so we'll just
@@ -168,7 +170,7 @@ def translation_rule(type, output_shape_func, ctx, source, *points, eps=1e-6, if
         operands=(
             xops.ConstantLiteral(ctx, np.frombuffer(desc, dtype=np.uint8)),
             source,
-            *points[::-1],
+            *points[::-1],  # Reverse order because backend uses Fortran order
         ),
         # The input shapes:
         operand_shapes_with_layout=(
@@ -183,7 +185,7 @@ def translation_rule(type, output_shape_func, ctx, source, *points, eps=1e-6, if
                 x.dimensions(),
                 tuple(range(len(x.dimensions()) - 1, -1, -1)),
             )
-            for x in points_shape_info[::-1]
+            for x in points_shape_info[::-1]  # Reverse order, again
         ),
         # The output shapes:
         shape_with_layout=xla_client.Shape.array_shape(

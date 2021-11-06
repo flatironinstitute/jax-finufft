@@ -7,16 +7,16 @@ from itertools import product
 
 @pytest.mark.parametrize(
     "ndim, x64, num_nonnuniform, num_uniform, iflag",
-    product([1, 2], [False, True], [50], [75], [-1, 1]),
+    product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
 )
-def test_nufft1(ndim, x64, num_nonnuniform, num_uniform, iflag):
+def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
     eps = 1e-10 if x64 else 1e-7
     dtype = np.double if x64 else np.single
     cdtype = np.cdouble if x64 else np.csingle
 
-    num_uniform = tuple(num_uniform + 5 * np.arange(ndim))
+    num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
     ks = [np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1)) for n in num_uniform]
 
     x = [
@@ -33,10 +33,9 @@ def test_nufft1(ndim, x64, num_nonnuniform, num_uniform, iflag):
 
     with jax.experimental.enable_x64(x64):
         f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag)
-        print(f_expect.shape, f_calc.shape)
-        np.testing.assert_allclose(f_calc, f_expect, rtol=1e-7 if x64 else 5e-2)
+        np.testing.assert_allclose(f_calc, f_expect, rtol=5e-7 if x64 else 5e-2)
 
-        # f_calc = jax.jit(nufft1, static_argnums=(0,), static_argnames=("eps", "iflag"))(
-        #     num_uniform, c, *x, eps=eps, iflag=iflag
-        # )
-        # np.testing.assert_allclose(f_calc, f_expect, rtol=1e-7 if x64 else 5e-2)
+        f_calc = jax.jit(nufft1, static_argnums=(0,), static_argnames=("eps", "iflag"))(
+            num_uniform, c, *x, eps=eps, iflag=iflag
+        )
+        np.testing.assert_allclose(f_calc, f_expect, rtol=5e-7 if x64 else 5e-2)
