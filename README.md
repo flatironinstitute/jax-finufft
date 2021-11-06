@@ -11,11 +11,11 @@ Then:
 
 ```python
 import numpy as np
-from jax_finufft import finufft1d1
+from jax_finufft import nufft1
 
 M = 100000
 x = 2 * np.pi * np.random.uniform(size=M)
 c = np.random.standard_normal(size=M) + 1j * np.random.standard_normal(size=M)
 N = 200000
-f = finufft1d1(N, x, c)
+f = nufft1(N, c, x)
 ```
