@@ -5,11 +5,11 @@ __all__ = ["nufft1", "nufft2"]
 from functools import partial
 
 import numpy as np
-from jax import numpy as jnp
-from jax.lib import xla_client
 from jax import core, dtypes, lax
-from jax.interpreters import ad, batching, xla
+from jax import numpy as jnp
 from jax.abstract_arrays import ShapedArray
+from jax.interpreters import ad, batching, xla
+from jax.lib import xla_client
 
 from . import jax_finufft
 

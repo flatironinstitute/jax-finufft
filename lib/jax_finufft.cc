@@ -2,12 +2,31 @@
 // It is exposed as a standard pybind11 module defining "capsule" objects containing our
 // method. For simplicity, we export a separate capsule for each supported dtype.
 
-#include "finufft.h"
 #include "pybind11_kernel_helpers.h"
 
 using namespace jax_finufft;
 
 namespace {
+
+template <int ndim, typename T>
+void nufft1(void *out, void **in) {
+  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(in[1]);
+  T *x = reinterpret_cast<T *>(in[2]);
+  T *y = from_input<T>::template y<ndim>(in);
+  T *z = from_input<T>::template z<ndim>(in);
+  std::complex<T> *F = reinterpret_cast<std::complex<T> *>(out);
+  run_nufft<ndim, T>(1, in[0], x, y, z, c, F);
+}
+
+template <int ndim, typename T>
+void nufft2(void *out, void **in) {
+  std::complex<T> *F = reinterpret_cast<std::complex<T> *>(in[1]);
+  T *x = reinterpret_cast<T *>(in[2]);
+  T *y = from_input<T>::template y<ndim>(in);
+  T *z = from_input<T>::template z<ndim>(in);
+  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(out);
+  run_nufft<ndim, T>(2, in[0], x, y, z, c, F);
+}
 
 template <int ndim, typename T>
 void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, std::complex<T> *F) {
@@ -32,28 +51,9 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
   delete opts;
 }
 
-template <int ndim, typename T>
-void nufft1(void *out, void **in) {
-  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(in[1]);
-  T *x = reinterpret_cast<T *>(in[2]);
-  T *y = from_input<T>::template y<ndim>(in);
-  T *z = from_input<T>::template z<ndim>(in);
-  std::complex<T> *F = reinterpret_cast<std::complex<T> *>(out);
-  run_nufft<ndim, T>(1, in[0], x, y, z, c, F);
-}
-
-template <int ndim, typename T>
-void nufft2(void *out, void **in) {
-  std::complex<T> *F = reinterpret_cast<std::complex<T> *>(in[1]);
-  T *x = reinterpret_cast<T *>(in[2]);
-  T *y = from_input<T>::template y<ndim>(in);
-  T *z = from_input<T>::template z<ndim>(in);
-  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(out);
-  run_nufft<ndim, T>(2, in[0], x, y, z, c, F);
-}
-
 pybind11::dict Registrations() {
   pybind11::dict dict;
+
   dict["nufft1d1f"] = encapsulate_function(nufft1<1, float>);
   dict["nufft1d2f"] = encapsulate_function(nufft2<1, float>);
   dict["nufft2d1f"] = encapsulate_function(nufft1<2, float>);

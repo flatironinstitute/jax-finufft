@@ -1,8 +1,9 @@
+from itertools import product
+
 import jax
 import numpy as np
-from jax_finufft import nufft1
 import pytest
-from itertools import product
+from jax_finufft import nufft1
 
 
 @pytest.mark.parametrize(

@@ -22,9 +22,9 @@ def read(*parts):
 class CMakeBuildExt(build_ext):
     def build_extensions(self):
         # First: configure CMake build
+        import distutils.sysconfig
         import platform
         import sys
-        import distutils.sysconfig
 
         import pybind11
 
@@ -87,17 +87,14 @@ setup(
     author_email="foreman.mackey@gmail.com",
     url="https://github.com/dfm/jax-finufft",
     license="MIT",
-    description=(
-        "A simple demonstration of how you can extend JAX with custom C++ and "
-        "CUDA ops"
-    ),
+    description="Unofficial JAX bindings for finufft",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
     packages=find_packages("src"),
     package_dir={"": "src"},
     include_package_data=True,
     install_requires=["jax", "jaxlib"],
-    extras_require={"test": "pytest"},
+    extras_require={"test": ["pytest"]},
     ext_modules=extensions,
     cmdclass={"build_ext": CMakeBuildExt},
 )
