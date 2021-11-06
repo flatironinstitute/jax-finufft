@@ -34,7 +34,7 @@ jobs:
         if: ${{ matrix.os == 'macos-latest' }}
         run: brew install fftw
 
-      - name: Install dependencies
+      - name: Build
         run: |
           python -m pip install -U pip
           python -m pip install .[test]
