@@ -35,8 +35,14 @@ template <int ndim, typename T>
 void nufft1(void *out, void **in) {
   std::complex<T> *c = reinterpret_cast<std::complex<T> *>(in[1]);
   T *x = reinterpret_cast<T *>(in[2]);
-  T *y = from_input<T>::template y<ndim>(in);
-  T *z = from_input<T>::template z<ndim>(in);
+  T *y = NULL;
+  T *z = NULL;
+  if (ndim > 1) {
+    y = reinterpret_cast<T *>(in[3]);
+  }
+  if (ndim > 2) {
+    z = reinterpret_cast<T *>(in[4]);
+  }
   std::complex<T> *F = reinterpret_cast<std::complex<T> *>(out);
   run_nufft<ndim, T>(1, in[0], x, y, z, c, F);
 }
@@ -45,8 +51,14 @@ template <int ndim, typename T>
 void nufft2(void *out, void **in) {
   std::complex<T> *F = reinterpret_cast<std::complex<T> *>(in[1]);
   T *x = reinterpret_cast<T *>(in[2]);
-  T *y = from_input<T>::template y<ndim>(in);
-  T *z = from_input<T>::template z<ndim>(in);
+  T *y = NULL;
+  T *z = NULL;
+  if (ndim > 1) {
+    y = reinterpret_cast<T *>(in[3]);
+  }
+  if (ndim > 2) {
+    z = reinterpret_cast<T *>(in[4]);
+  }
   std::complex<T> *c = reinterpret_cast<std::complex<T> *>(out);
   run_nufft<ndim, T>(2, in[0], x, y, z, c, F);
 }

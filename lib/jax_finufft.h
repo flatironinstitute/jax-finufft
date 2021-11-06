@@ -126,29 +126,6 @@ struct index_into {
   }
 };
 
-template <typename T>
-struct from_input {
-  template <int ndim>
-  static T* y(void** in) {
-    return reinterpret_cast<T*>(in[3]);
-  }
-
-  template <>
-  static T* y<1>(void** in) {
-    return NULL;
-  }
-
-  template <int ndim>
-  static T* z(void** in) {
-    return NULL;
-  }
-
-  template <>
-  static T* z<3>(void** in) {
-    return reinterpret_cast<T*>(in[4]);
-  }
-};
-
 }  // namespace jax_finufft
 
 #endif
