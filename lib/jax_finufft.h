@@ -7,14 +7,14 @@
 
 namespace jax_finufft {
 
-template <int ndim, typename T>
+template <typename T>
 struct NufftDescriptor {
   T eps;
   int iflag;
   int64_t n_tot;
   int n_transf;
   int64_t n_j;
-  int64_t n_k[ndim];
+  int64_t n_k[3];
 };
 
 template <typename T>
@@ -102,6 +102,52 @@ template <>
 void destroy<double>(typename plan_type<double>::type plan) {
   finufft_destroy(plan);
 }
+
+template <typename T>
+struct index_into {
+  template <int ndim>
+  static T* y(T* y, int64_t index) {
+    return &(y[index]);
+  }
+
+  template <>
+  static T* y<1>(T* y, int64_t index) {
+    return NULL;
+  }
+
+  template <int ndim>
+  static T* z(T* z, int64_t index) {
+    return NULL;
+  }
+
+  template <>
+  static T* z<3>(T* z, int64_t index) {
+    return &(z[index]);
+  }
+};
+
+template <typename T>
+struct from_input {
+  template <int ndim>
+  static T* y(void** in) {
+    return reinterpret_cast<T*>(in[3]);
+  }
+
+  template <>
+  static T* y<1>(void** in) {
+    return NULL;
+  }
+
+  template <int ndim>
+  static T* z(void** in) {
+    return NULL;
+  }
+
+  template <>
+  static T* z<3>(void** in) {
+    return reinterpret_cast<T*>(in[4]);
+  }
+};
 
 }  // namespace jax_finufft
 

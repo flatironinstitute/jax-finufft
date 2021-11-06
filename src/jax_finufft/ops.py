@@ -148,12 +148,14 @@ def translation_rule(type, output_shape_func, ctx, source, *points, eps=1e-6, if
         n_k = np.array(full_output_shape[-ndim:], dtype=np.int64)
     else:
         n_k = np.array(source_shape[-ndim:], dtype=np.int64)
+    n_k_full = np.zeros(3, dtype=np.int64)
+    n_k_full[:ndim] = n_k
 
     # Dispatch to the right op
     suffix = "f" if source_dtype == np.csingle else ""
     op_name = f"nufft{ndim}d{type}{suffix}".encode("ascii")
-    desc = getattr(jax_finufft, f"build_descriptor_{ndim}{suffix}")(
-        eps, iflag, n_tot, n_transf, n_j, *n_k
+    desc = getattr(jax_finufft, f"build_descriptor{suffix}")(
+        eps, iflag, n_tot, n_transf, n_j, *n_k_full
     )
 
     return xops.CustomCallWithLayout(

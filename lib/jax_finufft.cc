@@ -9,33 +9,10 @@ using namespace jax_finufft;
 
 namespace {
 
-template <typename T>
-struct index_into {
-  template <int ndim>
-  static T *y(T *y, int64_t index) {
-    return &(y[index]);
-  }
-
-  template <>
-  static T *y<1>(T *y, int64_t index) {
-    return NULL;
-  }
-
-  template <int ndim>
-  static T *z(T *z, int64_t index) {
-    return NULL;
-  }
-
-  template <>
-  static T *z<3>(T *z, int64_t index) {
-    return &(z[index]);
-  }
-};
-
 template <int ndim, typename T>
 void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, std::complex<T> *F) {
-  const NufftDescriptor<ndim, T> *descriptor = unpack_descriptor<NufftDescriptor<ndim, T>>(
-      reinterpret_cast<const char *>(desc_in), sizeof(NufftDescriptor<ndim, T>));
+  const NufftDescriptor<T> *descriptor = unpack_descriptor<NufftDescriptor<T>>(
+      reinterpret_cast<const char *>(desc_in), sizeof(NufftDescriptor<T>));
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
 
@@ -55,49 +32,49 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
   delete opts;
 }
 
-template <typename T>
-void nufft1d1(void *out, void **in) {
+template <int ndim, typename T>
+void nufft1(void *out, void **in) {
   std::complex<T> *c = reinterpret_cast<std::complex<T> *>(in[1]);
   T *x = reinterpret_cast<T *>(in[2]);
-  T *y = NULL;
-  T *z = NULL;
-
+  T *y = from_input<T>::template y<ndim>(in);
+  T *z = from_input<T>::template z<ndim>(in);
   std::complex<T> *F = reinterpret_cast<std::complex<T> *>(out);
-
-  run_nufft<1, T>(1, in[0], x, y, z, c, F);
+  run_nufft<ndim, T>(1, in[0], x, y, z, c, F);
 }
 
-template <typename T>
-void nufft1d2(void *out, void **in) {
+template <int ndim, typename T>
+void nufft2(void *out, void **in) {
   std::complex<T> *F = reinterpret_cast<std::complex<T> *>(in[1]);
   T *x = reinterpret_cast<T *>(in[2]);
-  T *y = NULL;
-  T *z = NULL;
-
+  T *y = from_input<T>::template y<ndim>(in);
+  T *z = from_input<T>::template z<ndim>(in);
   std::complex<T> *c = reinterpret_cast<std::complex<T> *>(out);
-
-  run_nufft<1, T>(2, in[0], x, y, z, c, F);
+  run_nufft<ndim, T>(2, in[0], x, y, z, c, F);
 }
 
 pybind11::dict Registrations() {
   pybind11::dict dict;
-  dict["nufft1d1f"] = encapsulate_function(nufft1d1<float>);
-  dict["nufft1d2f"] = encapsulate_function(nufft1d2<float>);
+  dict["nufft1d1f"] = encapsulate_function(nufft1<1, float>);
+  dict["nufft1d2f"] = encapsulate_function(nufft2<1, float>);
+  dict["nufft2d1f"] = encapsulate_function(nufft1<2, float>);
+  dict["nufft2d2f"] = encapsulate_function(nufft2<2, float>);
+  dict["nufft3d1f"] = encapsulate_function(nufft1<3, float>);
+  dict["nufft3d2f"] = encapsulate_function(nufft2<3, float>);
 
-  dict["nufft1d1"] = encapsulate_function(nufft1d1<double>);
-  dict["nufft1d2"] = encapsulate_function(nufft1d2<double>);
+  dict["nufft1d1"] = encapsulate_function(nufft1<1, double>);
+  dict["nufft1d2"] = encapsulate_function(nufft2<1, double>);
+  dict["nufft2d1"] = encapsulate_function(nufft1<2, double>);
+  dict["nufft2d2"] = encapsulate_function(nufft2<2, double>);
+  dict["nufft3d1"] = encapsulate_function(nufft1<3, double>);
+  dict["nufft3d2"] = encapsulate_function(nufft2<3, double>);
 
   return dict;
 }
 
 PYBIND11_MODULE(jax_finufft, m) {
   m.def("registrations", &Registrations);
-  m.def("build_descriptor_1f", &build_descriptor_1<float>);
-  m.def("build_descriptor_2f", &build_descriptor_2<float>);
-  m.def("build_descriptor_3f", &build_descriptor_3<float>);
-  m.def("build_descriptor_1", &build_descriptor_1<double>);
-  m.def("build_descriptor_2", &build_descriptor_2<double>);
-  m.def("build_descriptor_3", &build_descriptor_3<double>);
+  m.def("build_descriptorf", &build_descriptor<float>);
+  m.def("build_descriptor", &build_descriptor<double>);
 }
 
 }  // namespace
