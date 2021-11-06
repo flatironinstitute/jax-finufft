@@ -13,6 +13,7 @@ link_libraries(${FFTW_FLOAT_LIB} ${FFTW_DOUBLE_LIB})
 include_directories(${FFTW_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_LIST_DIR}/lib)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_options(-Wall -O3 -funroll-loops)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include)
 
