@@ -23,8 +23,10 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
   for (int64_t index = 0; index < descriptor->n_tot; ++index) {
     int64_t j = index * descriptor->n_j * descriptor->n_transf;
     int64_t k = index * n_k * descriptor->n_transf;
-    setpts<T>(plan, descriptor->n_j, &(x[j]), index_into<T>::template y<ndim>(y, j),
-              index_into<T>::template z<ndim>(z, j), 0, NULL, NULL, NULL);
+
+    setpts<T>(plan, descriptor->n_j, &(x[j]), y_index<ndim, T>(y, j), z_index<ndim, T>(z, j), 0,
+              NULL, NULL, NULL);
+
     execute<T>(plan, &c[j], &F[k]);
   }
   destroy<T>(plan);

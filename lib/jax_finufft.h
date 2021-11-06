@@ -103,28 +103,35 @@ void destroy<double>(typename plan_type<double>::type plan) {
   finufft_destroy(plan);
 }
 
-template <typename T>
-struct index_into {
-  template <int ndim>
-  static T* y(T* y, int64_t index) {
-    return &(y[index]);
-  }
+template <int ndim, typename T>
+T* y_index(T* y, int64_t index) {
+  return &(y[index]);
+}
 
-  template <>
-  static T* y<1>(T* y, int64_t index) {
-    return NULL;
-  }
+template <>
+double* y_index<1, double>(double* y, int64_t index) {
+  return NULL;
+}
 
-  template <int ndim>
-  static T* z(T* z, int64_t index) {
-    return NULL;
-  }
+template <>
+float* y_index<1, float>(float* y, int64_t index) {
+  return NULL;
+}
 
-  template <>
-  static T* z<3>(T* z, int64_t index) {
-    return &(z[index]);
-  }
-};
+template <int ndim, typename T>
+T* z_index(T* z, int64_t index) {
+  return NULL;
+}
+
+template <>
+double* z_index<3, double>(double* z, int64_t index) {
+  return &(z[index]);
+}
+
+template <>
+float* z_index<3, float>(float* z, int64_t index) {
+  return &(z[index]);
+}
 
 }  // namespace jax_finufft
 
