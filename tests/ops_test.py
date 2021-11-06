@@ -1,8 +1,10 @@
+from functools import partial
 from itertools import product
 
 import jax
 import numpy as np
 import pytest
+from jax.test_util import check_grads
 from jax_finufft import nufft1, nufft2
 
 
@@ -79,3 +81,29 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
             f, *x, eps=eps, iflag=iflag
         )
         np.testing.assert_allclose(c_calc, c_expect, rtol=5e-7 if x64 else 5e-2)
+
+
+@pytest.mark.parametrize(
+    "ndim, num_nonnuniform, num_uniform, iflag",
+    product([1, 2, 3], [50], [75], [-1, 1]),
+)
+def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
+    random = np.random.default_rng(657)
+
+    eps = 1e-10
+    dtype = np.double
+    cdtype = np.cdouble
+
+    num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
+
+    x = [
+        random.uniform(-np.pi, np.pi, size=num_nonnuniform).astype(dtype)
+        for _ in range(ndim)
+    ]
+    c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
+    c = c.astype(cdtype)
+
+    with jax.experimental.enable_x64():
+        # func = lambda c: nufft1(num_uniform, c, *x, eps=eps, iflag=iflag)
+        func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)  # , c, *x, )
+        check_grads(func, (c, *x), 1, modes=("fwd",))

@@ -47,7 +47,7 @@ def nufft1(output_shape, source, *points, iflag=1, eps=1e-6):
         eps=float(eps),
         iflag=int(iflag),
     )
-    ad.primitive_jvps[prim] = partial(type1_jvp, prim)
+    ad.primitive_jvps[prim] = partial(type1_jvp, iflag, prim)
     ad.primitive_transposes[prim] = partial(type1_transpose, eps=eps, iflag=iflag)
     batching.primitive_batchers[prim] = partial(batch, prim)
 
@@ -196,7 +196,7 @@ def translation_rule(type, output_shape_func, ctx, source, *points, eps=1e-6, if
     )
 
 
-def type1_jvp(prim, args, tangents):
+def type1_jvp(iflag, prim, args, tangents):
     source, *points = args
     dsource, *dpoints = tangents
     f = prim.bind(source, *points)
@@ -206,13 +206,23 @@ def type1_jvp(prim, args, tangents):
 
     # f(k) = sum[c(j) * exp[i k x(j)]]
     # df(k) = sum(dc(j) * exp[i k x(j)]) + k * sum(c(j) * exp[i k x(j)] * (i dx(j)))
-    df = prim.bind(zero_tangent(dsource, source), *points)
+    if type(dsource) is ad.Zero:
+        df = lax.zeros_like_array(f)
+    else:
+        df = prim.bind(zero_tangent(dsource, source), *points)
 
-    # The x gradient doesn't seem to work... hmmm
-    # N = f.shape[0]
-    # k = jnp.arange(-(N - N % 2) // 2, (N - 2 + N % 2) // 2 + 1)
-    # k * prim.bind(x, 1.0j * c * zero_tangent(dx, x))
-    assert all(type(dx) is ad.Zero for dx in dpoints)
+    ndim = len(points)
+    for i, n in enumerate(f.shape[-ndim:]):
+        if type(dpoints[i]) is ad.Zero:
+            continue
+        shape = np.ones(ndim, dtype=int)
+        shape[i] = -1
+        k = np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1))
+        k = k.reshape(shape)
+        arg = source * zero_tangent(dpoints[i], points[i])
+        res = prim.bind(iflag * 1j * arg, *points)
+        print(k.shape, res.shape)
+        df += k * res
 
     return f, df
 
