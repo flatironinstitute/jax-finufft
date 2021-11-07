@@ -3,9 +3,10 @@
 __all__ = ["nufft1", "nufft2"]
 
 from functools import partial
+from os import stat
 
 import numpy as np
-from jax import core, dtypes, lax
+from jax import core, dtypes, lax, jit
 from jax import numpy as jnp
 from jax.abstract_arrays import ShapedArray
 from jax.interpreters import ad, batching, xla
@@ -19,6 +20,7 @@ for _name, _value in jax_finufft.registrations().items():
 xops = xla_client.ops
 
 
+@partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps"))
 def nufft1(output_shape, source, *points, iflag=1, eps=1e-6):
     iflag = int(iflag)
     eps = float(eps)
@@ -54,6 +56,7 @@ def nufft1(output_shape, source, *points, iflag=1, eps=1e-6):
     return jnp.reshape(prim.bind(source, *points), expected_output_shape)
 
 
+@partial(jit, static_argnames=("iflag", "eps"))
 def nufft2(source, *points, iflag=-1, eps=1e-6):
     iflag = int(iflag)
     eps = float(eps)
@@ -204,6 +207,10 @@ def type1_jvp(iflag, prim, args, tangents):
     def zero_tangent(tan, val):
         return lax.zeros_like_array(val) if type(tan) is ad.Zero else tan
 
+    # TODO: We could maybe speed this up by concatenating all the source terms and
+    # then executing a single NUFFT since they all use the same NU points; how would
+    # this affect the transpose?
+
     # f(k) = sum[c(j) * exp[i k x(j)]]
     # df(k) = sum(dc(j) * exp[i k x(j)]) + k * sum(c(j) * exp[i k x(j)] * (i dx(j)))
     if type(dsource) is ad.Zero:
@@ -215,14 +222,16 @@ def type1_jvp(iflag, prim, args, tangents):
     for i, n in enumerate(f.shape[-ndim:]):
         if type(dpoints[i]) is ad.Zero:
             continue
+
+        # We can operate on shapes using numpy rather than jax.numpy
         shape = np.ones(ndim, dtype=int)
         shape[i] = -1
         k = np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1))
         k = k.reshape(shape)
-        arg = source * zero_tangent(dpoints[i], points[i])
-        res = prim.bind(iflag * 1j * arg, *points)
-        print(k.shape, res.shape)
-        df += k * res
+
+        df += k * prim.bind(
+            iflag * 1j * source * zero_tangent(dpoints[i], points[i]), *points
+        )
 
     return f, df
 
@@ -232,7 +241,9 @@ def type1_transpose(ft, source, *points, eps=1e-6, iflag=1):
     assert not any(map(ad.is_undefined_primal, points))
     if type(ft) is ad.Zero:
         return tuple(None for _ in range(len(points) + 1))
-    return (None, jnp.conj(nufft2(ft, *points, eps=eps, iflag=iflag)))
+    return (nufft2(ft, *points, eps=eps, iflag=iflag),) + tuple(
+        None for _ in range(len(points))
+    )
 
 
 def batch(prim, args, axes):

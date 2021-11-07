@@ -85,7 +85,7 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
 
 @pytest.mark.parametrize(
     "ndim, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [50], [75], [-1, 1]),
+    product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
@@ -104,6 +104,5 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
     c = c.astype(cdtype)
 
     with jax.experimental.enable_x64():
-        # func = lambda c: nufft1(num_uniform, c, *x, eps=eps, iflag=iflag)
-        func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)  # , c, *x, )
-        check_grads(func, (c, *x), 1, modes=("fwd",))
+        func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)
+        check_grads(func, (c, *x), 1, modes=("fwd", "rev"))
