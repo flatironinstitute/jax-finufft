@@ -5,6 +5,7 @@ import jax
 import numpy as np
 import pytest
 from jax.test_util import check_grads
+
 from jax_finufft import nufft1, nufft2
 
 

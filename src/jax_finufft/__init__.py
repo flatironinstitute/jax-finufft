@@ -2,5 +2,5 @@
 
 __all__ = ["__version__", "nufft1", "nufft2"]
 
-from .ops import nufft1, nufft2
 from .jax_finufft_version import version as __version__
+from .ops import nufft1, nufft2

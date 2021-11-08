@@ -17,13 +17,13 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_options(-Wall -O3 -funroll-loops)
 include_directories(${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include)
 
-add_library(finufft STATIC 
+add_library(finufft STATIC
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/spreadinterp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/finufft.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/simpleinterfaces.cpp)
 
-add_library(finufft_32 STATIC 
+add_library(finufft_32 STATIC
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/spreadinterp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/utils.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/finufft.cpp
