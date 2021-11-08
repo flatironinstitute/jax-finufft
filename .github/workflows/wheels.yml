@@ -1,0 +1,29 @@
+name: Wheels
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-10.15]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.2.2
+        env:
+          CIBW_BEFORE_BUILD_LINUX: sudo apt-get install libfftw3-dev
+          CIBW_BEFORE_BUILD_MACOS: brew install fftw
+          CIBW_ARCHS_MACOS: "x86_64 arm64"
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
