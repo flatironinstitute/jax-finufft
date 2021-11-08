@@ -22,11 +22,12 @@ link_libraries(${FFTW_FLOAT_LIB} ${FFTW_DOUBLE_LIB})
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_options(-Wall -O3 -funroll-loops)
 
-include_directories()
 include_directories(
     ${CMAKE_CURRENT_LIST_DIR}/lib
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include
     ${FFTW_INCLUDE_DIRS})
+
+message(STATUS "FFTW include dirs: " ${FFTW_INCLUDE_DIRS})
 
 add_library(finufft STATIC
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/spreadinterp.cpp
