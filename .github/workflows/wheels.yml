@@ -26,7 +26,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.2.2
         env:
           CIBW_SKIP: "pp* *_i686"
-          CIBW_BEFORE_ALL_LINUX: yum install -y fftw-devel
+          CIBW_BEFORE_ALL_LINUX: "yum update && yum install -y fftw-devel"
           CIBW_BEFORE_ALL_MACOS: brew install fftw
           CIBW_ARCHS_MACOS: "x86_64 arm64"
 
