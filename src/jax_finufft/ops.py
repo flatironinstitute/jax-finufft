@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 __all__ = ["nufft1", "nufft2"]
 
 from functools import partial, reduce
