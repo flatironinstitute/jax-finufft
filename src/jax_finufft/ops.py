@@ -5,7 +5,7 @@ __all__ = ["nufft1", "nufft2"]
 from functools import partial, reduce
 
 import numpy as np
-from jax import core, dtypes, lax, jit
+from jax import core, dtypes, jit
 from jax import numpy as jnp
 from jax.abstract_arrays import ShapedArray
 from jax.interpreters import ad, batching, xla
@@ -223,29 +223,6 @@ def points_jvp(type_, dim, prim, dpoints, source, *points, output_shape, iflag, 
         iflag=iflag,
         eps=eps,
     )
-
-
-# def points_jvp_2(dim, prim, dpoints, source, *points, output_shape, iflag, eps):
-#     # c_j = sum_k f_k * exp(iflag * i * k * x_j)
-#     # dc_j/dx_j = sum_k iflag * i * k * f_k * exp(iflag * i * k * x_j)
-
-#     ndim = len(points)
-#     n = source.shape[-ndim + dim]
-
-#     # We can operate on shapes using numpy rather than jax.numpy
-#     shape = np.ones(ndim, dtype=int)
-#     shape[dim] = -1
-#     k = np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1))
-#     k = k.reshape(shape)
-#     factor = 1j * iflag * k
-
-#     return dpoints * prim.bind(
-#         factor * source,
-#         *points,
-#         output_shape=output_shape,
-#         iflag=iflag,
-#         eps=eps,
-#     )
 
 
 def jvp(type_, prim, args, tangents, *, output_shape, iflag, eps):
