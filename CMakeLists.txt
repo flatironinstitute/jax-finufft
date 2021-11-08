@@ -10,7 +10,7 @@ endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR})
 
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
+find_package(Python COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(FFTW REQUIRED COMPONENTS FLOAT_LIB DOUBLE_LIB)
 link_libraries(${FFTW_FLOAT_LIB} ${FFTW_DOUBLE_LIB})
