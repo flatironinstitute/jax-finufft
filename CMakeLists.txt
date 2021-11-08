@@ -58,7 +58,10 @@ include(CheckLanguage)
 check_language(CUDA)
 if (CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
-    set(CUFINUFFT_INCLUDE_DIRS ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+    set(CUFINUFFT_INCLUDE_DIRS
+        ${CMAKE_CURRENT_LIST_DIR}/lib
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include
+        ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 else()
     message(STATUS "No CUDA compiler found; GPU support will be disabled")
 endif()
