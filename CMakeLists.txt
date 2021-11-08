@@ -1,7 +1,14 @@
 cmake_minimum_required(VERSION 3.12)
 project(jax_finufft LANGUAGES C CXX)
-
 message(STATUS "Using CMake version: " ${CMAKE_VERSION})
+
+if(SKBUILD)
+    execute_process(
+        COMMAND "${PYTHON_EXECUTABLE}" -c "import pybind11; print(pybind11.get_cmake_dir())"
+        OUTPUT_VARIABLE _tmp_dir
+        OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ECHO STDOUT)
+    list(APPEND CMAKE_PREFIX_PATH "${_tmp_dir}")
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR})
 
@@ -35,4 +42,4 @@ pybind11_add_module(jax_finufft
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/utils_precindep.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/contrib/legendre_rule_fast.c)
 target_link_libraries(jax_finufft PRIVATE finufft finufft_32)
-install(TARGETS jax_finufft DESTINATION jax_finufft)
+install(TARGETS jax_finufft DESTINATION .)

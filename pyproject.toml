@@ -5,8 +5,12 @@ requires = [
     "setuptools_scm[toml]>=3.4",
     "pybind11>=2.6",
     "cmake",
+    "scikit-build>=0.12",
 ]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
 write_to = "src/jax_finufft/jax_finufft_version.py"
+
+[tool.isort]
+profile = "black"
