@@ -20,7 +20,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.2.2
         env:
-          CIBW_BEFORE_BUILD_LINUX: apt install libfftw3-dev
+          CIBW_BEFORE_BUILD_LINUX: yum install fftw-devel
           CIBW_BEFORE_BUILD_MACOS: brew install fftw
           CIBW_ARCHS_MACOS: "x86_64 arm64"
 
