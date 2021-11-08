@@ -4,8 +4,9 @@ requires = [
     "wheel",
     "setuptools_scm[toml]>=3.4",
     "pybind11>=2.6",
-    "cmake",
     "scikit-build>=0.12",
+    "cmake",
+    "ninja",
 ]
 build-backend = "setuptools.build_meta"
 

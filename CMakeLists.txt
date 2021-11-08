@@ -2,17 +2,8 @@ cmake_minimum_required(VERSION 3.12)
 project(jax_finufft LANGUAGES C CXX)
 message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 
-if(SKBUILD)
-    execute_process(
-        COMMAND "${PYTHON_EXECUTABLE}" -c "import pybind11; print(pybind11.get_cmake_dir())"
-        OUTPUT_VARIABLE _tmp_dir
-        OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ECHO STDOUT)
-    list(APPEND CMAKE_PREFIX_PATH "${_tmp_dir}")
-endif()
-
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR})
 
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(FFTW REQUIRED COMPONENTS FLOAT_LIB DOUBLE_LIB)
 link_libraries(${FFTW_FLOAT_LIB} ${FFTW_DOUBLE_LIB})
