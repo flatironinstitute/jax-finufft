@@ -15,17 +15,18 @@ if(SKBUILD)
       list(APPEND CMAKE_PREFIX_PATH "${_tmp_dir}")
 endif()
 
-# find_package(Python REQUIRED COMPONENTS Interpreter Development)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(FFTW REQUIRED COMPONENTS FLOAT_LIB DOUBLE_LIB)
 link_libraries(${FFTW_FLOAT_LIB} ${FFTW_DOUBLE_LIB})
 
-include_directories(${FFTW_INCLUDE_DIRS})
-include_directories(${CMAKE_CURRENT_LIST_DIR}/lib)
-
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_options(-Wall -O3 -funroll-loops)
-include_directories(${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include)
+
+include_directories()
+include_directories(
+    ${CMAKE_CURRENT_LIST_DIR}/lib
+    ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include
+    ${FFTW_INCLUDE_DIRS})
 
 add_library(finufft STATIC
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/spreadinterp.cpp
