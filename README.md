@@ -86,7 +86,7 @@ c = nufft2(f, x, y, z)  # 3D
 
 ## Similar libraries
 
-- [`finufft`](https://finufft.readthedocs.io/en/latest/python.html): The
+- [finufft](https://finufft.readthedocs.io/en/latest/python.html): The
   "official" Python bindings to FINUFFT. A good choice if you're not already
   using JAX and if you don't need to differentiate through your transform.
 - [mrphys/tensorflow-nufft](https://github.com/mrphys/tensorflow-nufft):
