@@ -14,6 +14,13 @@ if(SKBUILD)
         OUTPUT_VARIABLE _tmp_dir
         OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ECHO STDOUT)
       list(APPEND CMAKE_PREFIX_PATH "${_tmp_dir}")
+else()
+    find_package(Python COMPONENTS Interpreter Development REQUIRED)
+    execute_process(
+        COMMAND "${Python_EXECUTABLE}" -c "import pybind11; print(pybind11.get_cmake_dir())"
+        OUTPUT_VARIABLE _tmp_dir
+        OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ECHO STDOUT)
+      list(APPEND CMAKE_PREFIX_PATH "${_tmp_dir}")
 endif()
 
 # Find and link pybind11 and fftw
@@ -23,7 +30,7 @@ link_libraries(${FFTW_FLOAT_LIB} ${FFTW_DOUBLE_LIB})
 
 # Work out compiler flags
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-add_compile_options(-Wall -O3 -funroll-loops)
+add_compile_options(-Wall -Wno-unknown-pragmas -O3 -funroll-loops)
 set(FINUFFT_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/lib
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include
@@ -58,10 +65,52 @@ include(CheckLanguage)
 check_language(CUDA)
 if (CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
+    set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+    if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+        set(CMAKE_CUDA_ARCHITECTURES "52;60;61;70;75")
+    endif()
+
     set(CUFINUFFT_INCLUDE_DIRS
         ${CMAKE_CURRENT_LIST_DIR}/lib
-        ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/include
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/contrib/cuda_samples
         ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+
+    set(CUFINUFFT_SOURCES
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/2d/spreadinterp2d.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/2d/spread2d_wrapper.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/2d/spread2d_wrapper_paul.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/2d/interp2d_wrapper.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/2d/cufinufft2d.cu
+
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/3d/spreadinterp3d.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/3d/spread3d_wrapper.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/3d/interp3d_wrapper.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/3d/cufinufft3d.cu
+
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/memtransfer_wrapper.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/deconvolve_wrapper.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/cufinufft.cu
+
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/contrib/dirft2d.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/contrib/common.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/contrib/spreadinterp.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/contrib/utils_fp.cpp)
+
+    add_library(cufinufft STATIC
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/precision_independent.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/src/profile.cu
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/contrib/legendre_rule_fast.c
+        ${CMAKE_CURRENT_LIST_DIR}/vendor/cufinufft/contrib/utils.cpp)
+    target_include_directories(cufinufft PRIVATE ${CUFINUFFT_INCLUDE_DIRS})
+
+    add_library(cufinufft_64 STATIC ${CUFINUFFT_SOURCES})
+    target_include_directories(cufinufft_64 PRIVATE ${CUFINUFFT_INCLUDE_DIRS})
+
+    add_library(cufinufft_32 STATIC ${CUFINUFFT_SOURCES})
+    target_compile_definitions(cufinufft_32 PUBLIC SINGLE)
+    target_include_directories(cufinufft_32 PRIVATE ${CUFINUFFT_INCLUDE_DIRS})
+    
 else()
     message(STATUS "No CUDA compiler found; GPU support will be disabled")
 endif()
