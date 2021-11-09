@@ -188,7 +188,7 @@ def translation_rule(
     ]
 
 
-def points_jvp(type_, dim, prim, dpoints, source, *points, output_shape, iflag, eps):
+def jvp(type_, prim, args, tangents, *, output_shape, iflag, eps):
     # Type 1:
     # f_k = sum_j c_j * exp(iflag * i * k * x_j)
     # df_k/dx_j = iflag * i * k * c_j * exp(iflag * i * k * x_j)
@@ -197,61 +197,63 @@ def points_jvp(type_, dim, prim, dpoints, source, *points, output_shape, iflag, 
     # c_j = sum_k f_k * exp(iflag * i * k * x_j)
     # dc_j/dx_j = sum_k iflag * i * k * f_k * exp(iflag * i * k * x_j)
 
-    ndim = len(points)
-    n = output_shape[dim] if type_ == 1 else source.shape[-ndim + dim]
-
-    shape = np.ones(ndim, dtype=int)
-    shape[dim] = -1
-    k = np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1))
-    k = k.reshape(shape)
-    factor = 1j * iflag * k
-
-    if type_ == 1:
-        return factor * prim.bind(
-            source * dpoints,
-            *points,
-            output_shape=output_shape,
-            iflag=iflag,
-            eps=eps,
-        )
-    return dpoints * prim.bind(
-        factor * source,
-        *points,
-        output_shape=output_shape,
-        iflag=iflag,
-        eps=eps,
-    )
-
-
-def jvp(type_, prim, args, tangents, *, output_shape, iflag, eps):
-    # TODO: We could maybe speed this up by concatenating all the source terms and
-    # then executing a single NUFFT since they all use the same NU points. The
-    # bookkeeping might get a little ugly.
-
     source, *points = args
     dsource, *dpoints = tangents
     output = prim.bind(source, *points, output_shape=output_shape, iflag=iflag, eps=eps)
 
+    # The JVP op can be written as a single transform of the same type with
     output_tangents = []
+    ndim = len(points)
+    scales = []
+    arguments = []
     if type(dsource) is not ad.Zero:
-        output_tangents.append(
-            prim.bind(dsource, *points, output_shape=output_shape, iflag=iflag, eps=eps)
-        )
+        if type_ == 1:
+            scales.append(jnp.ones_like(output))
+            arguments.append(dsource)
+        else:
+            output_tangents.append(
+                prim.bind(
+                    dsource, *points, output_shape=output_shape, iflag=iflag, eps=eps
+                )
+            )
 
-    output_tangents += [
-        points_jvp(
-            type_,
-            dim,
-            prim,
-            dx,
-            source,
+    for dim, dx in enumerate(dpoints):
+        if type(dx) is ad.Zero:
+            continue
+
+        n = output_shape[dim] if type_ == 1 else source.shape[-ndim + dim]
+        shape = np.ones(ndim, dtype=int)
+        shape[dim] = -1
+        k = np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1))
+        k = k.reshape(shape)
+        factor = 1j * iflag * k
+
+        if type_ == 1:
+            scales.append(factor)
+            arguments.append(dx * source)
+        else:
+            scales.append(dx)
+            arguments.append(factor * source)
+
+    if len(scales):
+        axis = -2 if type_ == 1 else -ndim - 1
+        output_tangent = prim.bind(
+            jnp.concatenate(arguments, axis=axis),
             *points,
             output_shape=output_shape,
             iflag=iflag,
             eps=eps,
         )
-        for dim, dx in enumerate(dpoints)
-    ]
+
+        axis = -2 if type_ == 2 else -ndim - 1
+        output_tangent *= jnp.concatenate(jnp.broadcast_arrays(*scales), axis=axis)
+
+        expand_shape = (
+            output.shape[: axis + 1] + (len(scales),) + output.shape[axis + 1 :]
+        )
+        output_tangents.append(
+            jnp.sum(jnp.reshape(output_tangent, expand_shape), axis=axis)
+        )
 
     return output, reduce(ad.add_tangents, output_tangents, ad.Zero.from_value(output))
 
@@ -272,12 +274,15 @@ def transpose(type_, doutput, source, *points, output_shape, eps, iflag):
     return (result,) + tuple(None for _ in range(len(points)))
 
 
-def batch(prim, args, axes):
-    # We can't batch over the last two dimensions of source
-    mx = args[0].ndim - 2
+def batch(type_, prim, args, axes, **kwargs):
+    ndim = len(args) - 1
+    if type_ == 1:
+        mx = args[0].ndim - 2
+    else:
+        mx = args[0].ndim - ndim - 1
     assert all(a < mx for a in axes)
     assert all(a == axes[0] for a in axes[1:])
-    return prim.bind(*args), axes[0]
+    return prim.bind(*args, **kwargs), axes[0]
 
 
 def pad_shapes(output_dim, source, *points):
@@ -308,7 +313,7 @@ nufft1_p.def_abstract_eval(partial(abstract_eval, 1))
 xla.register_translation(nufft1_p, partial(translation_rule, 1), platform="cpu")
 ad.primitive_jvps[nufft1_p] = partial(jvp, 1, nufft1_p)
 ad.primitive_transposes[nufft1_p] = partial(transpose, 1)
-batching.primitive_batchers[nufft1_p] = partial(batch, nufft1_p)
+batching.primitive_batchers[nufft1_p] = partial(batch, 1, nufft1_p)
 
 
 nufft2_p = core.Primitive("nufft2")
@@ -317,4 +322,4 @@ nufft2_p.def_abstract_eval(partial(abstract_eval, 2))
 xla.register_translation(nufft2_p, partial(translation_rule, 2), platform="cpu")
 ad.primitive_jvps[nufft2_p] = partial(jvp, 2, nufft2_p)
 ad.primitive_transposes[nufft2_p] = partial(transpose, 2)
-batching.primitive_batchers[nufft2_p] = partial(batch, nufft2_p)
+batching.primitive_batchers[nufft2_p] = partial(batch, 2, nufft2_p)
