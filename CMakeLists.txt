@@ -53,13 +53,13 @@ target_compile_definitions(finufft_32 PUBLIC SINGLE)
 target_include_directories(finufft_32 PRIVATE ${FINUFFT_INCLUDE_DIRS})
 
 # Build the XLA bindings to those libraries
-pybind11_add_module(jax_finufft
-    ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft.cc
+pybind11_add_module(jax_finufft_cpu
+    ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cpu.cc
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/utils_precindep.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/contrib/legendre_rule_fast.c)
-target_link_libraries(jax_finufft PRIVATE finufft finufft_32)
-target_include_directories(jax_finufft PRIVATE ${FINUFFT_INCLUDE_DIRS})
-install(TARGETS jax_finufft DESTINATION .)
+target_link_libraries(jax_finufft_cpu PRIVATE finufft finufft_32)
+target_include_directories(jax_finufft_cpu PRIVATE ${FINUFFT_INCLUDE_DIRS})
+install(TARGETS jax_finufft_cpu DESTINATION .)
 
 include(CheckLanguage)
 check_language(CUDA)
@@ -111,6 +111,14 @@ if (CMAKE_CUDA_COMPILER)
     target_compile_definitions(cufinufft_32 PUBLIC SINGLE)
     target_include_directories(cufinufft_32 PRIVATE ${CUFINUFFT_INCLUDE_DIRS})
     
+    pybind11_add_module(jax_finufft_gpu
+        ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
+        ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
+    target_link_libraries(jax_finufft_gpu PRIVATE cufinufft cufinufft_32 cufinufft_64)
+    target_include_directories(jax_finufft_gpu PRIVATE ${FINUFFT_INCLUDE_DIRS})
+    install(TARGETS jax_finufft_gpu DESTINATION .)
+    
+
 else()
     message(STATUS "No CUDA compiler found; GPU support will be disabled")
 endif()

@@ -9,9 +9,9 @@ from jax.abstract_arrays import ShapedArray
 from jax.interpreters import ad, batching, xla
 from jax.lib import xla_client
 
-from . import jax_finufft
+from . import jax_finufft_cpu
 
-for _name, _value in jax_finufft.registrations().items():
+for _name, _value in jax_finufft_cpu.registrations().items():
     xla_client.register_cpu_custom_call_target(_name, _value)
 
 xops = xla_client.ops
@@ -147,7 +147,7 @@ def translation_rule(
     # Dispatch to the right op
     suffix = "f" if source_dtype == np.csingle else ""
     op_name = f"nufft{ndim}d{type_}{suffix}".encode("ascii")
-    desc = getattr(jax_finufft, f"build_descriptor{suffix}")(
+    desc = getattr(jax_finufft_cpu, f"build_descriptor{suffix}")(
         eps, iflag, n_tot, n_transf, n_j, *n_k_full
     )
 

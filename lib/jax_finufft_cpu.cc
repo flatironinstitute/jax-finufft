@@ -85,7 +85,7 @@ pybind11::dict Registrations() {
   return dict;
 }
 
-PYBIND11_MODULE(jax_finufft, m) {
+PYBIND11_MODULE(jax_finufft_cpu, m) {
   m.def("registrations", &Registrations);
   m.def("build_descriptorf", &build_descriptor<float>);
   m.def("build_descriptor", &build_descriptor<double>);
