@@ -39,7 +39,7 @@ template <int ndim, typename T>
 void nufft2(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len)  {
   const NufftDescriptor<T> *descriptor = unpack_descriptor<NufftDescriptor<T>>(opaque, opaque_len);
   
-  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(buffers[0]);
+  std::complex<T> *F = reinterpret_cast<std::complex<T> *>(buffers[0]);
   T *x = reinterpret_cast<T *>(buffers[1]);
   T *y = NULL;
   T *z = NULL;
@@ -52,7 +52,7 @@ void nufft2(cudaStream_t stream, void** buffers, const char* opaque, std::size_t
     z = reinterpret_cast<T *>(buffers[3]);
     out_dim = 4;
   }
-  std::complex<T> *F = reinterpret_cast<std::complex<T> *>(buffers[out_dim]);
+  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(buffers[out_dim]);
   
   // Call cuFINUFFT here...
   // run_nufft<ndim, T>(1, in[0], x, y, z, c, F);
