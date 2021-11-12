@@ -9,7 +9,6 @@
 
 #include <pybind11/pybind11.h>
 
-#include "jax_finufft.h"
 #include "kernel_helpers.h"
 
 namespace jax_finufft {

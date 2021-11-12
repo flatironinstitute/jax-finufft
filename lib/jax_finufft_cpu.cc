@@ -4,6 +4,8 @@
 
 #include "pybind11_kernel_helpers.h"
 
+#include "jax_finufft_cpu.h"
+
 using namespace jax_finufft;
 
 namespace {

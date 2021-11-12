@@ -115,7 +115,7 @@ if (CMAKE_CUDA_COMPILER)
         ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
     target_link_libraries(jax_finufft_gpu PRIVATE cufinufft cufinufft_32 cufinufft_64)
-    target_include_directories(jax_finufft_gpu PRIVATE ${FINUFFT_INCLUDE_DIRS})
+    target_include_directories(jax_finufft_gpu PRIVATE ${CUFINUFFT_INCLUDE_DIRS})
     install(TARGETS jax_finufft_gpu DESTINATION .)
     
 

@@ -1,4 +1,4 @@
-#include "jax_finufft.h"
+#include "jax_finufft_gpu.h"
 #include "kernels.h"
 #include "kernel_helpers.h"
 
@@ -9,6 +9,7 @@ void ThrowIfError(cudaError_t error) {
     throw std::runtime_error(cudaGetErrorString(error));
   }
 }
+
 
 template <int ndim, typename T>
 void nufft1(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len)  {

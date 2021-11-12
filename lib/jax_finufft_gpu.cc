@@ -3,6 +3,7 @@
 // method. For simplicity, we export a separate capsule for each supported dtype.
 
 #include "pybind11_kernel_helpers.h"
+#include "jax_finufft_gpu.h"
 #include "kernels.h"
 
 using namespace jax_finufft;
