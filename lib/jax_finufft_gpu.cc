@@ -13,6 +13,7 @@ namespace {
 pybind11::dict Registrations() {
   pybind11::dict dict;
 
+  // TODO: do we prefer to keep these names the same as the CPU version or prefix them with "cu"?
   // dict["nufft1d1f"] = encapsulate_function(nufft1d1f);
   // dict["nufft1d2f"] = encapsulate_function(nufft1d2f);
   dict["nufft2d1f"] = encapsulate_function(nufft2d1f);

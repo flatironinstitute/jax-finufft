@@ -40,4 +40,4 @@ jobs:
           python -m pip install .[test]
 
       - name: Run tests
-        run: python -m pytest -v tests
+        run: python -m pytest -v tests --ignore='tests/gpu_ops_test.py'
