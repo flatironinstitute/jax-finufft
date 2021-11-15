@@ -69,6 +69,8 @@ if (CMAKE_CUDA_COMPILER)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
         set(CMAKE_CUDA_ARCHITECTURES "52;60;61;70;75")
     endif()
+    
+    find_package(CUDAToolkit)
 
     set(CUFINUFFT_INCLUDE_DIRS
         ${CMAKE_CURRENT_LIST_DIR}/lib
@@ -115,6 +117,7 @@ if (CMAKE_CUDA_COMPILER)
         ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
     target_link_libraries(jax_finufft_gpu PRIVATE cufinufft cufinufft_32 cufinufft_64)
+    target_link_libraries(jax_finufft_gpu PRIVATE ${CUDA_cufft_LIBRARY} ${CUDA_nvToolsExt_LIBRARY})
     target_include_directories(jax_finufft_gpu PRIVATE ${CUFINUFFT_INCLUDE_DIRS})
     install(TARGETS jax_finufft_gpu DESTINATION .)
     
