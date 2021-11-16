@@ -15,6 +15,9 @@ from jax_finufft import nufft1, nufft2
     product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
 )
 def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10 if x64 else 1e-7
@@ -51,6 +54,9 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
 )
 def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10 if x64 else 1e-7
@@ -90,6 +96,9 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10
@@ -115,6 +124,9 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10
@@ -140,6 +152,9 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10
@@ -171,6 +186,9 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10

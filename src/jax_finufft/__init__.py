@@ -12,14 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__all__ = ["__version__", "nufft1", "nufft2", "cunufft1", "cunufft2"]
+__all__ = ["__version__", "nufft1", "nufft2"]
 
 from .jax_finufft_version import version as __version__
 from .ops import nufft1, nufft2
-
-try:
-    # TODO: how to know when we can import GPU ops?
-    from .gpu_ops import cunufft1, cunufft2
-except ImportError as e:
-    import warnings
-    warnings.warn(f"Could not import GPU extensions due to:\n{e}")
