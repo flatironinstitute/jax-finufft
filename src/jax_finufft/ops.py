@@ -275,6 +275,37 @@ def transpose(type_, doutput, source, *points, output_shape, eps, iflag):
 
 
 def batch(type_, prim, args, axes, **kwargs):
+    source, *points = args
+    bsource, *bpoints = axes
+
+    ndim = len(points)
+    in_axis = -2 if type_ == 1 else -ndim - 1
+    out_axis = -2 if type_ == 2 else -ndim - 1
+
+    if all(bx is batching.not_mapped for bx in bpoints):
+        # If none of the points are being mapped, we can get a faster solve without
+        # broadcasting
+        assert bsource is not batching.not_mapped
+        source = batching.moveaxis(source, bsource, in_axis)
+        source = source.reshape(
+            source.shape[: in_axis - 1] + (-1,) + source.shape[in_axis + 1 :]
+        )
+        result = prim.bind(source, *points, **kwargs)
+        return (
+            result.reshape(
+                result.shape[: out_axis - 1]
+                + (-1, source.shape[in_axis])
+                + result.shape[out_axis + 1 :]
+            ),
+            out_axis,
+        ), out_axis
+
+    else:
+        # Otherwise move the batching dimension to the front and broadcast all the
+        # arrays
+        pass
+        # points = jnp.broadcast_arrays(*())
+
     ndim = len(args) - 1
     if type_ == 1:
         mx = args[0].ndim - 2
