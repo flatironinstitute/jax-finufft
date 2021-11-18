@@ -31,6 +31,13 @@ void default_opts<float>(int type, int dim, cufinufft_opts* opts) {
 template <>
 void default_opts<double>(int type, int dim, cufinufft_opts* opts) {
   cufinufft_default_opts(type, dim, opts);
+    
+  // double precision in 3D blows out shared memory.
+  // Fall back to a slower, non-shared memory algorithm
+  // https://github.com/flatironinstitute/cufinufft/issues/58
+  if(dim > 2){
+      opts->gpu_method = 1;
+  }
 }
 
 template <typename T>

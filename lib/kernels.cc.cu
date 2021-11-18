@@ -15,8 +15,8 @@ void run_nufft(int type, const NufftDescriptor<T>* descriptor, T *x, T *y, T *z,
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
     
-  // TODO: okay to stack-allocate this?
-  int nmodes32[ndim];
+  // cufinufft seems to read all 3 dims, even for ndim=1/2!
+  int nmodes32[3] = {1, 1, 1};
   for (int d = 0; d < ndim; ++d) nmodes32[d] = static_cast<int>(descriptor->n_k[d]);
 
   // TODO: does this need to be part of NufftDescriptor? It's GPU-specific.
@@ -59,7 +59,6 @@ void nufft1(cudaStream_t stream, void** buffers, const char* opaque, std::size_t
   }
   std::complex<T> *F = reinterpret_cast<std::complex<T> *>(buffers[out_dim]);
   
-  // Call cuFINUFFT here...
   run_nufft<ndim, T>(1, descriptor, x, y, z, c, F);
 
   ThrowIfError(cudaGetLastError());
@@ -84,8 +83,7 @@ void nufft2(cudaStream_t stream, void** buffers, const char* opaque, std::size_t
   }
   std::complex<T> *c = reinterpret_cast<std::complex<T> *>(buffers[out_dim]);
   
-  // Call cuFINUFFT here...
-  run_nufft<ndim, T>(1, descriptor, x, y, z, c, F);
+  run_nufft<ndim, T>(2, descriptor, x, y, z, c, F);
 
   ThrowIfError(cudaGetLastError());
 }

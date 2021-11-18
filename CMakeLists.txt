@@ -67,9 +67,10 @@ if (CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
     set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-        set(CMAKE_CUDA_ARCHITECTURES "52;60;61;70;75")
+        set(CMAKE_CUDA_ARCHITECTURES "52;60;61;70;75;80")
     endif()
     
+    # Find cufft
     find_package(CUDAToolkit)
 
     set(CUFINUFFT_INCLUDE_DIRS

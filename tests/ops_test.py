@@ -27,17 +27,13 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
     ks = [np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1)) for n in num_uniform]
 
-    x = [
-        random.uniform(-np.pi, np.pi, size=num_nonnuniform).astype(dtype)
-        for _ in range(ndim)
-    ]
-    x_vec = np.array(x)
+    x = random.uniform(-np.pi, np.pi, size=(ndim,num_nonnuniform)).astype(dtype)
     c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
     c = c.astype(cdtype)
     f_expect = np.zeros(num_uniform, dtype=cdtype)
     for coords in product(*map(range, num_uniform)):
         k_vec = np.array([k[n] for (n, k) in zip(coords, ks)])
-        f_expect[coords] = np.sum(c * np.exp(iflag * 1j * np.dot(k_vec, x_vec)))
+        f_expect[coords] = np.sum(c * np.exp(iflag * 1j * np.dot(k_vec, x)))
 
     with jax.experimental.enable_x64(x64):
         f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag)
@@ -170,15 +166,16 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
     c = c.astype(cdtype)
 
-    num = 5
-    xs = [jnp.repeat(x_[None], num, axis=0) for x_ in x]
-    cs = jnp.repeat(c[None], num, axis=0)
+    with jax.experimental.enable_x64():
+        num = 5
+        xs = [jnp.repeat(x_[None], num, axis=0) for x_ in x]
+        cs = jnp.repeat(c[None], num, axis=0)
 
-    func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)
-    calc = jax.vmap(func)(cs, *xs)
-    expect = func(c, *x)
-    for n in range(num):
-        np.testing.assert_allclose(calc[n], expect)
+        func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)
+        calc = jax.vmap(func)(cs, *xs)
+        expect = func(c, *x)
+        for n in range(num):
+            np.testing.assert_allclose(calc[n], expect)
 
 
 @pytest.mark.parametrize(
@@ -204,12 +201,13 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     f = random.normal(size=num_uniform) + 1j * random.normal(size=num_uniform)
     f = f.astype(cdtype)
 
-    num = 5
-    xs = [jnp.repeat(x_[None], num, axis=0) for x_ in x]
-    fs = jnp.repeat(f[None], num, axis=0)
+    with jax.experimental.enable_x64():
+        num = 5
+        xs = [jnp.repeat(x_[None], num, axis=0) for x_ in x]
+        fs = jnp.repeat(f[None], num, axis=0)
 
-    func = partial(nufft2, eps=eps, iflag=iflag)
-    calc = jax.vmap(func)(fs, *xs)
-    expect = func(f, *x)
-    for n in range(num):
-        np.testing.assert_allclose(calc[n], expect)
+        func = partial(nufft2, eps=eps, iflag=iflag)
+        calc = jax.vmap(func)(fs, *xs)
+        expect = func(f, *x)
+        for n in range(num):
+            np.testing.assert_allclose(calc[n], expect)
