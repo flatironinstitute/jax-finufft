@@ -145,24 +145,41 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     dtype = np.double
     cdtype = np.cdouble
 
+    num_repeat = 5
     num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
 
     x = [
-        random.uniform(-np.pi, np.pi, size=num_nonnuniform).astype(dtype)
+        random.uniform(-np.pi, np.pi, size=(num_repeat, num_nonnuniform)).astype(dtype)
         for _ in range(ndim)
     ]
-    c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
+    c = random.normal(size=(num_repeat, num_nonnuniform)) + 1j * random.normal(
+        size=(num_repeat, num_nonnuniform)
+    )
     c = c.astype(cdtype)
-
-    num = 5
-    xs = [jnp.repeat(x_[None], num, axis=0) for x_ in x]
-    cs = jnp.repeat(c[None], num, axis=0)
-
     func = partial(nufft1, num_uniform, iflag=iflag)
-    calc = jax.vmap(func)(cs, *xs)
-    expect = func(c, *x)
-    for n in range(num):
-        np.testing.assert_allclose(calc[n], expect)
+
+    # Start by checking the full basic vmap
+    calc = jax.vmap(func)(c, *x)
+    for n in range(num_repeat):
+        np.testing.assert_allclose(calc[n], func(c[n], *(x_[n] for x_ in x)))
+
+    # With different in_axes
+    calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(c, 0, 1), *x)
+    np.testing.assert_allclose(calc_ax, calc)
+
+    # With unmapped source axis
+    calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(c[0], *x)
+    for n in range(num_repeat):
+        np.testing.assert_allclose(calc_unmap[n], func(c[0], *(x_[n] for x_ in x)))
+
+    # With unmapped points axis
+    calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
+        c, *x[:-1], x[-1][0]
+    )
+    for n in range(num_repeat):
+        np.testing.assert_allclose(
+            calc_unmap_pt[n], func(c[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+        )
 
 
 @pytest.mark.parametrize(
@@ -175,24 +192,41 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     dtype = np.double
     cdtype = np.cdouble
 
+    num_repeat = 5
     num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
 
     x = [
-        random.uniform(-np.pi, np.pi, size=num_nonnuniform).astype(dtype)
+        random.uniform(-np.pi, np.pi, size=(num_repeat, num_nonnuniform)).astype(dtype)
         for _ in range(ndim)
     ]
-    f = random.normal(size=num_uniform) + 1j * random.normal(size=num_uniform)
+    f = random.normal(size=(num_repeat,) + num_uniform) + 1j * random.normal(
+        size=(num_repeat,) + num_uniform
+    )
     f = f.astype(cdtype)
-
-    num = 5
-    xs = [jnp.repeat(x_[jnp.newaxis], num, axis=0) for x_ in x]
-    fs = jnp.repeat(f[jnp.newaxis], num, axis=0)
-
     func = partial(nufft2, iflag=iflag)
-    calc = jax.vmap(func)(fs, *xs)
-    expect = func(f, *x)
-    for n in range(num):
-        np.testing.assert_allclose(calc[n], expect)
+
+    # Start by checking the full basic vmap
+    calc = jax.vmap(func)(f, *x)
+    for n in range(num_repeat):
+        np.testing.assert_allclose(calc[n], func(f[n], *(x_[n] for x_ in x)))
+
+    # With different in_axes
+    calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(f, 0, 1), *x)
+    np.testing.assert_allclose(calc_ax, calc)
+
+    # With unmapped source axis
+    calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(f[0], *x)
+    for n in range(num_repeat):
+        np.testing.assert_allclose(calc_unmap[n], func(f[0], *(x_[n] for x_ in x)))
+
+    # With unmapped points axis
+    calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
+        f, *x[:-1], x[-1][0]
+    )
+    for n in range(num_repeat):
+        np.testing.assert_allclose(
+            calc_unmap_pt[n], func(f[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+        )
 
 
 def test_multi_transform():
