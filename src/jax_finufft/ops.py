@@ -32,6 +32,7 @@ def nufft1(output_shape, source, *points, iflag=1, eps=1e-6):
 
     # Handle broadcasting
     expected_output_shape = source.shape[:-1] + tuple(output_shape)
+
     source, points = pad_shapes(1, source, *points)
     if points[0].shape[-1] != source.shape[-1]:
         raise ValueError("The final dimension of 'source' must match 'points'")
@@ -275,14 +276,60 @@ def transpose(type_, doutput, source, *points, output_shape, eps, iflag):
 
 
 def batch(type_, prim, args, axes, **kwargs):
-    ndim = len(args) - 1
-    if type_ == 1:
-        mx = args[0].ndim - 2
+    source, *points = args
+    bsource, *bpoints = axes
+
+    # TODO: the following logic doesn't work yet. If none of the points are batched,
+    #       we should be able to get a faster computation by stacking the transforms
+    #       into a single transform and then reshaping. It might be worth making the
+    #       stacked axes into an explicit parameter rather than just trying to infer
+    #       it.
+
+    # # If none of the points are being mapped, we can get a faster computation using
+    # # a single transform with num_transforms * num_repeats
+    # if all(bx is batching.not_mapped for bx in bpoints):
+    #     assert bsource is not batching.not_mapped
+
+    #     ndim = len(points)
+    #     in_axis = -2 if type_ == 1 else -ndim - 1
+    #     out_axis = -2 if type_ == 2 else -ndim - 1
+    #     num_repeats = source.shape[bsource]
+
+    #     source = batching.moveaxis(source, bsource, in_axis)
+    #     source = source.reshape(
+    #         source.shape[: in_axis - 1] + (-1,) + source.shape[in_axis + 1 :]
+    #     )
+    #     result = prim.bind(source, *points, **kwargs)
+    #     return (
+    #         result.reshape(
+    #             result.shape[: out_axis - 1]
+    #             + (-1, source.shape[in_axis])
+    #             + result.shape[out_axis + 1 :]
+    #         ),
+    #         out_axis,
+    #     )
+
+    # Otherwise move the batching dimension to the front and repeat the arrays
+    # to the right shape
+    if bsource is None:
+        assert any(bx is not batching.not_mapped for bx in bpoints)
+        num_repeats = next(
+            x.shape[bx]
+            for x, bx in zip(points, bpoints)
+            if bx is not batching.not_mapped
+        )
+        source = jnp.repeat(source[jnp.newaxis], num_repeats, axis=0)
     else:
-        mx = args[0].ndim - ndim - 1
-    assert all(a < mx for a in axes)
-    assert all(a == axes[0] for a in axes[1:])
-    return prim.bind(*args, **kwargs), axes[0]
+        num_repeats = source.shape[bsource]
+        source = batching.moveaxis(source, bsource, 0)
+
+    mapped_points = []
+    for x, bx in zip(points, bpoints):
+        if bx is batching.not_mapped:
+            mapped_points.append(jnp.repeat(x[jnp.newaxis], num_repeats, axis=0))
+        else:
+            mapped_points.append(batching.moveaxis(x, bx, 0))
+    return prim.bind(source, *mapped_points, **kwargs), 0
 
 
 def pad_shapes(output_dim, source, *points):
