@@ -142,7 +142,6 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
 def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
-    eps = 1e-10
     dtype = np.double
     cdtype = np.cdouble
 
@@ -159,7 +158,7 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     xs = [jnp.repeat(x_[None], num, axis=0) for x_ in x]
     cs = jnp.repeat(c[None], num, axis=0)
 
-    func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)
+    func = partial(nufft1, num_uniform, iflag=iflag)
     calc = jax.vmap(func)(cs, *xs)
     expect = func(c, *x)
     for n in range(num):
@@ -173,7 +172,6 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
 def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
-    eps = 1e-10
     dtype = np.double
     cdtype = np.cdouble
 
@@ -187,11 +185,28 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     f = f.astype(cdtype)
 
     num = 5
-    xs = [jnp.repeat(x_[None], num, axis=0) for x_ in x]
-    fs = jnp.repeat(f[None], num, axis=0)
+    xs = [jnp.repeat(x_[jnp.newaxis], num, axis=0) for x_ in x]
+    fs = jnp.repeat(f[jnp.newaxis], num, axis=0)
 
-    func = partial(nufft2, eps=eps, iflag=iflag)
+    func = partial(nufft2, iflag=iflag)
     calc = jax.vmap(func)(fs, *xs)
     expect = func(f, *x)
     for n in range(num):
         np.testing.assert_allclose(calc[n], expect)
+
+
+def test_multi_transform():
+    random = np.random.default_rng(314)
+
+    n_tot, n_tr, n_j, n_k = 4, 10, 100, 12
+    f_shape = (n_tot, n_tr, n_k)
+    c_shape = (n_tot, n_tr, n_j)
+    f = random.standard_normal(size=f_shape) + 1j * random.standard_normal(size=f_shape)
+    c = random.standard_normal(size=c_shape) + 1j * random.standard_normal(size=c_shape)
+    x = random.uniform(-np.pi, np.pi, (n_tot, n_j))
+
+    calc1 = nufft1(n_k, c, x)
+    calc2 = nufft2(f, x)
+    for n in range(n_tr):
+        np.testing.assert_allclose(calc1[:, n], nufft1(n_k, c[:, n], x))
+        np.testing.assert_allclose(calc2[:, n], nufft2(f[:, n], x))

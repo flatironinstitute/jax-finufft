@@ -2,6 +2,7 @@
 
 import codecs
 import os
+import shutil
 
 from setuptools import find_packages
 from skbuild import setup
@@ -12,6 +13,11 @@ HERE = os.path.dirname(os.path.realpath(__file__))
 def read(*parts):
     with codecs.open(os.path.join(HERE, *parts), "rb", "utf-8") as f:
         return f.read()
+
+
+# Otherwise build seems to fail with wrong venv path
+if os.path.exists("_skbuild"):
+    shutil.rmtree("_skbuild")
 
 
 setup(
