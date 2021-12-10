@@ -138,6 +138,7 @@ def translation_rule(
         n_tot = np.prod(source_shape[: -ndim - 1]).astype(np.int64)
         n_transf = np.array(source_shape[-ndim - 1]).astype(np.int32)
         n_k = np.array(source_shape[-ndim:], dtype=np.int64)
+    print(n_tot, n_transf, n_k)
 
     # The backend expects the output shape in Fortran order so we'll just
     # fake it here, by sending in n_k and x in the reverse order.

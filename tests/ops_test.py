@@ -187,11 +187,53 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     f = f.astype(cdtype)
 
     num = 5
-    xs = [jnp.repeat(x_[None], num, axis=0) for x_ in x]
-    fs = jnp.repeat(f[None], num, axis=0)
+    xs = [jnp.repeat(x_[jnp.newaxis], num, axis=0) for x_ in x]
+    fs = jnp.repeat(f[jnp.newaxis], num, axis=0)
 
     func = partial(nufft2, eps=eps, iflag=iflag)
     calc = jax.vmap(func)(fs, *xs)
     expect = func(f, *x)
     for n in range(num):
         np.testing.assert_allclose(calc[n], expect)
+
+
+# def test_dimension_issue():
+#     random = np.random.default_rng(314)
+
+#     n_tot, n_tr, n_j, n_k = 4, 10, 100, 12
+#     f_shape = (n_tot, n_tr, n_k)
+#     c_shape = (n_tot, n_tr, n_j)
+#     f = random.standard_normal(size=f_shape) + 1j * random.standard_normal(size=f_shape)
+#     c = random.standard_normal(size=c_shape) + 1j * random.standard_normal(size=c_shape)
+#     x = random.uniform(-np.pi, np.pi, (n_tot, n_j))
+#     with jax.experimental.enable_x64():
+#         print(f.shape, x.shape)
+#         print("1: ", nufft1(n_k, c, x))
+#         print("2: ", nufft2(f, x))
+
+# d = 10
+# L_tilde = 10
+# L = 100
+
+# qr = rng.standard_normal((d, L_tilde + 1))
+# qi = rng.standard_normal((d, L_tilde + 1))
+
+# with jax.experimental.enable_x64():
+#     q = jnp.array(qr + 1j * qi)
+#     X = jnp.array(rng.uniform(low=0.0, high=1.0, size=(4, L)))
+
+#     # def linear_func(q, x):
+#     #     v = jnp.ones(shape=(1, L_tilde))
+#     #     return jnp.matmul(v, nufft2(q, x, eps=1e-6, iflag=-1))
+
+#     # batched = vmap(linear_func, in_axes=(None, 0), out_axes=0)
+#     # A = batched(q, X)
+
+#     # linear_func(jnp.repeat(q[None, ...], X.shape[0], axis=0), X)
+
+#     print(jnp.repeat(q[None, ...], X.shape[0], axis=0).shape, X.shape)
+#     nufft2(q, X[0])
+#     print(X.min(), X.max())
+#     nufft1(jnp.repeat(q[None, ...], X.shape[0], axis=0), X)
+#     nufft2(jnp.repeat(q[None, ...], X.shape[0], axis=0), X)
+#     assert 0

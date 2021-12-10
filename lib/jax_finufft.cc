@@ -16,17 +16,18 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
 
   nufft_opts *opts = new nufft_opts;
-  typename plan_type<T>::type plan;
   default_opts<T>(opts);
+
+  typename plan_type<T>::type plan;
   makeplan<T>(type, ndim, const_cast<int64_t *>(descriptor->n_k), descriptor->iflag,
               descriptor->n_transf, descriptor->eps, &plan, opts);
   for (int64_t index = 0; index < descriptor->n_tot; ++index) {
+    // int64_t i = index * descriptor->n_j;
     int64_t j = index * descriptor->n_j * descriptor->n_transf;
     int64_t k = index * n_k * descriptor->n_transf;
 
     setpts<T>(plan, descriptor->n_j, &(x[j]), y_index<ndim, T>(y, j), z_index<ndim, T>(z, j), 0,
               NULL, NULL, NULL);
-
     execute<T>(plan, &c[j], &F[k]);
   }
   destroy<T>(plan);
