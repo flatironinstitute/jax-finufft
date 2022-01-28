@@ -3,18 +3,11 @@ __all__ = ["nufft1", "nufft2"]
 from functools import partial, reduce
 
 import numpy as np
-from jax import core, dtypes, jit
+from jax import core, jit
 from jax import numpy as jnp
-from jax.abstract_arrays import ShapedArray
 from jax.interpreters import ad, batching, xla
-from jax.lib import xla_client
 
-from . import jax_finufft, shapes
-
-for _name, _value in jax_finufft.registrations().items():
-    xla_client.register_cpu_custom_call_target(_name, _value)
-
-xops = xla_client.ops
+from . import shapes, translation
 
 
 @partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps"))
@@ -60,115 +53,6 @@ def nufft2(source, *points, iflag=-1, eps=1e-6):
 
     # Move the axes back to their expected location
     return index.unflatten(result)
-
-
-def abstract_eval(source, *points, output_shape, **_):
-    ndim = len(points)
-    assert 1 <= ndim <= 3
-
-    source_dtype = dtypes.canonicalize_dtype(source.dtype)
-    points_dtype = [dtypes.canonicalize_dtype(x.dtype) for x in points]
-
-    # Check supported and consistent dtypes
-    single = source_dtype == np.csingle and all(x == np.single for x in points_dtype)
-    double = source_dtype == np.cdouble and all(x == np.double for x in points_dtype)
-    assert single or double
-
-    # Check that the inputs have the right shapes
-    assert all(p.ndim == 2 for p in points)
-    assert all(p.shape == points[0].shape for p in points[1:])
-    assert source.shape[0] == points[0].shape[0]
-    if output_shape is None:
-        assert source.ndim == 2 + ndim
-        return ShapedArray(source.shape[:2] + (points[0].shape[-1],), source_dtype)
-    else:
-        assert source.ndim == 3
-        assert source.shape[2] == points[0].shape[1]
-        return ShapedArray(source.shape[:2] + tuple(output_shape), source_dtype)
-
-
-def translation_rule(
-    ctx, avals_in, avals_out, source, *points, output_shape, iflag, eps
-):
-    ndim = len(points)
-    assert 1 <= ndim <= 3
-
-    c = ctx.builder
-    source_shape_info = c.get_shape(source)
-    points_shape_info = list(map(c.get_shape, points))
-
-    # Check supported and consistent dtypes
-    source_dtype = source_shape_info.element_type()
-    single = source_dtype == np.csingle and all(
-        x.element_type() == np.single for x in points_shape_info
-    )
-    double = source_dtype == np.cdouble and all(
-        x.element_type() == np.double for x in points_shape_info
-    )
-    assert single or double
-    suffix = "f" if source_dtype == np.csingle else ""
-
-    # Check shapes
-    source_shape = source_shape_info.dimensions()
-    points_shape = tuple(x.dimensions() for x in points_shape_info)
-    n_tot = source_shape[0]
-    n_transf = source_shape[1]
-    n_j = points_shape[0][1]
-    if output_shape is None:
-        op_name = f"nufft{ndim}d2{suffix}".encode("ascii")
-        n_k = np.array(source_shape[2:], dtype=np.int64)
-        full_output_shape = source_shape[:2] + (n_j,)
-    else:
-        type_ = 1
-        op_name = f"nufft{ndim}d1{suffix}".encode("ascii")
-        n_k = np.array(output_shape, dtype=np.int64)
-        full_output_shape = source_shape[:2] + tuple(output_shape)
-
-    # The backend expects the output shape in Fortran order so we'll just
-    # fake it here, by sending in n_k and x in the reverse order.
-    n_k_full = np.zeros(3, dtype=np.int64)
-    n_k_full[:ndim] = n_k[::-1]
-
-    # Dispatch to the right op
-    desc = getattr(jax_finufft, f"build_descriptor{suffix}")(
-        eps, iflag, n_tot, n_transf, n_j, *n_k_full
-    )
-
-    return [
-        xops.CustomCallWithLayout(
-            c,
-            op_name,
-            # The inputs:
-            operands=(
-                xops.ConstantLiteral(c, np.frombuffer(desc, dtype=np.uint8)),
-                source,
-                *points[::-1],  # Reverse order because backend uses Fortran order
-            ),
-            # The input shapes:
-            operand_shapes_with_layout=(
-                xla_client.Shape.array_shape(np.dtype(np.uint8), (len(desc),), (0,)),
-                xla_client.Shape.array_shape(
-                    source_dtype,
-                    source_shape,
-                    tuple(range(len(source_shape) - 1, -1, -1)),
-                ),
-            )
-            + tuple(
-                xla_client.Shape.array_shape(
-                    x.element_type(),
-                    x.dimensions(),
-                    tuple(range(len(x.dimensions()) - 1, -1, -1)),
-                )
-                for x in points_shape_info[::-1]  # Reverse order, again
-            ),
-            # The output shapes:
-            shape_with_layout=xla_client.Shape.array_shape(
-                source_dtype,
-                full_output_shape,
-                tuple(range(len(full_output_shape) - 1, -1, -1)),
-            ),
-        )
-    ]
 
 
 def jvp(type_, prim, args, tangents, *, output_shape, iflag, eps):
@@ -243,23 +127,20 @@ def transpose(doutput, source, *points, output_shape, eps, iflag):
 
     if output_shape is None:
         ndim = len(points)
-        print(source.aval.shape[-ndim:])
-        print(doutput.shape)
-        print(*(p[:, None].shape for p in points))
         result = nufft1(
             source.aval.shape[-ndim:],
             doutput,
-            *(p[:, None] for p in points),
+            *points,
             eps=eps,
             iflag=iflag,
         )
     else:
-        result = nufft2(doutput, *(p[:, None] for p in points), eps=eps, iflag=iflag)
+        result = nufft2(doutput, *points, eps=eps, iflag=iflag)
 
     return (result,) + tuple(None for _ in range(len(points)))
 
 
-def batch(type_, prim, args, axes, *, output_shape, **kwargs):
+def batch(args, axes, *, output_shape, **kwargs):
     source, *points = args
     bsource, *bpoints = axes
 
@@ -310,25 +191,29 @@ def batch(type_, prim, args, axes, *, output_shape, **kwargs):
     mapped_points = []
     for x, bx in zip(points, bpoints):
         if bx is batching.not_mapped:
-            mapped_points.append(jnp.repeat(x[jnp.newaxis], num_repeats, axis=0))
+            mapped_points.append(jnp.repeat(x[None], num_repeats, axis=0))
         else:
             mapped_points.append(batching.moveaxis(x, bx, 0))
-    return prim.bind(source, *mapped_points, **kwargs), 0
+
+    if output_shape is None:
+        return nufft2(source, *mapped_points, **kwargs), 0
+    else:
+        return nufft1(tuple(output_shape), source, *mapped_points, **kwargs), 0
 
 
 nufft1_p = core.Primitive("nufft1")
 nufft1_p.def_impl(partial(xla.apply_primitive, nufft1_p))
-nufft1_p.def_abstract_eval(abstract_eval)
-xla.register_translation(nufft1_p, translation_rule, platform="cpu")
+nufft1_p.def_abstract_eval(shapes.abstract_eval)
+xla.register_translation(nufft1_p, translation.translation_rule, platform="cpu")
 ad.primitive_jvps[nufft1_p] = partial(jvp, 1, nufft1_p)
 ad.primitive_transposes[nufft1_p] = transpose
-batching.primitive_batchers[nufft1_p] = partial(batch, 1, nufft1_p)
+batching.primitive_batchers[nufft1_p] = batch
 
 
 nufft2_p = core.Primitive("nufft2")
 nufft2_p.def_impl(partial(xla.apply_primitive, nufft2_p))
-nufft2_p.def_abstract_eval(abstract_eval)
-xla.register_translation(nufft2_p, translation_rule, platform="cpu")
+nufft2_p.def_abstract_eval(shapes.abstract_eval)
+xla.register_translation(nufft2_p, translation.translation_rule, platform="cpu")
 ad.primitive_jvps[nufft2_p] = partial(jvp, 2, nufft2_p)
 ad.primitive_transposes[nufft2_p] = transpose
-batching.primitive_batchers[nufft2_p] = partial(batch, 2, nufft2_p)
+batching.primitive_batchers[nufft2_p] = batch

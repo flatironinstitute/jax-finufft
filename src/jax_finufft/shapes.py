@@ -1,10 +1,12 @@
-__all__ = ["broadcast_and_flatten_inputs"]
+__all__ = ["abstract_eval", "broadcast_and_flatten_inputs"]
 
 from dataclasses import dataclass
 from typing import Sequence
 
 import jax.numpy as jnp
 import numpy as np
+from jax import dtypes
+from jax.abstract_arrays import ShapedArray
 
 
 @dataclass
@@ -30,6 +32,15 @@ def broadcast_and_flatten_inputs(output_shape, source, *points):
     # Coerce the points into the appropriate shape
     points = jnp.broadcast_arrays(*points)
     *input_shape, num_points = points[0].shape
+
+    # Handle unpadded points
+    if (
+        output_shape is None
+        and source.ndim == len(input_shape) + num_dim + 1
+        or (output_shape is not None and source.ndim == len(input_shape) + 2)
+    ):
+        input_shape = tuple(input_shape) + (1,)
+        points = tuple(p[..., None, :] for p in points)
 
     # Work out a consistent shape for the broadcastable dimensions
     target_shape = jnp.broadcast_shapes(source.shape[: len(input_shape)], input_shape)
@@ -87,3 +98,28 @@ def broadcast_and_flatten_inputs(output_shape, source, *points):
         source,
         *points,
     )
+
+
+def abstract_eval(source, *points, output_shape, **_):
+    ndim = len(points)
+    assert 1 <= ndim <= 3
+
+    source_dtype = dtypes.canonicalize_dtype(source.dtype)
+    points_dtype = [dtypes.canonicalize_dtype(x.dtype) for x in points]
+
+    # Check supported and consistent dtypes
+    single = source_dtype == np.csingle and all(x == np.single for x in points_dtype)
+    double = source_dtype == np.cdouble and all(x == np.double for x in points_dtype)
+    assert single or double
+
+    # Check that the inputs have the right shapes
+    assert all(p.ndim == 2 for p in points)
+    assert all(p.shape == points[0].shape for p in points[1:])
+    assert source.shape[0] == points[0].shape[0]
+    if output_shape is None:
+        assert source.ndim == 2 + ndim
+        return ShapedArray(source.shape[:2] + (points[0].shape[-1],), source_dtype)
+    else:
+        assert source.ndim == 3
+        assert source.shape[2] == points[0].shape[1]
+        return ShapedArray(source.shape[:2] + tuple(output_shape), source_dtype)

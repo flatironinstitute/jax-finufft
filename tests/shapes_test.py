@@ -25,3 +25,20 @@ def test_vector_inputs():
     assert index.expected_output_shape == (10,)
     assert index.broadcast_from == ()
     assert index.broadcast_to == ()
+
+
+def test_unpadded_points():
+    index, source, *points = shapes.broadcast_and_flatten_inputs(
+        None, jnp.empty((3, 8, 5, 6)), jnp.empty((3, 10)), jnp.empty((3, 10))
+    )
+    assert source.shape == (3, 8, 5, 6)
+    assert len(points) == 2
+    assert points[0].shape == (3, 10)
+    assert points[1].shape == (3, 10)
+    assert index.expected_output_shape == (
+        3,
+        8,
+        10,
+    )
+    assert index.broadcast_from == (1,)
+    assert index.broadcast_to == (1,)
