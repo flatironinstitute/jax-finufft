@@ -112,7 +112,7 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
         scalar_func = lambda *args: jnp.linalg.norm(func(*args))
         expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + 1)))(c, *x)
         for (n, g) in enumerate(expect):
-            np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(c, *x), g)
+            np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(c, *x)[0], g)
 
 
 @pytest.mark.parametrize(
@@ -142,7 +142,7 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
         scalar_func = lambda *args: jnp.linalg.norm(func(*args))
         expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + 1)))(f, *x)
         for (n, g) in enumerate(expect):
-            np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(f, *x), g)
+            np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(f, *x)[0], g)
 
 
 @pytest.mark.parametrize(
@@ -272,7 +272,7 @@ def test_issue14():
         f = nufft2(c, x, eps=1e-6, iflag=1)
         return jnp.linalg.norm(f)
 
-    jax.grad(norm_nufft2, argnums=(1))(c, x)  # Works fine
-    jax.grad(norm_nufft1, argnums=(0,))(c, x)  # Works fine
-    jax.grad(norm_nufft1, argnums=(0, 1))(c, x)  # Works fine
-    jax.grad(norm_nufft1, argnums=(1,))(c, x)  # Throws error
+    jax.grad(norm_nufft2, argnums=(1))(c, x)
+    jax.grad(norm_nufft1, argnums=(0,))(c, x)
+    jax.grad(norm_nufft1, argnums=(0, 1))(c, x)
+    jax.grad(norm_nufft1, argnums=(1,))(c, x)

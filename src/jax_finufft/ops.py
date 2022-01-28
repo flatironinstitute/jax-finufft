@@ -55,7 +55,7 @@ def nufft2(source, *points, iflag=-1, eps=1e-6):
     return index.unflatten(result)
 
 
-def jvp(type_, prim, args, tangents, *, output_shape, iflag, eps):
+def jvp(prim, args, tangents, *, output_shape, iflag, eps):
     # Type 1:
     # f_k = sum_j c_j * exp(iflag * i * k * x_j)
     # df_k/dx_j = iflag * i * k * c_j * exp(iflag * i * k * x_j)
@@ -74,48 +74,50 @@ def jvp(type_, prim, args, tangents, *, output_shape, iflag, eps):
     scales = []
     arguments = []
     if type(dsource) is not ad.Zero:
-        if type_ == 1:
-            scales.append(jnp.ones_like(output))
-            arguments.append(dsource)
-        else:
+        if output_shape is None:
+            # It might look like we could combine this with the single transform at
+            # the end, but then we'd be mixing tangents and concrete values
             output_tangents.append(
                 prim.bind(
                     dsource, *points, output_shape=output_shape, iflag=iflag, eps=eps
                 )
             )
+        else:
+            scales.append(1.0)
+            arguments.append(dsource)
 
     for dim, dx in enumerate(dpoints):
         if type(dx) is ad.Zero:
             continue
 
-        n = output_shape[dim] if type_ == 1 else source.shape[-ndim + dim]
+        n = source.shape[-ndim + dim] if output_shape is None else output_shape[dim]
         shape = np.ones(ndim, dtype=int)
         shape[dim] = -1
         k = np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1))
         k = k.reshape(shape)
         factor = 1j * iflag * k
 
-        if type_ == 1:
-            scales.append(factor)
-            arguments.append(dx * source)
-        else:
+        if output_shape is None:
             scales.append(dx)
             arguments.append(factor * source)
+        else:
+            scales.append(factor)
+            arguments.append(dx * source)
 
     if len(scales):
         func = nufft2 if output_shape is None else partial(nufft1, tuple(output_shape))
-        argument = jnp.concatenate([a[:, :, None] for a in arguments], axis=2)
+        argument = jnp.stack(arguments, axis=2)
         output_tangent = func(
             argument,
-            *(p[:, None, None] for p in points),
+            *(p[:, None] for p in points),
             iflag=iflag,
             eps=eps,
         )
+        output_tangents += [s * output_tangent[:, :, n] for n, s in enumerate(scales)]
 
-        output_tangent *= jnp.concatenate(
-            [s[:, :, None] for s in jnp.broadcast_arrays(*scales)], axis=2
-        )
-        output_tangents.append(jnp.sum(output_tangent, axis=2))
+    print([o.shape for o in output_tangents])
+    print(output.shape)
+    print(reduce(ad.add_tangents, output_tangents, ad.Zero.from_value(output)).shape)
 
     return output, reduce(ad.add_tangents, output_tangents, ad.Zero.from_value(output))
 
@@ -183,7 +185,7 @@ nufft1_p = core.Primitive("nufft1")
 nufft1_p.def_impl(partial(xla.apply_primitive, nufft1_p))
 nufft1_p.def_abstract_eval(shapes.abstract_eval)
 xla.register_translation(nufft1_p, translation.translation_rule, platform="cpu")
-ad.primitive_jvps[nufft1_p] = partial(jvp, 1, nufft1_p)
+ad.primitive_jvps[nufft1_p] = partial(jvp, nufft1_p)
 ad.primitive_transposes[nufft1_p] = transpose
 batching.primitive_batchers[nufft1_p] = batch
 
@@ -192,6 +194,6 @@ nufft2_p = core.Primitive("nufft2")
 nufft2_p.def_impl(partial(xla.apply_primitive, nufft2_p))
 nufft2_p.def_abstract_eval(shapes.abstract_eval)
 xla.register_translation(nufft2_p, translation.translation_rule, platform="cpu")
-ad.primitive_jvps[nufft2_p] = partial(jvp, 2, nufft2_p)
+ad.primitive_jvps[nufft2_p] = partial(jvp, nufft2_p)
 ad.primitive_transposes[nufft2_p] = transpose
 batching.primitive_batchers[nufft2_p] = batch
