@@ -115,10 +115,6 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps):
         )
         output_tangents += [s * output_tangent[:, :, n] for n, s in enumerate(scales)]
 
-    print([o.shape for o in output_tangents])
-    print(output.shape)
-    print(reduce(ad.add_tangents, output_tangents, ad.Zero.from_value(output)).shape)
-
     return output, reduce(ad.add_tangents, output_tangents, ad.Zero.from_value(output))
 
 
