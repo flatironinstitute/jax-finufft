@@ -109,6 +109,11 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
         func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)
         check_grads(func, (c, *x), 1, modes=("fwd", "rev"))
 
+        scalar_func = lambda *args: jnp.linalg.norm(func(*args))
+        expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + 1)))(c, *x)
+        for (n, g) in enumerate(expect):
+            np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(c, *x)[0], g)
+
 
 @pytest.mark.parametrize(
     "ndim, num_nonnuniform, num_uniform, iflag",
@@ -133,6 +138,11 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
     with jax.experimental.enable_x64():
         func = partial(nufft2, eps=eps, iflag=iflag)
         check_grads(func, (f, *x), 1, modes=("fwd", "rev"))
+
+        scalar_func = lambda *args: jnp.linalg.norm(func(*args))
+        expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + 1)))(f, *x)
+        for (n, g) in enumerate(expect):
+            np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(f, *x)[0], g)
 
 
 @pytest.mark.parametrize(
@@ -244,3 +254,25 @@ def test_multi_transform():
     for n in range(n_tr):
         np.testing.assert_allclose(calc1[:, n], nufft1(n_k, c[:, n], x))
         np.testing.assert_allclose(calc2[:, n], nufft2(f[:, n], x))
+
+
+def test_issue14():
+    M = 100
+    N = 200
+
+    random = np.random.default_rng(14)
+    x = 2 * np.pi * random.uniform(size=M)
+    c = random.normal(size=M) + 1j * random.normal(size=M)
+
+    def norm_nufft1(c, x):
+        f = nufft1(N, c, x, eps=1e-6, iflag=1)
+        return jnp.linalg.norm(f)
+
+    def norm_nufft2(c, x):
+        f = nufft2(c, x, eps=1e-6, iflag=1)
+        return jnp.linalg.norm(f)
+
+    jax.grad(norm_nufft2, argnums=(1))(c, x)
+    jax.grad(norm_nufft1, argnums=(0,))(c, x)
+    jax.grad(norm_nufft1, argnums=(0, 1))(c, x)
+    jax.grad(norm_nufft1, argnums=(1,))(c, x)
