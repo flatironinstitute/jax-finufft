@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.12)
-project(jax_finufft LANGUAGES C CXX)
+cmake_minimum_required(VERSION 3.15)
+project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
 message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR})
@@ -15,6 +15,7 @@ if(SKBUILD)
       list(APPEND CMAKE_PREFIX_PATH "${_tmp_dir}")
 endif()
 
+set(PYBIND11_NEWPYTHON ON)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(FFTW REQUIRED COMPONENTS FLOAT_LIB DOUBLE_LIB)
 link_libraries(${FFTW_FLOAT_LIB} ${FFTW_DOUBLE_LIB})
