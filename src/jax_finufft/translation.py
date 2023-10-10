@@ -6,7 +6,7 @@ from jax.lib import xla_client
 from . import jax_finufft
 
 for _name, _value in jax_finufft.registrations().items():
-    xla_client.register_cpu_custom_call_target(_name, _value)
+    xla_client.register_custom_call_target(_name, _value, platform="cpu")
 
 xops = xla_client.ops
 
