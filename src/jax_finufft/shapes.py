@@ -6,7 +6,7 @@ from typing import Sequence
 import jax.numpy as jnp
 import numpy as np
 from jax import dtypes
-from jax.abstract_arrays import ShapedArray
+from jax.core import ShapedArray
 
 
 @dataclass
