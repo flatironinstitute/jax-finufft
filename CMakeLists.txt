@@ -48,7 +48,7 @@ target_include_directories(finufft_32 PRIVATE ${FINUFFT_INCLUDE_DIRS})
 pybind11_add_module(jax_finufft
     ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft.cc
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/utils_precindep.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/contrib/legendre_rule_fast.c)
+    ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/contrib/legendre_rule_fast.cpp)
 target_link_libraries(jax_finufft PRIVATE finufft finufft_32)
 target_include_directories(jax_finufft PRIVATE ${FINUFFT_INCLUDE_DIRS})
 install(TARGETS jax_finufft DESTINATION .)

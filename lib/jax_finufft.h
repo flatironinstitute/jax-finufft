@@ -31,31 +31,31 @@ struct plan_type<float> {
 };
 
 template <typename T>
-void default_opts(nufft_opts* opts);
+void default_opts(finufft_opts* opts);
 
 template <>
-void default_opts<float>(nufft_opts* opts) {
+void default_opts<float>(finufft_opts* opts) {
   finufftf_default_opts(opts);
 }
 
 template <>
-void default_opts<double>(nufft_opts* opts) {
+void default_opts<double>(finufft_opts* opts) {
   finufft_default_opts(opts);
 }
 
 template <typename T>
 int makeplan(int type, int dim, int64_t* nmodes, int iflag, int ntr, T eps,
-             typename plan_type<T>::type* plan, nufft_opts* opts);
+             typename plan_type<T>::type* plan, finufft_opts* opts);
 
 template <>
 int makeplan<float>(int type, int dim, int64_t* nmodes, int iflag, int ntr, float eps,
-                    typename plan_type<float>::type* plan, nufft_opts* opts) {
+                    typename plan_type<float>::type* plan, finufft_opts* opts) {
   return finufftf_makeplan(type, dim, nmodes, iflag, ntr, eps, plan, opts);
 }
 
 template <>
 int makeplan<double>(int type, int dim, int64_t* nmodes, int iflag, int ntr, double eps,
-                     typename plan_type<double>::type* plan, nufft_opts* opts) {
+                     typename plan_type<double>::type* plan, finufft_opts* opts) {
   return finufft_makeplan(type, dim, nmodes, iflag, ntr, eps, plan, opts);
 }
 

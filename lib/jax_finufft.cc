@@ -15,7 +15,7 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
 
-  nufft_opts *opts = new nufft_opts;
+  finufft_opts *opts = new finufft_opts;
   default_opts<T>(opts);
 
   typename plan_type<T>::type plan;
