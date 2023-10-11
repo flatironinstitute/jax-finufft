@@ -4,3 +4,4 @@ build
 _skbuild
 dist
 MANIFEST
+__pycache__/
