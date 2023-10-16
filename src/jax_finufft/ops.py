@@ -3,7 +3,8 @@ __all__ = ["nufft1", "nufft2"]
 from functools import partial, reduce
 
 import numpy as np
-from jax import core, jit
+from jax import core
+from jax import jit
 from jax import numpy as jnp
 from jax.interpreters import ad, batching, xla
 
@@ -180,7 +181,11 @@ def batch(args, axes, *, output_shape, **kwargs):
 nufft1_p = core.Primitive("nufft1")
 nufft1_p.def_impl(partial(xla.apply_primitive, nufft1_p))
 nufft1_p.def_abstract_eval(shapes.abstract_eval)
-xla.register_translation(nufft1_p, translation.translation_rule, platform="cpu")
+xla.register_translation(nufft1_p, partial(translation.translation_rule, "cpu"), platform="cpu")
+if translation.jax_finufft_gpu is not None:
+    xla.register_translation(
+        nufft1_p, partial(translation.translation_rule, "gpu"), platform="CUDA"
+    )
 ad.primitive_jvps[nufft1_p] = partial(jvp, nufft1_p)
 ad.primitive_transposes[nufft1_p] = transpose
 batching.primitive_batchers[nufft1_p] = batch
@@ -189,7 +194,11 @@ batching.primitive_batchers[nufft1_p] = batch
 nufft2_p = core.Primitive("nufft2")
 nufft2_p.def_impl(partial(xla.apply_primitive, nufft2_p))
 nufft2_p.def_abstract_eval(shapes.abstract_eval)
-xla.register_translation(nufft2_p, translation.translation_rule, platform="cpu")
+xla.register_translation(nufft2_p, partial(translation.translation_rule, "cpu"), platform="cpu")
+if translation.jax_finufft_gpu is not None:
+    xla.register_translation(
+        nufft2_p, partial(translation.translation_rule, "gpu", 2), platform="CUDA"
+    )
 ad.primitive_jvps[nufft2_p] = partial(jvp, nufft2_p)
 ad.primitive_transposes[nufft2_p] = transpose
 batching.primitive_batchers[nufft2_p] = batch

@@ -15,6 +15,9 @@ from jax_finufft import nufft1, nufft2
     product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
 )
 def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10 if x64 else 1e-7
@@ -24,17 +27,13 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
     ks = [np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1)) for n in num_uniform]
 
-    x = [
-        random.uniform(-np.pi, np.pi, size=num_nonnuniform).astype(dtype)
-        for _ in range(ndim)
-    ]
-    x_vec = np.array(x)
+    x = random.uniform(-np.pi, np.pi, size=(ndim,num_nonnuniform)).astype(dtype)
     c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
     c = c.astype(cdtype)
     f_expect = np.zeros(num_uniform, dtype=cdtype)
     for coords in product(*map(range, num_uniform)):
         k_vec = np.array([k[n] for (n, k) in zip(coords, ks)])
-        f_expect[coords] = np.sum(c * np.exp(iflag * 1j * np.dot(k_vec, x_vec)))
+        f_expect[coords] = np.sum(c * np.exp(iflag * 1j * np.dot(k_vec, x)))
 
     with jax.experimental.enable_x64(x64):
         f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag)
@@ -51,6 +50,9 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
 )
 def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10 if x64 else 1e-7
@@ -90,6 +92,9 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10
@@ -120,6 +125,9 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10
@@ -150,6 +158,9 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     dtype = np.double
@@ -168,6 +179,7 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     c = c.astype(cdtype)
     func = partial(nufft1, num_uniform, iflag=iflag)
 
+    # with jax.experimental.enable_x64():
     # Start by checking the full basic vmap
     calc = jax.vmap(func)(c, *x)
     for n in range(num_repeat):
@@ -197,6 +209,9 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     dtype = np.double
@@ -215,6 +230,7 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     f = f.astype(cdtype)
     func = partial(nufft2, iflag=iflag)
 
+    # with jax.experimental.enable_x64():
     # Start by checking the full basic vmap
     calc = jax.vmap(func)(f, *x)
     for n in range(num_repeat):
