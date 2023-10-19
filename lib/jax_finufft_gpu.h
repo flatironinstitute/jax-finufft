@@ -25,12 +25,12 @@ void default_opts(int type, int dim, cufinufft_opts* opts);
 
 template <>
 void default_opts<float>(int type, int dim, cufinufft_opts* opts) {
-  cufinufftf_default_opts(type, dim, opts);
+  cufinufft_default_opts(opts);
 }
 
 template <>
 void default_opts<double>(int type, int dim, cufinufft_opts* opts) {
-  cufinufft_default_opts(type, dim, opts);
+  cufinufft_default_opts(opts);
     
   // double precision in 3D blows out shared memory.
   // Fall back to a slower, non-shared memory algorithm
@@ -41,19 +41,21 @@ void default_opts<double>(int type, int dim, cufinufft_opts* opts) {
 }
 
 template <typename T>
-int makeplan(int type, int dim, int* nmodes, int iflag, int ntr, T eps, int batch,
+int makeplan(int type, int dim, const int64_t nmodes[3], int iflag, int ntr, T eps,
              typename plan_type<T>::type* plan, cufinufft_opts* opts);
 
 template <>
-int makeplan<float>(int type, int dim, int* nmodes, int iflag, int ntr, float eps, int batch,
+int makeplan<float>(int type, int dim, const int64_t nmodes[3], int iflag, int ntr, float eps,
                     typename plan_type<float>::type* plan, cufinufft_opts* opts) {
-  return cufinufftf_makeplan(type, dim, nmodes, iflag, ntr, eps, batch, plan, opts);
+  int64_t tmp_nmodes[3] = {nmodes[0], nmodes[1], nmodes[2]};  // TODO: use const in cufinufftf_makeplan API
+  return cufinufftf_makeplan(type, dim, tmp_nmodes, iflag, ntr, eps, plan, opts);
 }
 
 template <>
-int makeplan<double>(int type, int dim, int* nmodes, int iflag, int ntr, double eps, int batch,
+int makeplan<double>(int type, int dim, const int64_t nmodes[3], int iflag, int ntr, double eps,
                      typename plan_type<double>::type* plan, cufinufft_opts* opts) {
-  return cufinufft_makeplan(type, dim, nmodes, iflag, ntr, eps, batch, plan, opts);
+  int64_t tmp_nmodes[3] = {nmodes[0], nmodes[1], nmodes[2]};
+  return cufinufft_makeplan(type, dim, tmp_nmodes, iflag, ntr, eps, plan, opts);
 }
 
 template <typename T>
@@ -63,13 +65,13 @@ int setpts(typename plan_type<T>::type plan, int64_t M, T* x, T* y, T* z, int64_
 template <>
 int setpts<float>(typename plan_type<float>::type plan, int64_t M, float* x, float* y, float* z,
                   int64_t N, float* s, float* t, float* u) {
-  return cufinufftf_setpts(M, x, y, z, N, s, t, u, plan);
+  return cufinufftf_setpts(plan, M, x, y, z, N, s, t, u);
 }
 
 template <>
 int setpts<double>(typename plan_type<double>::type plan, int64_t M, double* x, double* y,
                    double* z, int64_t N, double* s, double* t, double* u) {
-  return cufinufft_setpts(M, x, y, z, N, s, t, u, plan);
+  return cufinufft_setpts(plan, M, x, y, z, N, s, t, u);
 }
 
 template <typename T>
@@ -80,7 +82,7 @@ int execute<float>(typename plan_type<float>::type plan, std::complex<float>* c,
                    std::complex<float>* f) {
   cuFloatComplex* _c = reinterpret_cast<cuFloatComplex*>(c);
   cuFloatComplex* _f = reinterpret_cast<cuFloatComplex*>(f);
-  return cufinufftf_execute(_c, _f, plan);
+  return cufinufftf_execute(plan, _c, _f);
 }
 
 template <>
@@ -88,7 +90,7 @@ int execute<double>(typename plan_type<double>::type plan, std::complex<double>*
                     std::complex<double>* f) {
   cuDoubleComplex* _c = reinterpret_cast<cuDoubleComplex*>(c);
   cuDoubleComplex* _f = reinterpret_cast<cuDoubleComplex*>(f);
-  return cufinufft_execute(_c, _f, plan);
+  return cufinufft_execute(plan, _c, _f);
 }
 
 template <typename T>

@@ -14,18 +14,12 @@ template <int ndim, typename T>
 void run_nufft(int type, const NufftDescriptor<T>* descriptor, T *x, T *y, T *z, std::complex<T> *c, std::complex<T> *F) {
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
-    
-  // cufinufft seems to read all 3 dims, even for ndim=1/2!
-  int nmodes32[3] = {1, 1, 1};
-  for (int d = 0; d < ndim; ++d) nmodes32[d] = static_cast<int>(descriptor->n_k[d]);
 
-  // TODO: does this need to be part of NufftDescriptor? It's GPU-specific.
-  int maxbatchsize = 0;  // auto
   cufinufft_opts *opts = new cufinufft_opts;
   typename plan_type<T>::type plan;
   default_opts<T>(type, ndim, opts);
-  makeplan<T>(type, ndim, nmodes32, descriptor->iflag,
-              descriptor->n_transf, descriptor->eps, maxbatchsize, &plan, opts);
+  makeplan<T>(type, ndim, descriptor->n_k, descriptor->iflag,
+              descriptor->n_transf, descriptor->eps, &plan, opts);
   for (int64_t index = 0; index < descriptor->n_tot; ++index) {
     int64_t j = index * descriptor->n_j * descriptor->n_transf;
     int64_t k = index * n_k * descriptor->n_transf;
