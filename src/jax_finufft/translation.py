@@ -9,7 +9,7 @@ try:
     from . import jax_finufft_gpu
 
     for _name, _value in jax_finufft_gpu.registrations().items():
-        xla_client.register_custom_call_target(_name, _value, platform="CUDA")
+        xla_client.register_custom_call_target(_name, _value, platform="cuda")
 except ImportError:
     jax_finufft_gpu = None
 

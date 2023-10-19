@@ -184,7 +184,7 @@ nufft1_p.def_abstract_eval(shapes.abstract_eval)
 xla.register_translation(nufft1_p, partial(translation.translation_rule, "cpu"), platform="cpu")
 if translation.jax_finufft_gpu is not None:
     xla.register_translation(
-        nufft1_p, partial(translation.translation_rule, "gpu"), platform="CUDA"
+        nufft1_p, partial(translation.translation_rule, "gpu"), platform="cuda"
     )
 ad.primitive_jvps[nufft1_p] = partial(jvp, nufft1_p)
 ad.primitive_transposes[nufft1_p] = transpose
@@ -197,7 +197,7 @@ nufft2_p.def_abstract_eval(shapes.abstract_eval)
 xla.register_translation(nufft2_p, partial(translation.translation_rule, "cpu"), platform="cpu")
 if translation.jax_finufft_gpu is not None:
     xla.register_translation(
-        nufft2_p, partial(translation.translation_rule, "gpu", 2), platform="CUDA"
+        nufft2_p, partial(translation.translation_rule, "gpu", 2), platform="cuda"
     )
 ad.primitive_jvps[nufft2_p] = partial(jvp, nufft2_p)
 ad.primitive_transposes[nufft2_p] = transpose
