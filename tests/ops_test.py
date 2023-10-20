@@ -179,29 +179,29 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     c = c.astype(cdtype)
     func = partial(nufft1, num_uniform, iflag=iflag)
 
-    # with jax.experimental.enable_x64():
-    # Start by checking the full basic vmap
-    calc = jax.vmap(func)(c, *x)
-    for n in range(num_repeat):
-        np.testing.assert_allclose(calc[n], func(c[n], *(x_[n] for x_ in x)))
+    with jax.experimental.enable_x64():
+        # Start by checking the full basic vmap
+        calc = jax.vmap(func)(c, *x)
+        for n in range(num_repeat):
+            np.testing.assert_allclose(calc[n], func(c[n], *(x_[n] for x_ in x)))
 
-    # With different in_axes
-    calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(c, 0, 1), *x)
-    np.testing.assert_allclose(calc_ax, calc)
+        # With different in_axes
+        calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(c, 0, 1), *x)
+        np.testing.assert_allclose(calc_ax, calc)
 
-    # With unmapped source axis
-    calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(c[0], *x)
-    for n in range(num_repeat):
-        np.testing.assert_allclose(calc_unmap[n], func(c[0], *(x_[n] for x_ in x)))
+        # With unmapped source axis
+        calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(c[0], *x)
+        for n in range(num_repeat):
+            np.testing.assert_allclose(calc_unmap[n], func(c[0], *(x_[n] for x_ in x)))
 
-    # With unmapped points axis
-    calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
-        c, *x[:-1], x[-1][0]
-    )
-    for n in range(num_repeat):
-        np.testing.assert_allclose(
-            calc_unmap_pt[n], func(c[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+        # With unmapped points axis
+        calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
+            c, *x[:-1], x[-1][0]
         )
+        for n in range(num_repeat):
+            np.testing.assert_allclose(
+                calc_unmap_pt[n], func(c[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+            )
 
 
 @pytest.mark.parametrize(
@@ -230,29 +230,29 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     f = f.astype(cdtype)
     func = partial(nufft2, iflag=iflag)
 
-    # with jax.experimental.enable_x64():
-    # Start by checking the full basic vmap
-    calc = jax.vmap(func)(f, *x)
-    for n in range(num_repeat):
-        np.testing.assert_allclose(calc[n], func(f[n], *(x_[n] for x_ in x)))
+    with jax.experimental.enable_x64():
+        # Start by checking the full basic vmap
+        calc = jax.vmap(func)(f, *x)
+        for n in range(num_repeat):
+            np.testing.assert_allclose(calc[n], func(f[n], *(x_[n] for x_ in x)))
 
-    # With different in_axes
-    calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(f, 0, 1), *x)
-    np.testing.assert_allclose(calc_ax, calc)
+        # With different in_axes
+        calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(f, 0, 1), *x)
+        np.testing.assert_allclose(calc_ax, calc)
 
-    # With unmapped source axis
-    calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(f[0], *x)
-    for n in range(num_repeat):
-        np.testing.assert_allclose(calc_unmap[n], func(f[0], *(x_[n] for x_ in x)))
+        # With unmapped source axis
+        calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(f[0], *x)
+        for n in range(num_repeat):
+            np.testing.assert_allclose(calc_unmap[n], func(f[0], *(x_[n] for x_ in x)))
 
-    # With unmapped points axis
-    calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
-        f, *x[:-1], x[-1][0]
-    )
-    for n in range(num_repeat):
-        np.testing.assert_allclose(
-            calc_unmap_pt[n], func(f[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+        # With unmapped points axis
+        calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
+            f, *x[:-1], x[-1][0]
         )
+        for n in range(num_repeat):
+            np.testing.assert_allclose(
+                calc_unmap_pt[n], func(f[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+            )
 
 
 def test_multi_transform():
