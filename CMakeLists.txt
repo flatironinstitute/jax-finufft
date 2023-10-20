@@ -31,7 +31,7 @@ link_libraries(${FFTW_FLOAT_LIB} ${FFTW_DOUBLE_LIB})
 
 # Work out compiler flags
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-add_compile_options(-Wall -Wno-unknown-pragmas -O3 -funroll-loops)
+add_compile_options(-Wall -Wno-unknown-pragmas -O3 -funroll-loops -fdiagnostics-color)
 set(FINUFFT_INCLUDE_DIRS
     ${CMAKE_CURRENT_LIST_DIR}/lib
     ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include
