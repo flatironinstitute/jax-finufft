@@ -256,6 +256,10 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
 
 
 def test_multi_transform():
+    # TODO: is there a 2D or 3D version of this test?
+    if jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+    
     random = np.random.default_rng(314)
 
     n_tot, n_tr, n_j, n_k = 4, 10, 100, 12
@@ -273,6 +277,9 @@ def test_multi_transform():
 
 
 def test_issue14():
+    if jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+    
     M = 100
     N = 200
 
