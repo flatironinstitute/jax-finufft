@@ -21,16 +21,18 @@ struct plan_type<float> {
 };
 
 template <typename T>
-void default_opts(int type, int dim, cufinufft_opts* opts);
+void default_opts(int type, int dim, cufinufft_opts* opts, cudaStream_t stream);
 
 template <>
-void default_opts<float>(int type, int dim, cufinufft_opts* opts) {
+void default_opts<float>(int type, int dim, cufinufft_opts* opts, cudaStream_t stream) {
   cufinufft_default_opts(opts);
+  opts->gpu_stream = stream;
 }
 
 template <>
-void default_opts<double>(int type, int dim, cufinufft_opts* opts) {
+void default_opts<double>(int type, int dim, cufinufft_opts* opts, cudaStream_t stream) {
   cufinufft_default_opts(opts);
+  opts->gpu_stream = stream;
     
   // double precision in 3D blows out shared memory.
   // Fall back to a slower, non-shared memory algorithm
