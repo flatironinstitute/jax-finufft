@@ -1,6 +1,3 @@
 [submodule "finufft"]
 	path = vendor/finufft
-	url = https://github.com/flatironinstitute/finufft
-[submodule "vendor/cufinufft"]
-	path = vendor/cufinufft
-	url = https://github.com/flatironinstitute/cufinufft
+	url = https://github.com/lgarrison/finufft
