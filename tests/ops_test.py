@@ -2,6 +2,7 @@ from functools import partial
 from itertools import product
 
 import jax
+import jax.experimental
 import jax.numpy as jnp
 import numpy as np
 import pytest
