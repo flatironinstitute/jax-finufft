@@ -30,11 +30,11 @@ void run_nufft(int type, const NufftDescriptor<T>* descriptor, T *x, T *y, T *z,
 
     execute<T>(plan, &c[j], &F[k]);
   }
-  destroy<T>(plan);
-  delete opts;
-
-  // Since JAX 0.4.9, the JAX CUDA stream is non-blocking. Need to wait for results.
+  // Don't free resources like the cuFFT plan until the stream is done.
   cudaStreamSynchronize(stream);
+  destroy<T>(plan);
+
+  delete opts;
 }
 
 
