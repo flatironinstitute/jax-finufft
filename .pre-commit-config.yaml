@@ -1,20 +1,20 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v3.4.0
+    rev: "v4.4.0"
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-        exclude_types: [json]
-      - id: debug-statements
-
-  - repo: https://github.com/PyCQA/isort
-    rev: "5.8.0"
-    hooks:
-      - id: isort
-        args: []
-        additional_dependencies: [toml]
-
+        exclude_types: [json, binary]
   - repo: https://github.com/psf/black
-    rev: "20.8b1"
+    rev: "23.7.0"
     hooks:
-      - id: black
+      - id: black-jupyter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: "v0.0.285"
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: "v17.0.3"
+    hooks:
+      - id: clang-format

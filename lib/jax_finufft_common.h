@@ -15,7 +15,7 @@ struct NufftDescriptor {
   int64_t n_j;
   int64_t n_k[3];
 };
-    
-}
+
+}  // namespace jax_finufft
 
 #endif

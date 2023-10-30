@@ -1,22 +1,16 @@
 [build-system]
-requires = [
-    "pybind11>=2.6",
-    "scikit-build-core>=0.5",
-]
+requires = ["pybind11>=2.6", "scikit-build-core>=0.5"]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "jax-finufft"
 description = "Unofficial JAX bindings for finufft"
 readme = "README.md"
-authors = [{name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com"}]
+authors = [{ name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com" }]
 requires-python = ">=3.7"
-license = {file = "LICENSE"}
-urls = {Homepage = "https://github.com/dfm/jax-finufft"}
-dependencies = [
-    "jax",
-    "jaxlib",
-]
+license = { file = "LICENSE" }
+urls = { Homepage = "https://github.com/dfm/jax-finufft" }
+dependencies = ["jax", "jaxlib"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
@@ -32,5 +26,15 @@ build-dir = "build/{wheel_tag}"
 [tool.setuptools_scm]
 version_file = "src/jax_finufft/jax_finufft_version.py"
 
-[tool.isort]
-profile = "black"
+[tool.black]
+target-version = ["py39"]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+exclude = []
+
+[tool.ruff.isort]
+known-first-party = ["jax-finufft"]
+combine-as-imports = true

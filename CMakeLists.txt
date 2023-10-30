@@ -71,7 +71,7 @@ if (CMAKE_CUDA_COMPILER)
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
         set(CMAKE_CUDA_ARCHITECTURES "60;61;70;75;80;90")
     endif()
-    
+
     # Find cufft
     find_package(CUDAToolkit)
 
@@ -99,9 +99,9 @@ if (CMAKE_CUDA_COMPILER)
 
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/cuda/deconvolve_wrapper.cu
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/cuda/memtransfer_wrapper.cu
-    
+
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/cuda/spreadinterp.cpp
-        
+
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/cuda/precision_independent.cu
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/contrib/legendre_rule_fast.cpp
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/cuda/utils.cpp
@@ -110,7 +110,7 @@ if (CMAKE_CUDA_COMPILER)
 
     add_library(cufinufft STATIC ${CUFINUFFT_SOURCES})
     target_include_directories(cufinufft PRIVATE ${CUFINUFFT_INCLUDE_DIRS})
-    
+
     pybind11_add_module(jax_finufft_gpu
         ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)

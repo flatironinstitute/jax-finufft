@@ -6,7 +6,6 @@
 #include <cstddef>
 #include <cstdint>
 
-
 namespace jax_finufft {
 
 void nufft2d1(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
