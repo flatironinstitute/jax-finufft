@@ -4,6 +4,8 @@
 
 #include "pybind11_kernel_helpers.h"
 
+#include "jax_finufft_cpu.h"
+
 using namespace jax_finufft;
 
 namespace {
@@ -15,7 +17,7 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
 
-  nufft_opts *opts = new nufft_opts;
+  finufft_opts *opts = new finufft_opts;
   default_opts<T>(opts);
 
   typename plan_type<T>::type plan;
@@ -86,7 +88,7 @@ pybind11::dict Registrations() {
   return dict;
 }
 
-PYBIND11_MODULE(jax_finufft, m) {
+PYBIND11_MODULE(jax_finufft_cpu, m) {
   m.def("registrations", &Registrations);
   m.def("build_descriptorf", &build_descriptor<float>);
   m.def("build_descriptor", &build_descriptor<double>);

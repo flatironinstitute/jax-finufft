@@ -2,6 +2,7 @@ from functools import partial
 from itertools import product
 
 import jax
+import jax.experimental
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -15,6 +16,9 @@ from jax_finufft import nufft1, nufft2
     product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
 )
 def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10 if x64 else 1e-7
@@ -24,17 +28,13 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
     ks = [np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1)) for n in num_uniform]
 
-    x = [
-        random.uniform(-np.pi, np.pi, size=num_nonnuniform).astype(dtype)
-        for _ in range(ndim)
-    ]
-    x_vec = np.array(x)
+    x = random.uniform(-np.pi, np.pi, size=(ndim,num_nonnuniform)).astype(dtype)
     c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
     c = c.astype(cdtype)
     f_expect = np.zeros(num_uniform, dtype=cdtype)
     for coords in product(*map(range, num_uniform)):
         k_vec = np.array([k[n] for (n, k) in zip(coords, ks)])
-        f_expect[coords] = np.sum(c * np.exp(iflag * 1j * np.dot(k_vec, x_vec)))
+        f_expect[coords] = np.sum(c * np.exp(iflag * 1j * np.dot(k_vec, x)))
 
     with jax.experimental.enable_x64(x64):
         f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag)
@@ -51,6 +51,9 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
 )
 def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10 if x64 else 1e-7
@@ -90,6 +93,9 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10
@@ -120,6 +126,9 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     eps = 1e-10
@@ -150,6 +159,9 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     dtype = np.double
@@ -168,28 +180,29 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     c = c.astype(cdtype)
     func = partial(nufft1, num_uniform, iflag=iflag)
 
-    # Start by checking the full basic vmap
-    calc = jax.vmap(func)(c, *x)
-    for n in range(num_repeat):
-        np.testing.assert_allclose(calc[n], func(c[n], *(x_[n] for x_ in x)))
+    with jax.experimental.enable_x64():
+        # Start by checking the full basic vmap
+        calc = jax.vmap(func)(c, *x)
+        for n in range(num_repeat):
+            np.testing.assert_allclose(calc[n], func(c[n], *(x_[n] for x_ in x)))
 
-    # With different in_axes
-    calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(c, 0, 1), *x)
-    np.testing.assert_allclose(calc_ax, calc)
+        # With different in_axes
+        calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(c, 0, 1), *x)
+        np.testing.assert_allclose(calc_ax, calc)
 
-    # With unmapped source axis
-    calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(c[0], *x)
-    for n in range(num_repeat):
-        np.testing.assert_allclose(calc_unmap[n], func(c[0], *(x_[n] for x_ in x)))
+        # With unmapped source axis
+        calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(c[0], *x)
+        for n in range(num_repeat):
+            np.testing.assert_allclose(calc_unmap[n], func(c[0], *(x_[n] for x_ in x)))
 
-    # With unmapped points axis
-    calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
-        c, *x[:-1], x[-1][0]
-    )
-    for n in range(num_repeat):
-        np.testing.assert_allclose(
-            calc_unmap_pt[n], func(c[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+        # With unmapped points axis
+        calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
+            c, *x[:-1], x[-1][0]
         )
+        for n in range(num_repeat):
+            np.testing.assert_allclose(
+                calc_unmap_pt[n], func(c[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+            )
 
 
 @pytest.mark.parametrize(
@@ -197,6 +210,9 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
+    if ndim == 1 and jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
     random = np.random.default_rng(657)
 
     dtype = np.double
@@ -215,31 +231,36 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     f = f.astype(cdtype)
     func = partial(nufft2, iflag=iflag)
 
-    # Start by checking the full basic vmap
-    calc = jax.vmap(func)(f, *x)
-    for n in range(num_repeat):
-        np.testing.assert_allclose(calc[n], func(f[n], *(x_[n] for x_ in x)))
+    with jax.experimental.enable_x64():
+        # Start by checking the full basic vmap
+        calc = jax.vmap(func)(f, *x)
+        for n in range(num_repeat):
+            np.testing.assert_allclose(calc[n], func(f[n], *(x_[n] for x_ in x)))
 
-    # With different in_axes
-    calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(f, 0, 1), *x)
-    np.testing.assert_allclose(calc_ax, calc)
+        # With different in_axes
+        calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(f, 0, 1), *x)
+        np.testing.assert_allclose(calc_ax, calc)
 
-    # With unmapped source axis
-    calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(f[0], *x)
-    for n in range(num_repeat):
-        np.testing.assert_allclose(calc_unmap[n], func(f[0], *(x_[n] for x_ in x)))
+        # With unmapped source axis
+        calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(f[0], *x)
+        for n in range(num_repeat):
+            np.testing.assert_allclose(calc_unmap[n], func(f[0], *(x_[n] for x_ in x)))
 
-    # With unmapped points axis
-    calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
-        f, *x[:-1], x[-1][0]
-    )
-    for n in range(num_repeat):
-        np.testing.assert_allclose(
-            calc_unmap_pt[n], func(f[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+        # With unmapped points axis
+        calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
+            f, *x[:-1], x[-1][0]
         )
+        for n in range(num_repeat):
+            np.testing.assert_allclose(
+                calc_unmap_pt[n], func(f[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
+            )
 
 
 def test_multi_transform():
+    # TODO: is there a 2D or 3D version of this test?
+    if jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+    
     random = np.random.default_rng(314)
 
     n_tot, n_tr, n_j, n_k = 4, 10, 100, 12
@@ -257,6 +278,9 @@ def test_multi_transform():
 
 
 def test_issue14():
+    if jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+    
     M = 100
     N = 200
 
