@@ -33,12 +33,12 @@ template <>
 void default_opts<double>(int type, int dim, cufinufft_opts* opts, cudaStream_t stream) {
   cufinufft_default_opts(opts);
   opts->gpu_stream = stream;
-    
+
   // double precision in 3D blows out shared memory.
   // Fall back to a slower, non-shared memory algorithm
   // https://github.com/flatironinstitute/cufinufft/issues/58
-  if(dim > 2){
-      opts->gpu_method = 1;
+  if (dim > 2) {
+    opts->gpu_method = 1;
   }
 }
 
@@ -49,7 +49,8 @@ int makeplan(int type, int dim, const int64_t nmodes[3], int iflag, int ntr, T e
 template <>
 int makeplan<float>(int type, int dim, const int64_t nmodes[3], int iflag, int ntr, float eps,
                     typename plan_type<float>::type* plan, cufinufft_opts* opts) {
-  int64_t tmp_nmodes[3] = {nmodes[0], nmodes[1], nmodes[2]};  // TODO: use const in cufinufftf_makeplan API
+  int64_t tmp_nmodes[3] = {nmodes[0], nmodes[1],
+                           nmodes[2]};  // TODO: use const in cufinufftf_makeplan API
   return cufinufftf_makeplan(type, dim, tmp_nmodes, iflag, ntr, eps, plan, opts);
 }
 

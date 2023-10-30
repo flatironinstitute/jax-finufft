@@ -181,7 +181,9 @@ def batch(args, axes, *, output_shape, **kwargs):
 nufft1_p = core.Primitive("nufft1")
 nufft1_p.def_impl(partial(xla.apply_primitive, nufft1_p))
 nufft1_p.def_abstract_eval(shapes.abstract_eval)
-xla.register_translation(nufft1_p, partial(translation.translation_rule, "cpu"), platform="cpu")
+xla.register_translation(
+    nufft1_p, partial(translation.translation_rule, "cpu"), platform="cpu"
+)
 if translation.jax_finufft_gpu is not None:
     xla.register_translation(
         nufft1_p, partial(translation.translation_rule, "gpu"), platform="cuda"
@@ -194,7 +196,9 @@ batching.primitive_batchers[nufft1_p] = batch
 nufft2_p = core.Primitive("nufft2")
 nufft2_p.def_impl(partial(xla.apply_primitive, nufft2_p))
 nufft2_p.def_abstract_eval(shapes.abstract_eval)
-xla.register_translation(nufft2_p, partial(translation.translation_rule, "cpu"), platform="cpu")
+xla.register_translation(
+    nufft2_p, partial(translation.translation_rule, "cpu"), platform="cpu"
+)
 if translation.jax_finufft_gpu is not None:
     xla.register_translation(
         nufft2_p, partial(translation.translation_rule, "gpu"), platform="cuda"

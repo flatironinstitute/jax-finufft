@@ -24,7 +24,7 @@ def translation_rule(
 ):
     if platform == "gpu" and jax_finufft_gpu is None:
         raise ValueError("jax-finufft was not compiled with GPU support")
-    
+
     ndim = len(points)
     assert 1 <= ndim <= 3
     if platform == "gpu" and ndim == 1:

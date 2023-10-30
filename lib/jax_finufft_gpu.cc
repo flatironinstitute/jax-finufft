@@ -2,8 +2,8 @@
 // It is exposed as a standard pybind11 module defining "capsule" objects containing our
 // method. For simplicity, we export a separate capsule for each supported dtype.
 
-#include "pybind11_kernel_helpers.h"
 #include "kernels.h"
+#include "pybind11_kernel_helpers.h"
 
 using namespace jax_finufft;
 
@@ -30,8 +30,6 @@ pybind11::dict Registrations() {
   return dict;
 }
 
-PYBIND11_MODULE(jax_finufft_gpu, m) {
-  m.def("registrations", &Registrations);
-}
+PYBIND11_MODULE(jax_finufft_gpu, m) { m.def("registrations", &Registrations); }
 
 }  // namespace

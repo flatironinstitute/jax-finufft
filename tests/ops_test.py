@@ -28,7 +28,7 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
     ks = [np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1)) for n in num_uniform]
 
-    x = random.uniform(-np.pi, np.pi, size=(ndim,num_nonnuniform)).astype(dtype)
+    x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(dtype)
     c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
     c = c.astype(cdtype)
     f_expect = np.zeros(num_uniform, dtype=cdtype)
@@ -115,9 +115,11 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
         func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)
         check_grads(func, (c, *x), 1, modes=("fwd", "rev"))
 
-        scalar_func = lambda *args: jnp.linalg.norm(func(*args))
+        def scalar_func(*args):
+            return jnp.linalg.norm(func(*args))
+
         expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + 1)))(c, *x)
-        for (n, g) in enumerate(expect):
+        for n, g in enumerate(expect):
             np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(c, *x)[0], g)
 
 
@@ -148,9 +150,11 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
         func = partial(nufft2, eps=eps, iflag=iflag)
         check_grads(func, (f, *x), 1, modes=("fwd", "rev"))
 
-        scalar_func = lambda *args: jnp.linalg.norm(func(*args))
+        def scalar_func(*args):
+            return jnp.linalg.norm(func(*args))
+
         expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + 1)))(f, *x)
-        for (n, g) in enumerate(expect):
+        for n, g in enumerate(expect):
             np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(f, *x)[0], g)
 
 
@@ -260,7 +264,7 @@ def test_multi_transform():
     # TODO: is there a 2D or 3D version of this test?
     if jax.default_backend() != "cpu":
         pytest.skip("1D transforms not implemented on GPU")
-    
+
     random = np.random.default_rng(314)
 
     n_tot, n_tr, n_j, n_k = 4, 10, 100, 12
@@ -280,7 +284,7 @@ def test_multi_transform():
 def test_issue14():
     if jax.default_backend() != "cpu":
         pytest.skip("1D transforms not implemented on GPU")
-    
+
     M = 100
     N = 200
 
