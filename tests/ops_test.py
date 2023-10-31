@@ -277,8 +277,8 @@ def test_multi_transform():
     calc1 = nufft1(n_k, c, x)
     calc2 = nufft2(f, x)
     for n in range(n_tr):
-        np.testing.assert_allclose(calc1[:, n], nufft1(n_k, c[:, n], x))
-        np.testing.assert_allclose(calc2[:, n], nufft2(f[:, n], x))
+        np.testing.assert_allclose(calc1[:, n], nufft1(n_k, c[:, n], x), rtol=1e-4)
+        np.testing.assert_allclose(calc2[:, n], nufft2(f[:, n], x), rtol=1e-4)
 
 
 def test_issue14():

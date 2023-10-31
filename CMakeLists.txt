@@ -17,8 +17,12 @@ else()
     set(FINUFFT_USE_CUDA OFF)
 endif()
 
-# TODO(dfm): OpenMP segfaults on my system - can we enable this somehow?
-set(FINUFFT_USE_OPENMP OFF)
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    # TODO(dfm): OpenMP segfaults on my system - can we enable this somehow?
+    set(FINUFFT_USE_OPENMP OFF)
+else()
+    set(FINUFFT_USE_OPENMP ON)
+endif()
 
 # Add the FINUFFT project using the vendored version
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/vendor/finufft")
