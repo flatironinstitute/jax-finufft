@@ -34,7 +34,8 @@ except ImportError:
     def hlo_const(x):
         assert isinstance(x, np.ndarray)
         return hlo.ConstantOp(
-            ir.DenseElementsAttr.get(x, type=dtype_to_ir_type(x.dtype))).result
+            ir.DenseElementsAttr.get(x, type=dtype_to_ir_type(x.dtype))
+        ).result
 
 
 from . import jax_finufft_cpu
