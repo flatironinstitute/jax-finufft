@@ -44,13 +44,11 @@ if(CMAKE_CUDA_COMPILER)
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/contrib
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include/cufinufft/contrib/cuda_samples
-        $<TARGET_PROPERTY:CUDA::cudart,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:CUDA::cufft,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:CUDA::nvToolsExt,INTERFACE_INCLUDE_DIRECTORIES>
     )
     pybind11_add_module(jax_finufft_gpu
         ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
+    target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_INCLUDE_DIRS})
     target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_VENDORED_INCLUDE_DIRS})
     target_link_libraries(jax_finufft_gpu PRIVATE cufinufft_static)
     install(TARGETS jax_finufft_gpu LIBRARY DESTINATION .)
