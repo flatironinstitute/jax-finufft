@@ -1,7 +1,42 @@
 import numpy as np
 from jax.interpreters.mlir import ir
 from jax.lib import xla_client
-from jaxlib.hlo_helpers import custom_call, hlo_const
+from jaxlib.hlo_helpers import custom_call as _custom_call
+
+try:
+    from jaxlib.hlo_helpers import hlo_const
+except ImportError:
+    # Copied from jaxlib/hlo_helpers.py for old versions of jax
+    from functools import partial
+
+    import jaxlib.mlir.dialects.stablehlo as hlo
+
+    _dtype_to_ir_type_factory = {
+        np.dtype(np.bool_): partial(ir.IntegerType.get_signless, 1),
+        np.dtype(np.int8): partial(ir.IntegerType.get_signless, 8),
+        np.dtype(np.int16): partial(ir.IntegerType.get_signless, 16),
+        np.dtype(np.int32): partial(ir.IntegerType.get_signless, 32),
+        np.dtype(np.int64): partial(ir.IntegerType.get_signless, 64),
+        np.dtype(np.uint8): partial(ir.IntegerType.get_unsigned, 8),
+        np.dtype(np.uint16): partial(ir.IntegerType.get_unsigned, 16),
+        np.dtype(np.uint32): partial(ir.IntegerType.get_unsigned, 32),
+        np.dtype(np.uint64): partial(ir.IntegerType.get_unsigned, 64),
+        np.dtype(np.float16): ir.F16Type.get,
+        np.dtype(np.float32): ir.F32Type.get,
+        np.dtype(np.float64): ir.F64Type.get,
+        np.dtype(np.complex64): lambda: ir.ComplexType.get(ir.F32Type.get()),
+        np.dtype(np.complex128): lambda: ir.ComplexType.get(ir.F64Type.get()),
+    }
+
+    def dtype_to_ir_type(dtype) -> ir.Type:
+        return _dtype_to_ir_type_factory[np.dtype(dtype)]()
+
+    def hlo_const(x):
+        assert isinstance(x, np.ndarray)
+        return hlo.ConstantOp(
+            ir.DenseElementsAttr.get(x, type=dtype_to_ir_type(x.dtype))
+        ).result
+
 
 from . import jax_finufft_cpu
 
@@ -15,6 +50,15 @@ except ImportError:
 
 for _name, _value in jax_finufft_cpu.registrations().items():
     xla_client.register_custom_call_target(_name, _value, platform="cpu")
+
+
+# Handle old versions of jax which had a different syntax for custom_call
+def custom_call(*args, **kwargs):
+    try:
+        return _custom_call(*args, **kwargs).results
+    except TypeError:
+        kwargs["out_types"] = kwargs.pop("result_types")
+        return (_custom_call(*args, **kwargs),)
 
 
 def default_layouts(*shapes):
@@ -91,7 +135,7 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps):
                 opaque_shape, source_shape, *points_shape[::-1]
             ),
             result_layouts=default_layouts(full_output_shape),
-        ).results
+        )
 
     else:
         return custom_call(
@@ -104,4 +148,4 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps):
             backend_config=opaque,
             operand_layouts=default_layouts(source_shape, *points_shape[::-1]),
             result_layouts=default_layouts(full_output_shape),
-        ).results
+        )
