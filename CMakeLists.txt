@@ -28,6 +28,7 @@ pybind11_add_module(jax_finufft_cpu ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cp
 target_link_libraries(jax_finufft_cpu PRIVATE finufft_static)
 install(TARGETS jax_finufft_cpu LIBRARY DESTINATION .)
 
+# Include the CUDA extensions if possible
 include(CheckLanguage)
 check_language(CUDA)
 
@@ -37,6 +38,7 @@ if(CMAKE_CUDA_COMPILER)
     pybind11_add_module(jax_finufft_gpu
         ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
+    target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_INCLUDE_DIRS})
     target_link_libraries(jax_finufft_gpu PRIVATE cufinufft_static)
     install(TARGETS jax_finufft_gpu LIBRARY DESTINATION .)
 endif()
