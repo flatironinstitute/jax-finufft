@@ -68,12 +68,12 @@ ml modules/2.2
 ml gcc
 ml python/3.11
 ml fftw
-ml cmake
 ml cuda/11
 ml cudnn
 ml nccl
 
 export LD_LIBRARY_PATH=$CUDA_HOME/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+export CMAKE_ARGS=-DCMAKE_CUDA_ARCHITECTURES=70;80;90
 ```
 </details>
 
