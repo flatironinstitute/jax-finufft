@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.15...3.26)
 project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
 message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 
+# Workaround for LTO applied incorrectly to CUDA fatbin
+# https://github.com/pybind/pybind11/issues/4825
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+
 include(CheckLanguage)
 check_language(CUDA)
 
