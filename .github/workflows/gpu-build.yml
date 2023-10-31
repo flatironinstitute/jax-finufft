@@ -12,19 +12,17 @@ jobs:
     container: nvidia/cuda:12.2.2-devel-ubuntu22.04
 
     steps:
-      - name: Install wget
-        run: apt-get update && apt-get install -y wget
-        env:
-          DEBIAN_FRONTEND: "noninteractive"
-
-      - name: Get the version info for NVCC and CMake
+      - name: Get the version info for NVCC
         run: nvcc --version
 
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
 
       - uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: 3.11
 
       - name: Install Python dependencies
         run: python -m pip install -U pip
