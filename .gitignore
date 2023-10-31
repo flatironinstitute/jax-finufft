@@ -7,4 +7,3 @@ MANIFEST
 __pycache__/
 *.egg-info
 .*_cache
-venv
