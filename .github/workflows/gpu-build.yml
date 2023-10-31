@@ -12,8 +12,8 @@ jobs:
     container: nvidia/cuda:12.2.2-devel-ubuntu22.04
 
     steps:
-      - name: Install git
-        run: apt-get update && apt-get install -y git
+      - name: Install git and FFTW
+        run: apt-get update && apt-get install -y git libfftw3-dev
         env:
           DEBIAN_FRONTEND: "noninteractive"
 
