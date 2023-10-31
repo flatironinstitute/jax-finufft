@@ -97,7 +97,7 @@ c = nufft2(f, x, y, z)  # 3D
 This package, developed by Dan Foreman-Mackey is licensed under the Apache
 License, Version 2.0, with the following copyright:
 
-Copyright 2021 The Simons Foundation, Inc.
+Copyright 2021, 2022, 2023 The Simons Foundation, Inc.
 
 If you use this software, please cite the primary references listed on the
 [FINUFFT docs](https://finufft.readthedocs.io/en/latest/refs.html).
