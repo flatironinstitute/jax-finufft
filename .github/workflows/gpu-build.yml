@@ -12,6 +12,11 @@ jobs:
     container: nvidia/cuda:12.2.2-devel-ubuntu22.04
 
     steps:
+      - name: Install git
+        run: apt-get update && apt-get install -y git
+        env:
+          DEBIAN_FRONTEND: "noninteractive"
+
       - name: Get the version info for NVCC
         run: nvcc --version
 
