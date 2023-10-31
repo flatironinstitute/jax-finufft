@@ -11,8 +11,9 @@ rules for the transforms.
 
 ## Included features
 
-_This library is currently CPU-only, but GPU support is in the works using the
-[cuFINUFFT library](https://github.com/flatironinstitute/cufinufft)._
+This library includes CPU and GPU (CUDA) support. GPU support is implemented
+through the [cuFINUFFT interface](https://finufft.readthedocs.io/en/latest/c_gpu.html)
+of the FINUFFT library.
 
 [Type 1 and 2](https://finufft.readthedocs.io/en/latest/math.html) transforms
 are supported in 1-, 2-, and 3-dimensions. All of these functions support
@@ -24,23 +25,57 @@ forward, reverse, and higher-order differentiation, as well as batching using
 _For now, only a source build is supported._
 
 For building, you should only need a recent version of Python (>3.6) and
-[FFTW](https://www.fftw.org/). At runtime, you'll need `numpy`, `scipy`, and
-`jax`. To set up such an environment, you can use `conda` (but you're welcome to
-use whatever workflow works for you!):
+[FFTW](https://www.fftw.org/). GPU-enabled builds also require a working CUDA
+compiler (i.e. the CUDA Toolkit), CUDA >= 11.8, and a compatible cuDNN. (older versions of CUDA may work but
+are untested). At runtime, you'll need `numpy`, `scipy`, and `jax`.
 
-```bash
-conda create -n jax-finufft -c conda-forge python=3.9 numpy scipy fftw
-python -m pip install "jax[cpu]"
-```
-
-Then you can install from source using (don't forget the `--recursive` flag
-because FINUFFT is included as a submodule):
-
+First, clone the repo and `cd` into the repo root (don't forget the `--recursive` flag because FINUFFT is included as a submodule):
 ```bash
 git clone --recursive https://github.com/dfm/jax-finufft
 cd jax-finufft
+```
+
+Then, you can use `conda` to set up a build environment (but you're welcome to
+use whatever workflow works for you!). For example, for a CPU build, you can use:
+
+```bash
+conda create -n jax-finufft -c conda-forge python=3.10 numpy scipy fftw cxx-compiler
+conda activate jax-finufft
+python -m pip install "jax[cpu]"
 python -m pip install .
 ```
+
+For a GPU build, while the CUDA libraries and compiler are nominally available through conda,
+our experience trying to install them through conda suggests that the "traditional"
+way of obtaining the [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) directly
+from NVIDIA may work best (see [related advice for Horovod](https://horovod.readthedocs.io/en/stable/conda_include.html)). After installing the CUDA Toolkit, one can set up the rest of the dependencies with:
+
+```bash
+conda create -n gpu-jax-finufft -c conda-forge python=3.10 numpy scipy fftw 'gxx<12'
+conda activate gpu-jax-finufft
+python -m pip install "jax[cuda11_local]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+CMAKE_ARGS=-DCMAKE_CUDA_ARCHITECTURES=70 python -m pip install .
+```
+
+In the last line, you'll need to select the CUDA architecture(s) you wish to compile for. See the [FINUFFT docs](https://finufft.readthedocs.io/en/latest/install_gpu.html#cmake-installation).
+
+For Flatiron users, the following environment setup script can be used instead of conda:
+<details>
+<summary>Environment script</summary>
+
+```bash
+ml modules/2.2
+ml gcc
+ml python/3.11
+ml fftw
+ml cmake
+ml cuda/11
+ml cudnn
+ml nccl
+
+export LD_LIBRARY_PATH=$CUDA_HOME/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+```
+</details>
 
 ## Usage
 
