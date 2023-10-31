@@ -26,7 +26,7 @@ _For now, only a source build is supported._
 
 For building, you should only need a recent version of Python (>3.6) and
 [FFTW](https://www.fftw.org/). GPU-enabled builds also require a working CUDA
-compiler (i.e. the CUDA Toolkit), CUDA >= 11.8, and a compatible cuDNN. (older versions of CUDA may work but
+compiler (i.e. the CUDA Toolkit), CUDA >= 11.8, and a compatible cuDNN (older versions of CUDA may work but
 are untested). At runtime, you'll need `numpy`, `scipy`, and `jax`.
 
 First, clone the repo and `cd` into the repo root (don't forget the `--recursive` flag because FINUFFT is included as a submodule):
