@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.2.2
+        uses: pypa/cibuildwheel@v2.16.2
         env:
           CIBW_SKIP: "pp* *_i686 *musllinux*"
           CIBW_BEFORE_ALL_LINUX: yum install -y fftw-devel
