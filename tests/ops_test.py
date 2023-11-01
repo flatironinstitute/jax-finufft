@@ -6,9 +6,14 @@ import jax.experimental
 import jax.numpy as jnp
 import numpy as np
 import pytest
-from jax.test_util import check_grads
+from jax._src import test_util as jtu
 
 from jax_finufft import nufft1, nufft2
+
+
+def check_close(a, b, **kwargs):
+    kwargs["rtol"] = kwargs.get("rtol", {"complex128": 1e-7, "complex64": 1e-4})
+    return jtu.check_close(a, b, **kwargs)
 
 
 @pytest.mark.parametrize(
@@ -38,12 +43,12 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
 
     with jax.experimental.enable_x64(x64):
         f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag)
-        np.testing.assert_allclose(f_calc, f_expect, rtol=5e-7 if x64 else 5e-2)
+        check_close(f_calc, f_expect)
 
         f_calc = jax.jit(nufft1, static_argnums=(0,), static_argnames=("eps", "iflag"))(
             num_uniform, c, *x, eps=eps, iflag=iflag
         )
-        np.testing.assert_allclose(f_calc, f_expect, rtol=5e-7 if x64 else 5e-2)
+        check_close(f_calc, f_expect)
 
 
 @pytest.mark.parametrize(
@@ -80,12 +85,12 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
 
     with jax.experimental.enable_x64(x64):
         c_calc = nufft2(f, *x, eps=eps, iflag=iflag)
-        np.testing.assert_allclose(c_calc, c_expect, rtol=5e-7 if x64 else 5e-2)
+        check_close(c_calc, c_expect)
 
         c_calc = jax.jit(nufft2, static_argnames=("eps", "iflag"))(
             f, *x, eps=eps, iflag=iflag
         )
-        np.testing.assert_allclose(c_calc, c_expect, rtol=5e-7 if x64 else 5e-2)
+        check_close(c_calc, c_expect)
 
 
 @pytest.mark.parametrize(
@@ -113,14 +118,14 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
 
     with jax.experimental.enable_x64():
         func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)
-        check_grads(func, (c, *x), 1, modes=("fwd", "rev"))
+        jtu.check_grads(func, (c, *x), 1, modes=("fwd", "rev"))
 
         def scalar_func(*args):
             return jnp.linalg.norm(func(*args))
 
         expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + 1)))(c, *x)
         for n, g in enumerate(expect):
-            np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(c, *x)[0], g)
+            check_close(jax.grad(scalar_func, argnums=(n,))(c, *x)[0], g)
 
 
 @pytest.mark.parametrize(
@@ -148,14 +153,14 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
 
     with jax.experimental.enable_x64():
         func = partial(nufft2, eps=eps, iflag=iflag)
-        check_grads(func, (f, *x), 1, modes=("fwd", "rev"))
+        jtu.check_grads(func, (f, *x), 1, modes=("fwd", "rev"))
 
         def scalar_func(*args):
             return jnp.linalg.norm(func(*args))
 
         expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + 1)))(f, *x)
         for n, g in enumerate(expect):
-            np.testing.assert_allclose(jax.grad(scalar_func, argnums=(n,))(f, *x)[0], g)
+            check_close(jax.grad(scalar_func, argnums=(n,))(f, *x)[0], g)
 
 
 @pytest.mark.parametrize(
@@ -188,23 +193,23 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
         # Start by checking the full basic vmap
         calc = jax.vmap(func)(c, *x)
         for n in range(num_repeat):
-            np.testing.assert_allclose(calc[n], func(c[n], *(x_[n] for x_ in x)))
+            check_close(calc[n], func(c[n], *(x_[n] for x_ in x)))
 
         # With different in_axes
         calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(c, 0, 1), *x)
-        np.testing.assert_allclose(calc_ax, calc)
+        check_close(calc_ax, calc)
 
         # With unmapped source axis
         calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(c[0], *x)
         for n in range(num_repeat):
-            np.testing.assert_allclose(calc_unmap[n], func(c[0], *(x_[n] for x_ in x)))
+            check_close(calc_unmap[n], func(c[0], *(x_[n] for x_ in x)))
 
         # With unmapped points axis
         calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
             c, *x[:-1], x[-1][0]
         )
         for n in range(num_repeat):
-            np.testing.assert_allclose(
+            check_close(
                 calc_unmap_pt[n], func(c[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
             )
 
@@ -239,23 +244,23 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
         # Start by checking the full basic vmap
         calc = jax.vmap(func)(f, *x)
         for n in range(num_repeat):
-            np.testing.assert_allclose(calc[n], func(f[n], *(x_[n] for x_ in x)))
+            check_close(calc[n], func(f[n], *(x_[n] for x_ in x)))
 
         # With different in_axes
         calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * ndim)(jnp.moveaxis(f, 0, 1), *x)
-        np.testing.assert_allclose(calc_ax, calc)
+        check_close(calc_ax, calc)
 
         # With unmapped source axis
         calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * ndim)(f[0], *x)
         for n in range(num_repeat):
-            np.testing.assert_allclose(calc_unmap[n], func(f[0], *(x_[n] for x_ in x)))
+            check_close(calc_unmap[n], func(f[0], *(x_[n] for x_ in x)))
 
         # With unmapped points axis
         calc_unmap_pt = jax.vmap(func, in_axes=(0,) + (0,) * (ndim - 1) + (None,))(
             f, *x[:-1], x[-1][0]
         )
         for n in range(num_repeat):
-            np.testing.assert_allclose(
+            check_close(
                 calc_unmap_pt[n], func(f[n], *(x_[n] for x_ in x[:-1]), x[-1][0])
             )
 
@@ -277,8 +282,8 @@ def test_multi_transform():
     calc1 = nufft1(n_k, c, x)
     calc2 = nufft2(f, x)
     for n in range(n_tr):
-        np.testing.assert_allclose(calc1[:, n], nufft1(n_k, c[:, n], x), rtol=1e-4)
-        np.testing.assert_allclose(calc2[:, n], nufft2(f[:, n], x), rtol=1e-4)
+        check_close(calc1[:, n], nufft1(n_k, c[:, n], x), rtol=1e-4)
+        check_close(calc2[:, n], nufft2(f[:, n], x), rtol=1e-4)
 
 
 def test_issue14():
