@@ -23,7 +23,7 @@ pipeline {
         stage('CPU Tests') {
             environment {
                 JAX_PLATFORMS = "cpu"
-                OMP_NUM_THREADS = "1"
+                OMP_NUM_THREADS = "4"
             }
             steps {
                 sh 'python3 -m pytest -v tests/'
@@ -32,7 +32,7 @@ pipeline {
         stage('GPU Tests') {
             environment {
                 JAX_PLATFORMS = "cuda"
-                OMP_NUM_THREADS = "1"
+                OMP_NUM_THREADS = "4"
             }
             steps {
                 sh 'python3 -m pytest -v tests/'
