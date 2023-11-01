@@ -1,0 +1,42 @@
+pipeline {
+    agent {
+        dockerfile {
+            filename 'ci/Dockerfile'
+            args '--gpus 1'
+            label 'docker && v100'
+        }
+    }
+    options {
+        timeout(time: 1, unit: 'HOURS')
+    }
+    environment {
+        HOME = "$WORKSPACE"
+    }
+    stages {
+        stage('Build') {
+            steps {
+                sh 'python3 -m pip install -U pip'
+                sh 'python3 -m pip install "jax[cuda12_local]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html'
+                sh 'python3 -m pip install -v .[test]'
+            }
+        }
+        stage('CPU Tests') {
+            environment {
+                JAX_PLATFORMS = "cpu"
+                OMP_NUM_THREADS = "4"
+            }
+            steps {
+                sh 'python3 -m pytest -v tests/'
+            }
+        }
+        stage('GPU Tests') {
+            environment {
+                JAX_PLATFORMS = "cuda"
+                OMP_NUM_THREADS = "4"
+            }
+            steps {
+                sh 'python3 -m pytest -v tests/'
+            }
+        }
+    }
+}
