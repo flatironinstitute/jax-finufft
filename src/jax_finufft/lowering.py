@@ -130,7 +130,6 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps):
             ],
             # Reverse points because backend uses Fortran order
             operands=[opaque_arg, source, *points[::-1]],
-            backend_config=opaque,
             operand_layouts=default_layouts(
                 opaque_shape, source_shape, *points_shape[::-1]
             ),
