@@ -336,4 +336,4 @@ def test_issue37():
     f = jnp.array(np.random.randn(8, 100, 16))
     x = jnp.array(np.random.uniform(low=-np.pi, high=np.pi, size=(8, 100, 3)))
 
-    fconv = cconv_test(f, x, kernel)
+    cconv_test(f, x, kernel)
