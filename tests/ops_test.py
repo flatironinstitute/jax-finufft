@@ -309,3 +309,32 @@ def test_issue14():
     jax.grad(norm_nufft1, argnums=(0,))(c, x)
     jax.grad(norm_nufft1, argnums=(0, 1))(c, x)
     jax.grad(norm_nufft1, argnums=(1,))(c, x)
+
+
+def test_issue37():
+    if jax.default_backend() != "cpu":
+        pytest.skip("1D transforms not implemented on GPU")
+
+    @jax.jit
+    @partial(jax.vmap, in_axes=(0, 0, None))
+    def cconv_test(f, xs, kernel):
+
+        # f.shape = (n_grid, in_features)
+        # x.shape = (n_grid, ndim)
+        # kernel.shape = (*k_grid, in_features, out_features)
+
+        ndim = xs.shape[-1]
+        k_grid_shape = kernel.shape[:-2]
+
+        f_ = f.transpose().astype(complex)
+        coords = [xs[...,i] for i in range(ndim)]
+
+        f_hat = nufft1(k_grid_shape, f_, *coords, iflag=-1)
+        c_hat = jnp.einsum('a...,...ab->b...', f_hat, kernel)
+        return nufft2(c_hat, *coords, iflag=1)
+
+    kernel = jnp.array(np.random.randn(32, 32, 32, 16, 16))
+    f = jnp.array(np.random.randn(8, 100, 16))
+    x = jnp.array(np.random.uniform(low=-np.pi, high=np.pi, size=(8, 100, 3)))
+
+    fconv = cconv_test(f, x, kernel)
