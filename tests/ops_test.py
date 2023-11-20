@@ -318,7 +318,6 @@ def test_issue37():
     @jax.jit
     @partial(jax.vmap, in_axes=(0, 0, None))
     def cconv_test(f, xs, kernel):
-
         # f.shape = (n_grid, in_features)
         # x.shape = (n_grid, ndim)
         # kernel.shape = (*k_grid, in_features, out_features)
@@ -327,10 +326,10 @@ def test_issue37():
         k_grid_shape = kernel.shape[:-2]
 
         f_ = f.transpose().astype(complex)
-        coords = [xs[...,i] for i in range(ndim)]
+        coords = [xs[..., i] for i in range(ndim)]
 
         f_hat = nufft1(k_grid_shape, f_, *coords, iflag=-1)
-        c_hat = jnp.einsum('a...,...ab->b...', f_hat, kernel)
+        c_hat = jnp.einsum("a...,...ab->b...", f_hat, kernel)
         return nufft2(c_hat, *coords, iflag=1)
 
     kernel = jnp.array(np.random.randn(32, 32, 32, 16, 16))
