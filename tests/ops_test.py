@@ -313,7 +313,7 @@ def test_issue14():
 
 def test_issue37():
     if jax.default_backend() != "cpu":
-        pytest.skip("1D transforms not implemented on GPU")
+        pytest.xfail("TODO: this test currently fails on the GPU")
 
     @jax.jit
     @partial(jax.vmap, in_axes=(0, 0, None))
