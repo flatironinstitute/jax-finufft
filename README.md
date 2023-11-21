@@ -44,9 +44,12 @@ use whatever workflow works for you!). For example, for a CPU build, you can use
 ```bash
 conda create -n jax-finufft -c conda-forge python=3.10 numpy scipy fftw cxx-compiler
 conda activate jax-finufft
+export CPATH=$CONDA_PREFIX/include:$CPATH
 python -m pip install "jax[cpu]"
 python -m pip install .
 ```
+
+The `CPATH` export is needed so that the build can find the headers for libraries like FFTW installed through conda.
 
 For a GPU build, while the CUDA libraries and compiler are nominally available through conda,
 our experience trying to install them through conda suggests that the "traditional"
@@ -56,11 +59,18 @@ from NVIDIA may work best (see [related advice for Horovod](https://horovod.read
 ```bash
 conda create -n gpu-jax-finufft -c conda-forge python=3.10 numpy scipy fftw 'gxx<12'
 conda activate gpu-jax-finufft
+export CPATH=$CONDA_PREFIX/include:$CPATH
 python -m pip install "jax[cuda11_local]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 CMAKE_ARGS=-DCMAKE_CUDA_ARCHITECTURES=70 python -m pip install .
 ```
 
 In the last line, you'll need to select the CUDA architecture(s) you wish to compile for. See the [FINUFFT docs](https://finufft.readthedocs.io/en/latest/install_gpu.html#cmake-installation).
+
+At runtime, you may also need:
+```bash
+export LD_LIBRARY_PATH="$CUDA_PATH/extras/CUPTI/lib64:$LD_LIBRARY_PATH"
+```
+If `CUDA_PATH` isn't set, you'll need to replace it with the path to your CUDA installation in the above line, often something like `/usr/local/cuda`.
 
 For Flatiron users, the following environment setup script can be used instead of conda:
 <details>
