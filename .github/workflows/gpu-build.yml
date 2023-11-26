@@ -35,7 +35,7 @@ jobs:
       - name: Compile the extension
         run: python -m pip install -v .
         env:
-          CMAKE_FLAGS: "-DJAX_FINUFFT_USE_CUDA=ON"
+          CMAKE_ARGS: "-DJAX_FINUFFT_USE_CUDA=ON"
 
       - name: Check that the GPU extension was built
         run: python -c "import jax_finufft.jax_finufft_gpu"
