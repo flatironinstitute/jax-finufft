@@ -60,11 +60,12 @@ from NVIDIA may work best (see [related advice for Horovod](https://horovod.read
 conda create -n gpu-jax-finufft -c conda-forge python=3.10 numpy scipy fftw 'gxx<12'
 conda activate gpu-jax-finufft
 export CPATH=$CONDA_PREFIX/include:$CPATH
+export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=70 -DJAX_FINUFFT_USE_CUDA=ON"
 python -m pip install "jax[cuda11_local]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-CMAKE_ARGS=-DCMAKE_CUDA_ARCHITECTURES=70 python -m pip install .
+python -m pip install .
 ```
 
-In the last line, you'll need to select the CUDA architecture(s) you wish to compile for. See the [FINUFFT docs](https://finufft.readthedocs.io/en/latest/install_gpu.html#cmake-installation).
+In the `CMAKE_ARGS` line, you'll need to select the CUDA architecture(s) you wish to compile for. See the [FINUFFT docs](https://finufft.readthedocs.io/en/latest/install_gpu.html#cmake-installation).
 
 At runtime, you may also need:
 ```bash
@@ -86,7 +87,7 @@ ml cudnn
 ml nccl
 
 export LD_LIBRARY_PATH=$CUDA_HOME/extras/CUPTI/lib64:$LD_LIBRARY_PATH
-export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=60;70;80;90"
+export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=60;70;80;90 -DJAX_FINUFFT_USE_CUDA=ON"
 ```
 </details>
 

@@ -6,14 +6,21 @@ message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 # https://github.com/pybind/pybind11/issues/4825
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
-include(CheckLanguage)
-check_language(CUDA)
-
-if(CMAKE_CUDA_COMPILER)
-    enable_language(CUDA)
-    set(FINUFFT_USE_CUDA ON)
+# Enable CUDA if requested and available
+option(JAX_FINUFFT_USE_CUDA "Enable CUDA build if available" OFF)
+if(JAX_FINUFFT_USE_CUDA)
+    include(CheckLanguage)
+    check_language(CUDA)
+    if(CMAKE_CUDA_COMPILER)
+        message(STATUS "CUDA compiler found; compiling with GPU support")
+        enable_language(CUDA)
+        set(FINUFFT_USE_CUDA ON)
+    else()
+        message(STATUS "No CUDA compiler found; compiling without GPU support")
+        set(FINUFFT_USE_CUDA OFF)
+    endif()
 else()
-    message(STATUS "No CUDA compiler found; GPU support will be disabled")
+    message(STATUS "GPU support was not requested")
     set(FINUFFT_USE_CUDA OFF)
 endif()
 
@@ -36,11 +43,8 @@ pybind11_add_module(jax_finufft_cpu ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cp
 target_link_libraries(jax_finufft_cpu PRIVATE finufft_static)
 install(TARGETS jax_finufft_cpu LIBRARY DESTINATION .)
 
-# Include the CUDA extensions if possible
-include(CheckLanguage)
-check_language(CUDA)
-
-if(CMAKE_CUDA_COMPILER)
+# Include the CUDA extensions if possible - see above for where this is set
+if(FINUFFT_USE_CUDA)
     enable_language(CUDA)
     set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
