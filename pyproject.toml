@@ -7,7 +7,7 @@ name = "jax-finufft"
 description = "Unofficial JAX bindings for finufft"
 readme = "README.md"
 authors = [{ name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com" }]
-requires-python = ">=3.9"
+requires-python = ">=3.8"
 license = { file = "LICENSE" }
 urls = { Homepage = "https://github.com/dfm/jax-finufft" }
 dependencies = ["jax", "jaxlib"]
