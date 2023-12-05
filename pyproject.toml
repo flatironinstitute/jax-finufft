@@ -23,6 +23,11 @@ wheel.install-dir = "jax_finufft"
 minimum-version = "0.5"
 build-dir = "build/{wheel_tag}"
 
+# For debugging:
+# cmake.build-type = "Debug"
+# cmake.verbose = true
+# install.strip = false
+
 [tool.setuptools_scm]
 version_file = "src/jax_finufft/jax_finufft_version.py"
 
