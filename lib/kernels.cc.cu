@@ -22,10 +22,11 @@ void run_nufft(int type, const NufftDescriptor<T> *descriptor, T *x, T *y, T *z,
   makeplan<T>(type, ndim, descriptor->n_k, descriptor->iflag, descriptor->n_transf,
               descriptor->eps, &plan, opts);
   for (int64_t index = 0; index < descriptor->n_tot; ++index) {
+    int64_t i = index * descriptor->n_j;
     int64_t j = index * descriptor->n_j * descriptor->n_transf;
     int64_t k = index * n_k * descriptor->n_transf;
 
-    setpts<T>(plan, descriptor->n_j, &(x[j]), y_index<ndim, T>(y, j), z_index<ndim, T>(z, j), 0,
+    setpts<T>(plan, descriptor->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0,
               NULL, NULL, NULL);
 
     execute<T>(plan, &c[j], &F[k]);
