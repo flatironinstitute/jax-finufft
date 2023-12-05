@@ -322,8 +322,8 @@ def test_issue37():
         k_grid_shape = kernel.shape[:-2]
 
         f_ = f.astype(
-                {np.float32: np.complex64, np.float64: np.complex128}[f.dtype.type]
-            ).transpose()
+            {np.float32: np.complex64, np.float64: np.complex128}[f.dtype.type]
+        ).transpose()
         coords = [xs[..., i] for i in range(ndim)]
 
         f_hat = nufft1(k_grid_shape, f_, *coords, iflag=-1)
