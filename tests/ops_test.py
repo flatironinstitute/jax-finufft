@@ -312,10 +312,6 @@ def test_issue14():
 
 
 def test_issue37():
-    if jax.default_backend() != "cpu":
-        pytest.xfail("TODO: this test currently fails on the GPU")
-
-    @jax.jit
     @partial(jax.vmap, in_axes=(0, 0, None))
     def cconv_test(f, xs, kernel):
         # f.shape = (n_grid, in_features)
@@ -325,7 +321,9 @@ def test_issue37():
         ndim = xs.shape[-1]
         k_grid_shape = kernel.shape[:-2]
 
-        f_ = f.transpose().astype(complex)
+        f_ = f.astype(
+            {np.float32: np.complex64, np.float64: np.complex128}[f.dtype.type]
+        ).transpose()
         coords = [xs[..., i] for i in range(ndim)]
 
         f_hat = nufft1(k_grid_shape, f_, *coords, iflag=-1)
@@ -336,4 +334,10 @@ def test_issue37():
     f = jnp.array(np.random.randn(8, 100, 16))
     x = jnp.array(np.random.uniform(low=-np.pi, high=np.pi, size=(8, 100, 3)))
 
-    cconv_test(f, x, kernel)
+    a = cconv_test(f, x, kernel)
+    b = jax.jit(cconv_test)(f, x, kernel)
+
+    assert np.isfinite(a).all()
+    assert np.isfinite(b).all()
+
+    check_close(a, b)
