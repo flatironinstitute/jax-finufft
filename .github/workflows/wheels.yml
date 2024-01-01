@@ -27,7 +27,7 @@ jobs:
           CIBW_BEFORE_ALL_MACOS: brew install fftw
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ./wheelhouse/*.whl
 
@@ -47,7 +47,7 @@ jobs:
           python -m pip install -U pip
           python -m pip install -U build
           python -m build --sdist .
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
 
