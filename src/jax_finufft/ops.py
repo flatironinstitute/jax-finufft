@@ -97,6 +97,7 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps):
         k = np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1))
         k = k.reshape(shape)
         factor = 1j * iflag * k
+        dx = dx[:, None, :]
 
         if output_shape is None:
             scales.append(dx)
