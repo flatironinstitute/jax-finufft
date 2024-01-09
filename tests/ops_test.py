@@ -361,3 +361,23 @@ def test_gh54():
     )
     assert jax.grad(test, argnums=0)(f, x).shape == f.shape
     assert jax.grad(test, argnums=1)(f, x).shape == x.shape
+
+
+def test_gh54_type2():
+    @jax.vmap
+    def aux(f, x):
+        f_hat = nufft2(f, *x, iflag=-1)
+        return jnp.real(f_hat).mean()
+
+    def test(f, x):
+        return aux(f, x).mean()
+
+    f = np.random.randn(8, 32, 32, 32).astype(jnp.complex_)
+    x = np.random.randn(8, 3, 1000)
+
+    assert (
+        test(f, x).shape
+        == jax.jvp(partial(test, f), (x,), (jnp.ones_like(x),))[0].shape
+    )
+    assert jax.grad(test, argnums=0)(f, x).shape == f.shape
+    assert jax.grad(test, argnums=1)(f, x).shape == x.shape
