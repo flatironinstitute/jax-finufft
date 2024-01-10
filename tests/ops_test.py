@@ -286,7 +286,7 @@ def test_multi_transform():
         check_close(calc2[:, n], nufft2(f[:, n], x), rtol=1e-4)
 
 
-def test_issue14():
+def test_gh14():
     if jax.default_backend() != "cpu":
         pytest.skip("1D transforms not implemented on GPU")
 
@@ -311,7 +311,7 @@ def test_issue14():
     jax.grad(norm_nufft1, argnums=(1,))(c, x)
 
 
-def test_issue37():
+def test_gh37():
     @partial(jax.vmap, in_axes=(0, 0, None))
     def cconv_test(f, xs, kernel):
         # f.shape = (n_grid, in_features)
@@ -341,3 +341,43 @@ def test_issue37():
     assert np.isfinite(b).all()
 
     check_close(a, b)
+
+
+def test_gh54():
+    @jax.vmap
+    def aux(f, x):
+        f_hat = nufft1((32, 32, 32), f, *x, iflag=-1)
+        return jnp.real(f_hat).mean()
+
+    def test(f, x):
+        return aux(f, x).mean()
+
+    f = np.random.randn(8, 1000).astype(jnp.complex_)
+    x = np.random.randn(8, 3, 1000)
+
+    assert (
+        test(f, x).shape
+        == jax.jvp(partial(test, f), (x,), (jnp.ones_like(x),))[0].shape
+    )
+    assert jax.grad(test, argnums=0)(f, x).shape == f.shape
+    assert jax.grad(test, argnums=1)(f, x).shape == x.shape
+
+
+def test_gh54_type2():
+    @jax.vmap
+    def aux(f, x):
+        f_hat = nufft2(f, *x, iflag=-1)
+        return jnp.real(f_hat).mean()
+
+    def test(f, x):
+        return aux(f, x).mean()
+
+    f = np.random.randn(8, 32, 32, 32).astype(jnp.complex_)
+    x = np.random.randn(8, 3, 1000)
+
+    assert (
+        test(f, x).shape
+        == jax.jvp(partial(test, f), (x,), (jnp.ones_like(x),))[0].shape
+    )
+    assert jax.grad(test, argnums=0)(f, x).shape == f.shape
+    assert jax.grad(test, argnums=1)(f, x).shape == x.shape
