@@ -52,7 +52,7 @@ python -m pip install .
 The `CPATH` export is needed so that the build can find the headers for libraries like FFTW installed through conda.
 
 For a GPU build, while the CUDA libraries and compiler are nominally available through conda,
-our experience trying to install them through conda suggests that the "traditional"
+our experience trying to install them this way suggests that the "traditional"
 way of obtaining the [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) directly
 from NVIDIA may work best (see [related advice for Horovod](https://horovod.readthedocs.io/en/stable/conda_include.html)). After installing the CUDA Toolkit, one can set up the rest of the dependencies with:
 
@@ -65,7 +65,9 @@ python -m pip install "jax[cuda11_local]" -f https://storage.googleapis.com/jax-
 python -m pip install .
 ```
 
-In the `CMAKE_ARGS` line, you'll need to select the CUDA architecture(s) you wish to compile for. To query your GPU's CUDA architecture (compute capability), you can run:
+Other ways of installing JAX are given on the JAX website; the ["local CUDA" install methods](https://jax.readthedocs.io/en/latest/installation.html#pip-installation-gpu-cuda-installed-locally-harder) are preferred for jax-finufft as this ensures the CUDA extensions are compiled with the same Toolkit version as the CUDA runtime.
+
+In the above `CMAKE_ARGS` line, you'll need to select the CUDA architecture(s) you wish to compile for. To query your GPU's CUDA architecture (compute capability), you can run:
 
 ```bash
 $ nvidia-smi --query-gpu=compute_cap --format=csv,noheader
