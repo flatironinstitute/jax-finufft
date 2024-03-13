@@ -139,7 +139,7 @@ struct opts {
   enum SpreadSort { No = 0, Yes, Heuristic };
   enum SpreadThread { Auto = 0, Seq, Parallel };
 
-  finufft_opts finufft_opts;
+  finufft_opts _opts;
 
   opts(bool modeord,  // (type 1,2 only): 0 CMCL-style increasing mode order
                       //                  1 FFT-style mode order
@@ -163,25 +163,25 @@ struct opts {
        int spread_nthr_atomic,  // if >=0, threads above which spreader OMP critical goes atomic
        int spread_max_sp_size   // if >0, overrides spreader (dir=1) max subproblem size
   ) {
-    default_opts<double>(&finufft_opts);
+    default_opts<double>(&_opts);
 
-    finufft_opts.modeord = modeord;
-    finufft_opts.chkbnds = chkbnds;
+    _opts.modeord = modeord;
+    _opts.chkbnds = chkbnds;
 
-    finufft_opts.debug = int(debug);
-    finufft_opts.spread_debug = int(spread_debug);
-    finufft_opts.showwarn = int(showwarn);
+    _opts.debug = int(debug);
+    _opts.spread_debug = int(spread_debug);
+    _opts.showwarn = int(showwarn);
 
-    finufft_opts.nthreads = nthreads;
-    finufft_opts.fftw = fftw;
-    finufft_opts.spread_sort = spread_sort;
-    finufft_opts.spread_kerevalmeth = int(spread_kerevalmeth);
-    finufft_opts.spread_kerpad = int(spread_kerpad);
-    finufft_opts.upsampfac = upsampfac;
-    finufft_opts.spread_thread = int(spread_thread);
-    finufft_opts.maxbatchsize = maxbatchsize;
-    finufft_opts.spread_nthr_atomic = spread_nthr_atomic;
-    finufft_opts.spread_max_sp_size = spread_max_sp_size;
+    _opts.nthreads = nthreads;
+    _opts.fftw = fftw;
+    _opts.spread_sort = spread_sort;
+    _opts.spread_kerevalmeth = int(spread_kerevalmeth);
+    _opts.spread_kerpad = int(spread_kerpad);
+    _opts.upsampfac = upsampfac;
+    _opts.spread_thread = int(spread_thread);
+    _opts.maxbatchsize = maxbatchsize;
+    _opts.spread_nthr_atomic = spread_nthr_atomic;
+    _opts.spread_max_sp_size = spread_max_sp_size;
   }
 };
 

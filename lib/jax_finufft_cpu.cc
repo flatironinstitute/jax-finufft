@@ -24,7 +24,7 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
       reinterpret_cast<const char *>(desc_in), sizeof(cpu::descriptor<T>));
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
-  finufft_opts opts = descriptor->opts.finufft_opts;
+  finufft_opts opts = descriptor->opts._opts;
 
   typename cpu::plan_type<T>::type plan;
   cpu::makeplan<T>(type, ndim, const_cast<int64_t *>(descriptor->n_k), descriptor->iflag,
