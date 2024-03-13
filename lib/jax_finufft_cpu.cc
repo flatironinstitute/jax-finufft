@@ -13,7 +13,7 @@ namespace {
 
 template <typename T>
 py::bytes build_descriptor(T eps, int iflag, int64_t n_tot, int n_transf, int64_t n_j,
-                           int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, cpu::opts opts) {
+                           int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, finufft_opts opts) {
   return pack_descriptor(
       cpu::descriptor<T>{eps, iflag, n_tot, n_transf, n_j, {n_k_1, n_k_2, n_k_3}, opts});
 }
@@ -24,7 +24,7 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
       reinterpret_cast<const char *>(desc_in), sizeof(cpu::descriptor<T>));
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
-  finufft_opts opts = descriptor->opts._opts;
+  finufft_opts opts = descriptor->opts;
 
   typename cpu::plan_type<T>::type plan;
   cpu::makeplan<T>(type, ndim, const_cast<int64_t *>(descriptor->n_k), descriptor->iflag,
@@ -73,6 +73,33 @@ void nufft2(void *out, void **in) {
   run_nufft<ndim, T>(2, in[0], x, y, z, c, F);
 }
 
+template <typename T>
+finufft_opts *build_opts(bool modeord, bool chkbnds, int debug, int spread_debug, bool showwarn,
+                         int nthreads, int fftw, int spread_sort, bool spread_kerevalmeth,
+                         bool spread_kerpad, double upsampfac, int spread_thread, int maxbatchsize,
+                         int spread_nthr_atomic, int spread_max_sp_size) {
+  finufft_opts *opts = new finufft_opts;
+  cpu::default_opts<T>(opts);
+
+  opts->modeord = int(modeord);
+  opts->chkbnds = int(chkbnds);
+  opts->debug = debug;
+  opts->spread_debug = spread_debug;
+  opts->showwarn = int(showwarn);
+  opts->nthreads = nthreads;
+  opts->fftw = fftw;
+  opts->spread_sort = spread_sort;
+  opts->spread_kerevalmeth = int(spread_kerevalmeth);
+  opts->spread_kerpad = int(spread_kerpad);
+  opts->upsampfac = upsampfac;
+  opts->spread_thread = int(spread_thread);
+  opts->maxbatchsize = maxbatchsize;
+  opts->spread_nthr_atomic = spread_nthr_atomic;
+  opts->spread_max_sp_size = spread_max_sp_size;
+
+  return opts;
+}
+
 pybind11::dict Registrations() {
   pybind11::dict dict;
 
@@ -98,42 +125,20 @@ PYBIND11_MODULE(jax_finufft_cpu, m) {
   m.def("build_descriptorf", &build_descriptor<float>);
   m.def("build_descriptor", &build_descriptor<double>);
 
-  py::class_<cpu::opts> opts(m, "Opts");
+  m.attr("FFTW_ESTIMATE") = py::int_(FFTW_ESTIMATE);
+  m.attr("FFTW_MEASURE") = py::int_(FFTW_MEASURE);
+  m.attr("FFTW_PATIENT") = py::int_(FFTW_PATIENT);
+  m.attr("FFTW_EXHAUSTIVE") = py::int_(FFTW_EXHAUSTIVE);
+  m.attr("FFTW_WISDOM_ONLY") = py::int_(FFTW_WISDOM_ONLY);
 
-  py::enum_<cpu::opts::DebugLevel>(opts, "DebugLevel")
-      .value("Silent", cpu::opts::DebugLevel::Silent)
-      .value("Vebose", cpu::opts::DebugLevel::Verbose)
-      .value("Noisy", cpu::opts::DebugLevel::Noisy);
-
-  py::enum_<cpu::opts::FftwFlags>(opts, "FftwFlags")
-      .value("Estimate", cpu::opts::FftwFlags::Estimate)
-      .value("Measure", cpu::opts::FftwFlags::Measure)
-      .value("Patient", cpu::opts::FftwFlags::Patient)
-      .value("Exhaustive", cpu::opts::FftwFlags::Exhaustive)
-      .value("WisdomOnly", cpu::opts::FftwFlags::WisdomOnly);
-
-  py::enum_<cpu::opts::SpreadSort>(opts, "SpreadSort")
-      .value("No", cpu::opts::SpreadSort::No)
-      .value("Yes", cpu::opts::SpreadSort::Yes)
-      .value("Heuristic", cpu::opts::SpreadSort::Heuristic);
-
-  py::enum_<cpu::opts::SpreadThread>(opts, "SpreadThread")
-      .value("Auto", cpu::opts::SpreadThread::Auto)
-      .value("Seq", cpu::opts::SpreadThread::Seq)
-      .value("Parallel", cpu::opts::SpreadThread::Parallel);
-
-  opts.def(py::init<bool, bool, cpu::opts::DebugLevel, cpu::opts::DebugLevel, bool, int, int,
-                    cpu::opts::SpreadSort, bool, bool, double, cpu::opts::SpreadThread, int, int,
-                    int>(),
-           py::arg("modeord") = false, py::arg("chkbnds") = true,
-           py::arg("debug") = cpu::opts::DebugLevel::Silent,
-           py::arg("spread_debug") = cpu::opts::DebugLevel::Silent, py::arg("showwarn") = false,
+  py::class_<finufft_opts> opts(m, "FinufftOpts");
+  opts.def(py::init(&build_opts<double>), py::arg("modeord") = false, py::arg("chkbnds") = true,
+           py::arg("debug") = 0, py::arg("spread_debug") = 0, py::arg("showwarn") = false,
            py::arg("nthreads") = 0, py::arg("fftw") = int(FFTW_ESTIMATE),
-           py::arg("spread_sort") = cpu::opts::SpreadSort::Heuristic,
-           py::arg("spread_kerevalmeth") = true, py::arg("spread_kerpad") = true,
-           py::arg("upsampfac") = 0.0, py::arg("spread_thread") = cpu::opts::SpreadThread::Auto,
-           py::arg("maxbatchsize") = 0, py::arg("spread_nthr_atomic") = -1,
-           py::arg("spread_max_sp_size") = 0);
+           py::arg("spread_sort") = 2, py::arg("spread_kerevalmeth") = true,
+           py::arg("spread_kerpad") = true, py::arg("upsampfac") = 0.0,
+           py::arg("spread_thread") = 0, py::arg("maxbatchsize") = 0,
+           py::arg("spread_nthr_atomic") = -1, py::arg("spread_max_sp_size") = 0);
 }
 
 }  // namespace
