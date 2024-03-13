@@ -100,28 +100,24 @@ PYBIND11_MODULE(jax_finufft_cpu, m) {
   py::enum_<jax_finufft_opts::DebugLevel>(opts, "DebugLevel")
       .value("Silent", jax_finufft_opts::DebugLevel::Silent)
       .value("Vebose", jax_finufft_opts::DebugLevel::Verbose)
-      .value("Noisy", jax_finufft_opts::DebugLevel::Noisy)
-      .export_values();
+      .value("Noisy", jax_finufft_opts::DebugLevel::Noisy);
 
   py::enum_<jax_finufft_opts::FftwFlags>(opts, "FftwFlags")
       .value("Estimate", jax_finufft_opts::FftwFlags::Estimate)
       .value("Measure", jax_finufft_opts::FftwFlags::Measure)
       .value("Patient", jax_finufft_opts::FftwFlags::Patient)
       .value("Exhaustive", jax_finufft_opts::FftwFlags::Exhaustive)
-      .value("WisdomOnly", jax_finufft_opts::FftwFlags::WisdomOnly)
-      .export_values();
+      .value("WisdomOnly", jax_finufft_opts::FftwFlags::WisdomOnly);
 
   py::enum_<jax_finufft_opts::SpreadSort>(opts, "SpreadSort")
       .value("No", jax_finufft_opts::SpreadSort::No)
       .value("Yes", jax_finufft_opts::SpreadSort::Yes)
-      .value("Heuristic", jax_finufft_opts::SpreadSort::Heuristic)
-      .export_values();
+      .value("Heuristic", jax_finufft_opts::SpreadSort::Heuristic);
 
   py::enum_<jax_finufft_opts::SpreadThread>(opts, "SpreadThread")
       .value("Auto", jax_finufft_opts::SpreadThread::Auto)
       .value("Seq", jax_finufft_opts::SpreadThread::Seq)
-      .value("Parallel", jax_finufft_opts::SpreadThread::Parallel)
-      .export_values();
+      .value("Parallel", jax_finufft_opts::SpreadThread::Parallel);
 
   opts.def(
       py::init<bool, bool, jax_finufft_opts::DebugLevel, jax_finufft_opts::DebugLevel, bool, int,
