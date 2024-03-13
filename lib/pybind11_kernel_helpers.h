@@ -23,13 +23,6 @@ pybind11::capsule encapsulate_function(T* fn) {
   return pybind11::capsule(bit_cast<void*>(fn), "xla._CUSTOM_CALL_TARGET");
 }
 
-template <typename T>
-pybind11::bytes build_descriptor(T eps, int iflag, int64_t n_tot, int n_transf, int64_t n_j,
-                                 int64_t n_k_1, int64_t n_k_2, int64_t n_k_3) {
-  return pack_descriptor(
-      NufftDescriptor<T>{eps, iflag, n_tot, n_transf, n_j, {n_k_1, n_k_2, n_k_3}});
-}
-
 }  // namespace jax_finufft
 
 #endif

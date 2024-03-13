@@ -65,7 +65,7 @@ def default_layouts(*shapes):
     return [range(len(shape) - 1, -1, -1) for shape in shapes]
 
 
-def lowering(platform, ctx, source, *points, output_shape, iflag, eps):
+def lowering(platform, ctx, source, *points, output_shape, iflag, eps, opts):
     del ctx
 
     if platform not in ["cpu", "gpu"]:
@@ -78,6 +78,9 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps):
     assert 1 <= ndim <= 3
     if platform == "gpu" and ndim == 1:
         raise ValueError("1-D transforms are not yet supported on the GPU")
+
+    if opts is None:
+        opts = jax_finufft_cpu.Opts()
 
     source_type = ir.RankedTensorType(source.type)
     points_type = [ir.RankedTensorType(x.type) for x in points]
@@ -117,7 +120,7 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps):
 
     # Build the descriptor containing the transform parameters
     opaque = getattr(jax_finufft_cpu, f"build_descriptor{suffix}")(
-        eps, iflag, n_tot, n_transf, n_j, *n_k_full
+        eps, iflag, n_tot, n_transf, n_j, *n_k_full, opts
     )
 
     if platform == "cpu":

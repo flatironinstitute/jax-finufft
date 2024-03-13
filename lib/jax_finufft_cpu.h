@@ -1,11 +1,15 @@
 #ifndef _JAX_FINUFFT_H_
 #define _JAX_FINUFFT_H_
 
+#include <fftw3.h>
+
 #include <complex>
 
 #include "finufft.h"
 
 namespace jax_finufft {
+
+namespace cpu {
 
 template <typename T>
 struct plan_type;
@@ -123,6 +127,76 @@ float* z_index<3, float>(float* z, int64_t index) {
   return &(z[index]);
 }
 
+struct opts {
+  enum DebugLevel { Silent = 0, Verbose, Noisy };
+  enum FftwFlags {
+    Estimate = FFTW_ESTIMATE,
+    Measure = FFTW_MEASURE,
+    Patient = FFTW_PATIENT,
+    Exhaustive = FFTW_EXHAUSTIVE,
+    WisdomOnly = FFTW_WISDOM_ONLY
+  };
+  enum SpreadSort { No = 0, Yes, Heuristic };
+  enum SpreadThread { Auto = 0, Seq, Parallel };
+
+  finufft_opts finufft_opts;
+
+  opts(bool modeord,  // (type 1,2 only): 0 CMCL-style increasing mode order
+                      //                  1 FFT-style mode order
+       bool chkbnds,  // 0 don't check NU pts in [-3pi,3pi), 1 do (<few % slower)
+
+       // diagnostic opts...
+       DebugLevel debug,
+       DebugLevel spread_debug,  // spreader: 0 silent, 1 some timing/debug, or 2 tonnes
+       bool showwarn,            // 0 don't print warnings to stderr, 1 do
+
+       // algorithm performance opts...
+       int nthreads,                // number of threads to use, or 0 uses all available
+       int fftw,                    // plan flags to FFTW (FFTW_ESTIMATE=64, FFTW_MEASURE=0,...)
+       SpreadSort spread_sort,      // spreader: 0 don't sort, 1 do, or 2 heuristic choice
+       bool spread_kerevalmeth,     // spreader: 0 exp(sqrt()), 1 Horner piecewise poly (faster)
+       bool spread_kerpad,          // (exp(sqrt()) only): 0 don't pad kernel to 4n, 1 do
+       double upsampfac,            // upsampling ratio sigma: 2.0 std, 1.25 small FFT, 0.0 auto
+       SpreadThread spread_thread,  // (vectorized ntr>1 only): 0 auto, 1 seq multithreaded,
+                                    //                          2 parallel single-thread spread
+       int maxbatchsize,            // (vectorized ntr>1 only): max transform batch, 0 auto
+       int spread_nthr_atomic,  // if >=0, threads above which spreader OMP critical goes atomic
+       int spread_max_sp_size   // if >0, overrides spreader (dir=1) max subproblem size
+  ) {
+    default_opts<double>(&finufft_opts);
+
+    finufft_opts.modeord = modeord;
+    finufft_opts.chkbnds = chkbnds;
+
+    finufft_opts.debug = int(debug);
+    finufft_opts.spread_debug = int(spread_debug);
+    finufft_opts.showwarn = int(showwarn);
+
+    finufft_opts.nthreads = nthreads;
+    finufft_opts.fftw = fftw;
+    finufft_opts.spread_sort = spread_sort;
+    finufft_opts.spread_kerevalmeth = int(spread_kerevalmeth);
+    finufft_opts.spread_kerpad = int(spread_kerpad);
+    finufft_opts.upsampfac = upsampfac;
+    finufft_opts.spread_thread = int(spread_thread);
+    finufft_opts.maxbatchsize = maxbatchsize;
+    finufft_opts.spread_nthr_atomic = spread_nthr_atomic;
+    finufft_opts.spread_max_sp_size = spread_max_sp_size;
+  }
+};
+
+template <typename T>
+struct descriptor {
+  T eps;
+  int iflag;
+  int64_t n_tot;
+  int n_transf;
+  int64_t n_j;
+  int64_t n_k[3];
+  opts opts;
+};
+
+}  // namespace cpu
 }  // namespace jax_finufft
 
 #endif

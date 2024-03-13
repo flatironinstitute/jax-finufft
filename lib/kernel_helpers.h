@@ -11,7 +11,7 @@
 #include <string>
 #include <type_traits>
 
-#include "jax_finufft_common.h"
+#include "common.h"
 
 namespace jax_finufft {
 

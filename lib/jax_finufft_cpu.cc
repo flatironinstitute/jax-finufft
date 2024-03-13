@@ -4,7 +4,6 @@
 
 #include "jax_finufft_cpu.h"
 
-#include "jax_finufft_cpu_opts.h"
 #include "pybind11_kernel_helpers.h"
 
 using namespace jax_finufft;
@@ -12,30 +11,34 @@ namespace py = pybind11;
 
 namespace {
 
+template <typename T>
+py::bytes build_descriptor(T eps, int iflag, int64_t n_tot, int n_transf, int64_t n_j,
+                           int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, cpu::opts opts) {
+  return pack_descriptor(
+      cpu::descriptor<T>{eps, iflag, n_tot, n_transf, n_j, {n_k_1, n_k_2, n_k_3}, opts});
+}
+
 template <int ndim, typename T>
 void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, std::complex<T> *F) {
-  const NufftDescriptor<T> *descriptor = unpack_descriptor<NufftDescriptor<T>>(
-      reinterpret_cast<const char *>(desc_in), sizeof(NufftDescriptor<T>));
+  const cpu::descriptor<T> *descriptor = unpack_descriptor<cpu::descriptor<T>>(
+      reinterpret_cast<const char *>(desc_in), sizeof(cpu::descriptor<T>));
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
+  finufft_opts opts = descriptor->opts.finufft_opts;
 
-  finufft_opts *opts = new finufft_opts;
-  default_opts<T>(opts);
-
-  typename plan_type<T>::type plan;
-  makeplan<T>(type, ndim, const_cast<int64_t *>(descriptor->n_k), descriptor->iflag,
-              descriptor->n_transf, descriptor->eps, &plan, opts);
+  typename cpu::plan_type<T>::type plan;
+  cpu::makeplan<T>(type, ndim, const_cast<int64_t *>(descriptor->n_k), descriptor->iflag,
+                   descriptor->n_transf, descriptor->eps, &plan, &opts);
   for (int64_t index = 0; index < descriptor->n_tot; ++index) {
     int64_t i = index * descriptor->n_j;
     int64_t j = i * descriptor->n_transf;
     int64_t k = index * n_k * descriptor->n_transf;
 
-    setpts<T>(plan, descriptor->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0,
-              NULL, NULL, NULL);
-    execute<T>(plan, &c[j], &F[k]);
+    cpu::setpts<T>(plan, descriptor->n_j, &(x[i]), cpu::y_index<ndim, T>(y, i),
+                   cpu::z_index<ndim, T>(z, i), 0, NULL, NULL, NULL);
+    cpu::execute<T>(plan, &c[j], &F[k]);
   }
-  destroy<T>(plan);
-  delete opts;
+  cpu::destroy<T>(plan);
 }
 
 template <int ndim, typename T>
@@ -95,43 +98,42 @@ PYBIND11_MODULE(jax_finufft_cpu, m) {
   m.def("build_descriptorf", &build_descriptor<float>);
   m.def("build_descriptor", &build_descriptor<double>);
 
-  py::class_<jax_finufft_opts> opts(m, "Opts");
+  py::class_<cpu::opts> opts(m, "Opts");
 
-  py::enum_<jax_finufft_opts::DebugLevel>(opts, "DebugLevel")
-      .value("Silent", jax_finufft_opts::DebugLevel::Silent)
-      .value("Vebose", jax_finufft_opts::DebugLevel::Verbose)
-      .value("Noisy", jax_finufft_opts::DebugLevel::Noisy);
+  py::enum_<cpu::opts::DebugLevel>(opts, "DebugLevel")
+      .value("Silent", cpu::opts::DebugLevel::Silent)
+      .value("Vebose", cpu::opts::DebugLevel::Verbose)
+      .value("Noisy", cpu::opts::DebugLevel::Noisy);
 
-  py::enum_<jax_finufft_opts::FftwFlags>(opts, "FftwFlags")
-      .value("Estimate", jax_finufft_opts::FftwFlags::Estimate)
-      .value("Measure", jax_finufft_opts::FftwFlags::Measure)
-      .value("Patient", jax_finufft_opts::FftwFlags::Patient)
-      .value("Exhaustive", jax_finufft_opts::FftwFlags::Exhaustive)
-      .value("WisdomOnly", jax_finufft_opts::FftwFlags::WisdomOnly);
+  py::enum_<cpu::opts::FftwFlags>(opts, "FftwFlags")
+      .value("Estimate", cpu::opts::FftwFlags::Estimate)
+      .value("Measure", cpu::opts::FftwFlags::Measure)
+      .value("Patient", cpu::opts::FftwFlags::Patient)
+      .value("Exhaustive", cpu::opts::FftwFlags::Exhaustive)
+      .value("WisdomOnly", cpu::opts::FftwFlags::WisdomOnly);
 
-  py::enum_<jax_finufft_opts::SpreadSort>(opts, "SpreadSort")
-      .value("No", jax_finufft_opts::SpreadSort::No)
-      .value("Yes", jax_finufft_opts::SpreadSort::Yes)
-      .value("Heuristic", jax_finufft_opts::SpreadSort::Heuristic);
+  py::enum_<cpu::opts::SpreadSort>(opts, "SpreadSort")
+      .value("No", cpu::opts::SpreadSort::No)
+      .value("Yes", cpu::opts::SpreadSort::Yes)
+      .value("Heuristic", cpu::opts::SpreadSort::Heuristic);
 
-  py::enum_<jax_finufft_opts::SpreadThread>(opts, "SpreadThread")
-      .value("Auto", jax_finufft_opts::SpreadThread::Auto)
-      .value("Seq", jax_finufft_opts::SpreadThread::Seq)
-      .value("Parallel", jax_finufft_opts::SpreadThread::Parallel);
+  py::enum_<cpu::opts::SpreadThread>(opts, "SpreadThread")
+      .value("Auto", cpu::opts::SpreadThread::Auto)
+      .value("Seq", cpu::opts::SpreadThread::Seq)
+      .value("Parallel", cpu::opts::SpreadThread::Parallel);
 
-  opts.def(
-      py::init<bool, bool, jax_finufft_opts::DebugLevel, jax_finufft_opts::DebugLevel, bool, int,
-               int, jax_finufft_opts::SpreadSort, bool, bool, double,
-               jax_finufft_opts::SpreadThread, int, int, int>(),
-      py::arg("modeord") = false, py::arg("chkbnds") = true,
-      py::arg("debug") = jax_finufft_opts::DebugLevel::Silent,
-      py::arg("spread_debug") = jax_finufft_opts::DebugLevel::Silent, py::arg("showwarn") = false,
-      py::arg("nthreads") = 0, py::arg("fftw") = int(FFTW_ESTIMATE),
-      py::arg("spread_sort") = jax_finufft_opts::SpreadSort::Heuristic,
-      py::arg("spread_kerevalmeth") = true, py::arg("spread_kerpad") = true,
-      py::arg("upsampfac") = 0.0, py::arg("spread_thread") = jax_finufft_opts::SpreadThread::Auto,
-      py::arg("maxbatchsize") = 0, py::arg("spread_nthr_atomic") = -1,
-      py::arg("spread_max_sp_size") = 0);
+  opts.def(py::init<bool, bool, cpu::opts::DebugLevel, cpu::opts::DebugLevel, bool, int, int,
+                    cpu::opts::SpreadSort, bool, bool, double, cpu::opts::SpreadThread, int, int,
+                    int>(),
+           py::arg("modeord") = false, py::arg("chkbnds") = true,
+           py::arg("debug") = cpu::opts::DebugLevel::Silent,
+           py::arg("spread_debug") = cpu::opts::DebugLevel::Silent, py::arg("showwarn") = false,
+           py::arg("nthreads") = 0, py::arg("fftw") = int(FFTW_ESTIMATE),
+           py::arg("spread_sort") = cpu::opts::SpreadSort::Heuristic,
+           py::arg("spread_kerevalmeth") = true, py::arg("spread_kerpad") = true,
+           py::arg("upsampfac") = 0.0, py::arg("spread_thread") = cpu::opts::SpreadThread::Auto,
+           py::arg("maxbatchsize") = 0, py::arg("spread_nthr_atomic") = -1,
+           py::arg("spread_max_sp_size") = 0);
 }
 
 }  // namespace
