@@ -4,9 +4,11 @@
 
 #include "jax_finufft_cpu.h"
 
+#include "jax_finufft_cpu_opts.h"
 #include "pybind11_kernel_helpers.h"
 
 using namespace jax_finufft;
+namespace py = pybind11;
 
 namespace {
 
@@ -92,6 +94,48 @@ PYBIND11_MODULE(jax_finufft_cpu, m) {
   m.def("registrations", &Registrations);
   m.def("build_descriptorf", &build_descriptor<float>);
   m.def("build_descriptor", &build_descriptor<double>);
+
+  py::class_<jax_finufft_opts> opts(m, "Opts");
+
+  py::enum_<jax_finufft_opts::DebugLevel>(opts, "DebugLevel")
+      .value("Silent", jax_finufft_opts::DebugLevel::Silent)
+      .value("Vebose", jax_finufft_opts::DebugLevel::Verbose)
+      .value("Noisy", jax_finufft_opts::DebugLevel::Noisy)
+      .export_values();
+
+  py::enum_<jax_finufft_opts::FftwFlags>(opts, "FftwFlags")
+      .value("Estimate", jax_finufft_opts::FftwFlags::Estimate)
+      .value("Measure", jax_finufft_opts::FftwFlags::Measure)
+      .value("Patient", jax_finufft_opts::FftwFlags::Patient)
+      .value("Exhaustive", jax_finufft_opts::FftwFlags::Exhaustive)
+      .value("WisdomOnly", jax_finufft_opts::FftwFlags::WisdomOnly)
+      .export_values();
+
+  py::enum_<jax_finufft_opts::SpreadSort>(opts, "SpreadSort")
+      .value("No", jax_finufft_opts::SpreadSort::No)
+      .value("Yes", jax_finufft_opts::SpreadSort::Yes)
+      .value("Heuristic", jax_finufft_opts::SpreadSort::Heuristic)
+      .export_values();
+
+  py::enum_<jax_finufft_opts::SpreadThread>(opts, "SpreadThread")
+      .value("Auto", jax_finufft_opts::SpreadThread::Auto)
+      .value("Seq", jax_finufft_opts::SpreadThread::Seq)
+      .value("Parallel", jax_finufft_opts::SpreadThread::Parallel)
+      .export_values();
+
+  opts.def(
+      py::init<bool, bool, jax_finufft_opts::DebugLevel, jax_finufft_opts::DebugLevel, bool, int,
+               int, jax_finufft_opts::SpreadSort, bool, bool, double,
+               jax_finufft_opts::SpreadThread, int, int, int>(),
+      py::arg("modeord") = false, py::arg("chkbnds") = true,
+      py::arg("debug") = jax_finufft_opts::DebugLevel::Silent,
+      py::arg("spread_debug") = jax_finufft_opts::DebugLevel::Silent, py::arg("showwarn") = false,
+      py::arg("nthreads") = 0, py::arg("fftw") = int(FFTW_ESTIMATE),
+      py::arg("spread_sort") = jax_finufft_opts::SpreadSort::Heuristic,
+      py::arg("spread_kerevalmeth") = true, py::arg("spread_kerpad") = true,
+      py::arg("upsampfac") = 0.0, py::arg("spread_thread") = jax_finufft_opts::SpreadThread::Auto,
+      py::arg("maxbatchsize") = 0, py::arg("spread_nthr_atomic") = -1,
+      py::arg("spread_max_sp_size") = 0);
 }
 
 }  // namespace
