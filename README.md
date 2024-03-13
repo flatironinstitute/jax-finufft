@@ -30,7 +30,7 @@ _For now, only a source build is supported._
 For building, you should only need a recent version of Python (>3.6) and
 [FFTW](https://www.fftw.org/). GPU-enabled builds also require a working CUDA
 compiler (i.e. the CUDA Toolkit), CUDA >= 11.8, and a compatible cuDNN (older versions of CUDA may work but
-are untested). At runtime, you'll need `numpy`, `scipy`, and `jax`.
+are untested). At runtime, you'll need `numpy` and `jax`.
 
 First, clone the repo and `cd` into the repo root (don't forget the `--recursive` flag because FINUFFT is included as a submodule):
 ```bash
@@ -65,7 +65,20 @@ python -m pip install "jax[cuda11_local]" -f https://storage.googleapis.com/jax-
 python -m pip install .
 ```
 
-In the `CMAKE_ARGS` line, you'll need to select the CUDA architecture(s) you wish to compile for. See the [FINUFFT docs](https://finufft.readthedocs.io/en/latest/install_gpu.html#cmake-installation).
+In the `CMAKE_ARGS` line, you'll need to select the CUDA architecture(s) you wish to compile for. To query your GPU's CUDA architecture (compute capability), you can run:
+
+```bash
+$ nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+7.0
+```
+
+This corresponds to `CMAKE_CUDA_ARCHITECTURES=70`, i.e.:
+
+```bash
+export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=70 -DJAX_FINUFFT_USE_CUDA=ON"
+```
+
+Note that the pip installation is running CMake, so `CMAKE_ARGS` has to be set before then, but is not needed at runtime.
 
 At runtime, you may also need:
 ```bash
