@@ -10,7 +10,7 @@ message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
 # Enable CUDA if requested and available
-option(JAX_FINUFFT_USE_CUDA "Enable CUDA build if available" OFF)
+option(JAX_FINUFFT_USE_CUDA "Enable CUDA build" OFF)
 if(JAX_FINUFFT_USE_CUDA)
     include(CheckLanguage)
     check_language(CUDA)
@@ -19,7 +19,8 @@ if(JAX_FINUFFT_USE_CUDA)
         enable_language(CUDA)
         set(FINUFFT_USE_CUDA ON)
     else()
-        message(STATUS "No CUDA compiler found; compiling without GPU support")
+        message(FATAL_ERROR "No CUDA compiler found! Please ensure the CUDA Toolkit "
+            "is installed, or set JAX_FINUFFT_USE_CUDA=OFF to disable GPU support.")
         set(FINUFFT_USE_CUDA OFF)
     endif()
 else()
