@@ -8,6 +8,17 @@
 
 namespace jax_finufft {
 
+template <typename T>
+struct descriptor {
+  T eps;
+  int iflag;
+  int64_t n_tot;
+  int n_transf;
+  int64_t n_j;
+  int64_t n_k[3];
+  cufinufft_opts opts;
+};
+
 void nufft2d1(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft2d2(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft3d1(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);

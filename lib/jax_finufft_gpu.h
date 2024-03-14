@@ -152,17 +152,6 @@ float* z_index<3, float>(float* z, int64_t index) {
   return &(z[index]);
 }
 
-template <typename T>
-struct descriptor {
-  T eps;
-  int iflag;
-  int64_t n_tot;
-  int n_transf;
-  int64_t n_j;
-  int64_t n_k[3];
-  cufinufft_opts opts;
-};
-
 }  // namespace gpu
 
 }  // namespace jax_finufft

@@ -2,8 +2,6 @@
 // It is exposed as a standard pybind11 module defining "capsule" objects containing our
 // method. For simplicity, we export a separate capsule for each supported dtype.
 
-#include "jax_finufft_gpu.h"
-
 #include "kernels.h"
 #include "pybind11_kernel_helpers.h"
 
