@@ -7,31 +7,32 @@
 #include "pybind11_kernel_helpers.h"
 
 using namespace jax_finufft;
+using namespace jax_finufft::cpu;
 namespace py = pybind11;
 
 namespace {
 
 template <int ndim, typename T>
 void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, std::complex<T> *F) {
-  const cpu::descriptor<T> *descriptor = unpack_descriptor<cpu::descriptor<T>>(
-      reinterpret_cast<const char *>(desc_in), sizeof(cpu::descriptor<T>));
+  const descriptor<T> *descriptor = unpack_descriptor<descriptor<T>>(
+      reinterpret_cast<const char *>(desc_in), sizeof(descriptor<T>));
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
   finufft_opts opts = descriptor->opts;
 
-  typename cpu::plan_type<T>::type plan;
-  cpu::makeplan<T>(type, ndim, const_cast<int64_t *>(descriptor->n_k), descriptor->iflag,
-                   descriptor->n_transf, descriptor->eps, &plan, &opts);
+  typename plan_type<T>::type plan;
+  makeplan<T>(type, ndim, const_cast<int64_t *>(descriptor->n_k), descriptor->iflag,
+              descriptor->n_transf, descriptor->eps, &plan, &opts);
   for (int64_t index = 0; index < descriptor->n_tot; ++index) {
     int64_t i = index * descriptor->n_j;
     int64_t j = i * descriptor->n_transf;
     int64_t k = index * n_k * descriptor->n_transf;
 
-    cpu::setpts<T>(plan, descriptor->n_j, &(x[i]), cpu::y_index<ndim, T>(y, i),
-                   cpu::z_index<ndim, T>(z, i), 0, NULL, NULL, NULL);
-    cpu::execute<T>(plan, &c[j], &F[k]);
+    setpts<T>(plan, descriptor->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0,
+              NULL, NULL, NULL);
+    execute<T>(plan, &c[j], &F[k]);
   }
-  cpu::destroy<T>(plan);
+  destroy<T>(plan);
 }
 
 template <int ndim, typename T>
@@ -70,7 +71,7 @@ template <typename T>
 py::bytes build_descriptor(T eps, int iflag, int64_t n_tot, int n_transf, int64_t n_j,
                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, finufft_opts opts) {
   return pack_descriptor(
-      cpu::descriptor<T>{eps, iflag, n_tot, n_transf, n_j, {n_k_1, n_k_2, n_k_3}, opts});
+      descriptor<T>{eps, iflag, n_tot, n_transf, n_j, {n_k_1, n_k_2, n_k_3}, opts});
 }
 
 template <typename T>
@@ -79,7 +80,7 @@ finufft_opts *build_opts(bool modeord, bool chkbnds, int debug, int spread_debug
                          bool spread_kerpad, double upsampfac, int spread_thread, int maxbatchsize,
                          int spread_nthr_atomic, int spread_max_sp_size) {
   finufft_opts *opts = new finufft_opts;
-  cpu::default_opts<T>(opts);
+  default_opts<T>(opts);
 
   opts->modeord = int(modeord);
   opts->chkbnds = int(chkbnds);
