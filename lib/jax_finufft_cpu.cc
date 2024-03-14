@@ -14,22 +14,22 @@ namespace {
 
 template <int ndim, typename T>
 void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, std::complex<T> *F) {
-  const descriptor<T> *descriptor = unpack_descriptor<descriptor<T>>(
+  const descriptor<T> *desc = unpack_descriptor<descriptor<T>>(
       reinterpret_cast<const char *>(desc_in), sizeof(descriptor<T>));
   int64_t n_k = 1;
-  for (int d = 0; d < ndim; ++d) n_k *= descriptor->n_k[d];
-  finufft_opts opts = descriptor->opts;
+  for (int d = 0; d < ndim; ++d) n_k *= desc->n_k[d];
+  finufft_opts opts = desc->opts;
 
   typename plan_type<T>::type plan;
-  makeplan<T>(type, ndim, const_cast<int64_t *>(descriptor->n_k), descriptor->iflag,
-              descriptor->n_transf, descriptor->eps, &plan, &opts);
-  for (int64_t index = 0; index < descriptor->n_tot; ++index) {
-    int64_t i = index * descriptor->n_j;
-    int64_t j = i * descriptor->n_transf;
-    int64_t k = index * n_k * descriptor->n_transf;
+  makeplan<T>(type, ndim, const_cast<int64_t *>(desc->n_k), desc->iflag, desc->n_transf, desc->eps,
+              &plan, &opts);
+  for (int64_t index = 0; index < desc->n_tot; ++index) {
+    int64_t i = index * desc->n_j;
+    int64_t j = i * desc->n_transf;
+    int64_t k = index * n_k * desc->n_transf;
 
-    setpts<T>(plan, descriptor->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0,
-              NULL, NULL, NULL);
+    setpts<T>(plan, desc->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0, NULL,
+              NULL, NULL);
     execute<T>(plan, &c[j], &F[k]);
   }
   destroy<T>(plan);
