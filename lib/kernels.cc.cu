@@ -2,6 +2,8 @@
 #include "kernel_helpers.h"
 #include "kernels.h"
 
+using namespace jax_finufft::gpu;
+
 namespace jax_finufft {
 
 void ThrowIfError(cudaError_t error) {

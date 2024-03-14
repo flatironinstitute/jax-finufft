@@ -44,7 +44,7 @@ void update_opts<float>(cufinufft_opts* opts, int dim, cudaStream_t stream) {
 }
 
 template <>
-void update_opts<float>(cufinufft_opts* opts, int dim, cudaStream_t stream) {
+void update_opts<double>(cufinufft_opts* opts, int dim, cudaStream_t stream) {
   opts->gpu_stream = stream;
 
   // double precision in 3D blows out shared memory.
