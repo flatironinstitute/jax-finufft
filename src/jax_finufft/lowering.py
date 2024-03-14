@@ -2,6 +2,7 @@ import numpy as np
 from jax.interpreters.mlir import ir
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call as _custom_call
+from jax_finufft import options
 
 try:
     from jaxlib.hlo_helpers import hlo_const
@@ -79,9 +80,6 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps, opts):
     if platform == "gpu" and ndim == 1:
         raise ValueError("1-D transforms are not yet supported on the GPU")
 
-    if opts is None:
-        opts = jax_finufft_cpu.Opts()
-
     source_type = ir.RankedTensorType(source.type)
     points_type = [ir.RankedTensorType(x.type) for x in points]
 
@@ -113,17 +111,19 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps, opts):
         n_k = np.array(output_shape, dtype=np.int64)
         full_output_shape = tuple(source_shape[:2]) + tuple(output_shape)
 
-    # The backend expects the output shape in Fortran order so we'll just
+    # The backend expects the output shape in Fortran order, so we'll just
     # fake it here, by sending in n_k and x in the reverse order.
     n_k_full = np.zeros(3, dtype=np.int64)
     n_k_full[:ndim] = n_k[::-1]
 
-    # Build the descriptor containing the transform parameters
-    opaque = getattr(jax_finufft_cpu, f"build_descriptor{suffix}")(
-        eps, iflag, n_tot, n_transf, n_j, *n_k_full, opts
-    )
+    if opts is None:
+        opts = options.Opts()
 
     if platform == "cpu":
+        opts = opts.to_finufft_opts()
+        opaque = getattr(jax_finufft_cpu, f"build_descriptor{suffix}")(
+            eps, iflag, n_tot, n_transf, n_j, *n_k_full, opts
+        )
         opaque_arg = hlo_const(np.frombuffer(opaque, dtype=np.uint8))
         opaque_shape = ir.RankedTensorType(opaque_arg.type).shape
         return custom_call(
@@ -140,6 +140,10 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps, opts):
         )
 
     else:
+        opts = opts.to_cufinufft_opts()
+        opaque = getattr(jax_finufft_gpu, f"build_descriptor{suffix}")(
+            eps, iflag, n_tot, n_transf, n_j, *n_k_full, opts
+        )
         return custom_call(
             op_name,
             result_types=[

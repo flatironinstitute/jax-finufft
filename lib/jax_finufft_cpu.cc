@@ -11,13 +11,6 @@ namespace py = pybind11;
 
 namespace {
 
-template <typename T>
-py::bytes build_descriptor(T eps, int iflag, int64_t n_tot, int n_transf, int64_t n_j,
-                           int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, finufft_opts opts) {
-  return pack_descriptor(
-      cpu::descriptor<T>{eps, iflag, n_tot, n_transf, n_j, {n_k_1, n_k_2, n_k_3}, opts});
-}
-
 template <int ndim, typename T>
 void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, std::complex<T> *F) {
   const cpu::descriptor<T> *descriptor = unpack_descriptor<cpu::descriptor<T>>(
@@ -71,6 +64,13 @@ void nufft2(void *out, void **in) {
   }
   std::complex<T> *c = reinterpret_cast<std::complex<T> *>(out);
   run_nufft<ndim, T>(2, in[0], x, y, z, c, F);
+}
+
+template <typename T>
+py::bytes build_descriptor(T eps, int iflag, int64_t n_tot, int n_transf, int64_t n_j,
+                           int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, finufft_opts opts) {
+  return pack_descriptor(
+      cpu::descriptor<T>{eps, iflag, n_tot, n_transf, n_j, {n_k_1, n_k_2, n_k_3}, opts});
 }
 
 template <typename T>

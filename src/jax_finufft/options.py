@@ -31,8 +31,14 @@ class SpreadThread(IntEnum):
     Parallel = 2
 
 
+class GpuMethod(IntEnum):
+    Auto = 0
+    Driven = 1
+    Shared = 2
+
+
 @dataclass(frozen=True)
-class CPUOpts:
+class Opts:
     modeord: bool = False
     chkbnds: bool = True
     debug: DebugLevel = DebugLevel.Silent
@@ -48,7 +54,21 @@ class CPUOpts:
     spread_nthr_atomic: int = -1
     spread_max_sp_size: int = 0
 
-    def to_finufft_opts(self) -> jax_finufft_cpu.FinufftOpts:
+    gpu_upsampfac: float = 2.0
+    gpu_method: GpuMethod = 0
+    gpu_sort: bool = True
+    gpu_binsizex: int = -1
+    gpu_binsizey: int = -1
+    gpu_binsizez: int = -1
+    gpu_obinsizex: int = -1
+    gpu_obinsizey: int = -1
+    gpu_obinsizez: int = -1
+    gpu_maxsubprobsize: int = 1024
+    gpu_kerevalmeth: bool = True
+    gpu_spreadinterponly: bool = False
+    gpu_maxbatchsize: int = 0
+
+    def to_finufft_opts(self):
         return jax_finufft_cpu.FinufftOpts(
             modeord=self.modeord,
             chkbnds=self.chkbnds,
@@ -64,4 +84,23 @@ class CPUOpts:
             maxbatchsize=self.maxbatchsize,
             spread_nthr_atomic=self.spread_nthr_atomic,
             spread_max_sp_size=self.spread_max_sp_size,
+        )
+
+    def to_cufinufft_opts(self):
+        from jax_finufft import jax_finufft_gpu
+
+        return jax_finufft_gpu.CufinufftOpts(
+            upsampfac=self.gpu_upsampfac,
+            gpu_method=self.gpu_method,
+            gpu_sort=self.gpu_sort,
+            gpu_binsizex=self.gpu_binsizex,
+            gpu_binsizey=self.gpu_binsizey,
+            gpu_binsizez=self.gpu_binsizez,
+            gpu_obinsizex=self.gpu_obinsizex,
+            gpu_obinsizey=self.gpu_obinsizey,
+            gpu_obinsizez=self.gpu_obinsizez,
+            gpu_maxsubprobsize=self.gpu_maxsubprobsize,
+            gpu_kerevalmeth=self.gpu_kerevalmeth,
+            gpu_spreadinterponly=self.gpu_spreadinterponly,
+            gpu_maxbatchsize=self.gpu_maxbatchsize,
         )

@@ -7,6 +7,8 @@
 
 namespace jax_finufft {
 
+namespace gpu {
+
 template <typename T>
 struct plan_type;
 
@@ -21,17 +23,28 @@ struct plan_type<float> {
 };
 
 template <typename T>
-void default_opts(int type, int dim, cufinufft_opts* opts, cudaStream_t stream);
+void default_opts(cufinufft_opts* opts);
 
 template <>
-void default_opts<float>(int type, int dim, cufinufft_opts* opts, cudaStream_t stream) {
+void default_opts<float>(cufinufft_opts* opts) {
   cufinufft_default_opts(opts);
+}
+
+template <>
+void default_opts<double>(cufinufft_opts* opts) {
+  cufinufft_default_opts(opts);
+}
+
+template <typename T>
+void update_opts(cufinufft_opts* opts, int dim, cudaStream_t stream);
+
+template <>
+void update_opts<float>(cufinufft_opts* opts, int dim, cudaStream_t stream) {
   opts->gpu_stream = stream;
 }
 
 template <>
-void default_opts<double>(int type, int dim, cufinufft_opts* opts, cudaStream_t stream) {
-  cufinufft_default_opts(opts);
+void update_opts<float>(cufinufft_opts* opts, int dim, cudaStream_t stream) {
   opts->gpu_stream = stream;
 
   // double precision in 3D blows out shared memory.
@@ -138,6 +151,19 @@ template <>
 float* z_index<3, float>(float* z, int64_t index) {
   return &(z[index]);
 }
+
+template <typename T>
+struct descriptor {
+  T eps;
+  int iflag;
+  int64_t n_tot;
+  int n_transf;
+  int64_t n_j;
+  int64_t n_k[3];
+  cufinufft_opts opts;
+};
+
+}  // namespace gpu
 
 }  // namespace jax_finufft
 
