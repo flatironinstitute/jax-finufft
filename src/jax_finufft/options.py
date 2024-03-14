@@ -1,4 +1,5 @@
 from enum import IntEnum
+from typing import Optional, Union
 
 from pydantic.dataclasses import dataclass
 
@@ -104,3 +105,29 @@ class Opts:
             gpu_spreadinterponly=self.gpu_spreadinterponly,
             gpu_maxbatchsize=self.gpu_maxbatchsize,
         )
+
+
+@dataclass(frozen=True)
+class NestedOpts:
+    type1: Optional[Opts] = None
+    type2: Optional[Opts] = None
+
+    forward: Optional[Opts] = None
+    backward: Optional[Union[Opts, "NestedOpts"]] = None
+
+
+def unpack_opts(opts, finufft_type, forward):
+    if opts is None or isinstance(opts, Opts):
+        return opts
+
+    if forward:
+        if opts.forward is not None:
+            return opts.forward
+        elif finufft_type == 1:
+            return opts.type1
+        elif finufft_type == 2:
+            return opts.type2
+    elif opts.backward is not None:
+        return opts.backward
+
+    return opts

@@ -118,6 +118,8 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps, opts):
 
     if opts is None:
         opts = options.Opts()
+    opts = options.unpack_opts(opts, 2 if output_shape is None else 1, True)
+    assert isinstance(opts, options.Opts)
 
     if platform == "cpu":
         opts = opts.to_finufft_opts()

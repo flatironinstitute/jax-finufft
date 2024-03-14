@@ -8,7 +8,7 @@ from jax import jit
 from jax import numpy as jnp
 from jax.interpreters import ad, batching, xla, mlir
 
-from . import shapes, lowering
+from jax_finufft import shapes, lowering, options
 
 
 @partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps", "opts"))
@@ -89,7 +89,6 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts):
                     output_shape=output_shape,
                     iflag=iflag,
                     eps=eps,
-                    # TODO(dfm): We want to use different opts here
                     opts=opts,
                 )
             )
@@ -120,12 +119,7 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts):
         func = nufft2 if output_shape is None else partial(nufft1, tuple(output_shape))
         argument = jnp.stack(arguments, axis=2)
         output_tangent = func(
-            argument,
-            *(p[:, None] for p in points),
-            iflag=iflag,
-            eps=eps,
-            # TODO(dfm): We want to use different opts here
-            opts=opts,
+            argument, *(p[:, None] for p in points), iflag=iflag, eps=eps, opts=opts
         )
         output_tangents += [s * output_tangent[:, :, n] for n, s in enumerate(scales)]
 
@@ -145,8 +139,7 @@ def transpose(doutput, source, *points, output_shape, eps, iflag, opts):
             *points,
             eps=eps,
             iflag=iflag,
-            # TODO(dfm): We want to use different opts here
-            opts=opts,
+            opts=options.unpack_opts(opts, 1, False),
         )
     else:
         result = nufft2(
@@ -154,8 +147,7 @@ def transpose(doutput, source, *points, output_shape, eps, iflag, opts):
             *points,
             eps=eps,
             iflag=iflag,
-            # TODO(dfm): We want to use different opts here
-            opts=opts,
+            opts=options.unpack_opts(opts, 2, False),
         )
 
     return (result,) + tuple(None for _ in range(len(points)))
