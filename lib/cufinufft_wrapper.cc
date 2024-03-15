@@ -1,8 +1,8 @@
+#include "cufinufft_wrapper.h"
+
 #include <complex>
 
 #include "cufinufft.h"
-
-#include "cufinufft_wrapper.h"
 
 namespace jax_finufft {
 
