@@ -33,6 +33,7 @@ compiler (i.e. the CUDA Toolkit), CUDA >= 11.8, and a compatible cuDNN (older ve
 are untested). At runtime, you'll need `numpy` and `jax`.
 
 First, clone the repo and `cd` into the repo root (don't forget the `--recursive` flag because FINUFFT is included as a submodule):
+
 ```bash
 git clone --recursive https://github.com/dfm/jax-finufft
 cd jax-finufft
@@ -83,12 +84,15 @@ export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=70 -DJAX_FINUFFT_USE_CUDA=ON"
 Note that the pip installation is running CMake, so `CMAKE_ARGS` has to be set before then, but is not needed at runtime.
 
 At runtime, you may also need:
+
 ```bash
 export LD_LIBRARY_PATH="$CUDA_PATH/extras/CUPTI/lib64:$LD_LIBRARY_PATH"
 ```
+
 If `CUDA_PATH` isn't set, you'll need to replace it with the path to your CUDA installation in the above line, often something like `/usr/local/cuda`.
 
 For Flatiron users, the following environment setup script can be used instead of conda:
+
 <details>
 <summary>Environment script</summary>
 
@@ -104,6 +108,7 @@ ml nccl
 export LD_LIBRARY_PATH=$CUDA_HOME/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=60;70;80;90 -DJAX_FINUFFT_USE_CUDA=ON"
 ```
+
 </details>
 
 ## Usage
@@ -127,6 +132,13 @@ x = 2 * np.pi * np.random.uniform(size=M)
 c = np.random.standard_normal(size=M) + 1j * np.random.standard_normal(size=M)
 f = nufft1(N, c, x, eps=1e-6, iflag=1)
 ```
+
+> [!WARNING]
+> As described in [the FINUFFT
+> documentation](https://finufft.readthedocs.io/en/latest/math.html), the
+> non-uniform points must lie within the range `[-3pi, 3pi]`, but this is _not
+> checked_, because JAX currently doesn't have a good interface for runtime
+> value checking. Unexpected crashes may occur if this condition is not met.
 
 Noting that the `eps` and `iflag` are optional, and that (for good reason, I
 promise!) the order of the positional arguments is reversed from the `finufft`
