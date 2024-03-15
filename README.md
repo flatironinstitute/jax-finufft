@@ -166,7 +166,7 @@ mode differentiation.
 ## Advanced usage
 
 The tuning parameters for the library can be set using the `opts` parameter to
-`nufft1` and `nufft2`. For example, to explicitly set the [up-sampling
+`nufft1` and `nufft2`. For example, to explicitly set the CPU [up-sampling
 factor](https://finufft.readthedocs.io/en/latest/opts.html) that FINUFFT should
 use, you can update the example from above as follows:
 
@@ -176,6 +176,9 @@ from jax_finufft import options
 opts = options.Opts(upsampfac=2.0)
 nufft1(N, c, x, opts=opts)
 ```
+
+The corresponding option for the GPU is `gpu_upsampfac`. In fact, all options
+for the GPU are prefixed with `gpu_`.
 
 One complication here is that the [vector-Jacobian
 product](https://jax.readthedocs.io/en/latest/notebooks/autodiff_cookbook.html#vector-jacobian-products-vjps-aka-reverse-mode-autodiff)
@@ -205,7 +208,9 @@ opts = options.NestedOpts(
 ```
 
 See [the FINUFFT docs](https://finufft.readthedocs.io/en/latest/opts.html) for
-descriptions of all the tuning parameters.
+descriptions of all the CPU tuning parameters. The corresponding GPU parameters
+are currently only listed in source code form in
+[`cufinufft_opts.h`](https://github.com/flatironinstitute/finufft/blob/master/include/cufinufft_opts.h).
 
 ## Similar libraries
 
