@@ -224,7 +224,3 @@ Copyright 2021, 2022, 2023 The Simons Foundation, Inc.
 
 If you use this software, please cite the primary references listed on the
 [FINUFFT docs](https://finufft.readthedocs.io/en/latest/refs.html).
-
-```
-
-```
