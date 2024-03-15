@@ -33,6 +33,7 @@ compiler (i.e. the CUDA Toolkit), CUDA >= 11.8, and a compatible cuDNN (older ve
 are untested). At runtime, you'll need `numpy` and `jax`.
 
 First, clone the repo and `cd` into the repo root (don't forget the `--recursive` flag because FINUFFT is included as a submodule):
+
 ```bash
 git clone --recursive https://github.com/dfm/jax-finufft
 cd jax-finufft
@@ -83,12 +84,15 @@ export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=70 -DJAX_FINUFFT_USE_CUDA=ON"
 Note that the pip installation is running CMake, so `CMAKE_ARGS` has to be set before then, but is not needed at runtime.
 
 At runtime, you may also need:
+
 ```bash
 export LD_LIBRARY_PATH="$CUDA_PATH/extras/CUPTI/lib64:$LD_LIBRARY_PATH"
 ```
+
 If `CUDA_PATH` isn't set, you'll need to replace it with the path to your CUDA installation in the above line, often something like `/usr/local/cuda`.
 
 For Flatiron users, the following environment setup script can be used instead of conda:
+
 <details>
 <summary>Environment script</summary>
 
@@ -104,6 +108,7 @@ ml nccl
 export LD_LIBRARY_PATH=$CUDA_HOME/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=60;70;80;90 -DJAX_FINUFFT_USE_CUDA=ON"
 ```
+
 </details>
 
 ## Usage
@@ -128,6 +133,13 @@ c = np.random.standard_normal(size=M) + 1j * np.random.standard_normal(size=M)
 f = nufft1(N, c, x, eps=1e-6, iflag=1)
 ```
 
+> [!WARNING]
+> As described in [the FINUFFT
+> documentation](https://finufft.readthedocs.io/en/latest/math.html), the
+> non-uniform points must lie within the range `[-3pi, 3pi]`, but this is _not
+> checked_, because JAX currently doesn't have a good interface for runtime
+> value checking. Unexpected crashes may occur if this condition is not met.
+
 Noting that the `eps` and `iflag` are optional, and that (for good reason, I
 promise!) the order of the positional arguments is reversed from the `finufft`
 Python package.
@@ -147,6 +159,58 @@ c = nufft2(f, x)  # 1D
 c = nufft2(f, x, y)  # 2D
 c = nufft2(f, x, y, z)  # 3D
 ```
+
+All of these functions support batching using `vmap`, and forward and reverse
+mode differentiation.
+
+## Advanced usage
+
+The tuning parameters for the library can be set using the `opts` parameter to
+`nufft1` and `nufft2`. For example, to explicitly set the CPU [up-sampling
+factor](https://finufft.readthedocs.io/en/latest/opts.html) that FINUFFT should
+use, you can update the example from above as follows:
+
+```python
+from jax_finufft import options
+
+opts = options.Opts(upsampfac=2.0)
+nufft1(N, c, x, opts=opts)
+```
+
+The corresponding option for the GPU is `gpu_upsampfac`. In fact, all options
+for the GPU are prefixed with `gpu_`.
+
+One complication here is that the [vector-Jacobian
+product](https://jax.readthedocs.io/en/latest/notebooks/autodiff_cookbook.html#vector-jacobian-products-vjps-aka-reverse-mode-autodiff)
+for a NUFFT requires evaluating a NUFFT of a different type. This means that you
+might want to separately tune the options for the forward and backward pass.
+This can be achieved using the `options.NestedOpts` interface. For example, to
+use a different up-sampling factor for the forward and backward passes, the code
+from above becomes:
+
+```python
+import jax
+
+opts = options.NestedOpts(
+  forward=options.Opts(upsampfac=2.0),
+  backward=options.Opts(upsampfac=1.25),
+)
+jax.grad(lambda args: nufft1(N, *args, opts=opts).real.sum())((c, x))
+```
+
+or, in this case equivalently:
+
+```python
+opts = options.NestedOpts(
+  type1=options.Opts(upsampfac=2.0),
+  type2=options.Opts(upsampfac=1.25),
+)
+```
+
+See [the FINUFFT docs](https://finufft.readthedocs.io/en/latest/opts.html) for
+descriptions of all the CPU tuning parameters. The corresponding GPU parameters
+are currently only listed in source code form in
+[`cufinufft_opts.h`](https://github.com/flatironinstitute/finufft/blob/master/include/cufinufft_opts.h).
 
 ## Similar libraries
 
