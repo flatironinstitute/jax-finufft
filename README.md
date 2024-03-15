@@ -160,6 +160,53 @@ c = nufft2(f, x, y)  # 2D
 c = nufft2(f, x, y, z)  # 3D
 ```
 
+All of these functions support batching using `vmap`, and forward and reverse
+mode differentiation.
+
+## Advanced usage
+
+The tuning parameters for the library can be set using the `opts` parameter to
+`nufft1` and `nufft2`. For example, to explicitly set the [up-sampling
+factor](https://finufft.readthedocs.io/en/latest/opts.html) that FINUFFT should
+use, you can update the example from above as follows:
+
+```python
+from jax_finufft import options
+
+opts = options.Opts(upsampfac=2.0)
+nufft1(N, c, x, opts=opts)
+```
+
+One complication here is that the [vector-Jacobian
+product](https://jax.readthedocs.io/en/latest/notebooks/autodiff_cookbook.html#vector-jacobian-products-vjps-aka-reverse-mode-autodiff)
+for a NUFFT requires evaluating a NUFFT of a different type. This means that you
+might want to separately tune the options for the forward and backward pass.
+This can be achieved using the `options.NestedOpts` interface. For example, to
+use a different up-sampling factor for the forward and backward passes, the code
+from above becomes:
+
+```python
+import jax
+
+opts = options.NestedOpts(
+  forward=options.Opts(upsampfac=2.0),
+  backward=options.Opts(upsampfac=1.25),
+)
+jax.grad(lambda args: nufft1(N, *args, opts=opts).real.sum())((c, x))
+```
+
+or, in this case equivalently:
+
+```python
+opts = options.NestedOpts(
+  type1=options.Opts(upsampfac=2.0),
+  type2=options.Opts(upsampfac=1.25),
+)
+```
+
+See [the FINUFFT docs](https://finufft.readthedocs.io/en/latest/opts.html) for
+descriptions of all the tuning parameters.
+
 ## Similar libraries
 
 - [finufft](https://finufft.readthedocs.io/en/latest/python.html): The
@@ -177,3 +224,7 @@ Copyright 2021, 2022, 2023 The Simons Foundation, Inc.
 
 If you use this software, please cite the primary references listed on the
 [FINUFFT docs](https://finufft.readthedocs.io/en/latest/refs.html).
+
+```
+
+```
