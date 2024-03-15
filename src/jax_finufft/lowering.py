@@ -2,6 +2,7 @@ import numpy as np
 from jax.interpreters.mlir import ir
 from jax.lib import xla_client
 from jaxlib.hlo_helpers import custom_call as _custom_call
+from jax_finufft import options
 
 try:
     from jaxlib.hlo_helpers import hlo_const
@@ -65,7 +66,7 @@ def default_layouts(*shapes):
     return [range(len(shape) - 1, -1, -1) for shape in shapes]
 
 
-def lowering(platform, ctx, source, *points, output_shape, iflag, eps):
+def lowering(platform, ctx, source, *points, output_shape, iflag, eps, opts):
     del ctx
 
     if platform not in ["cpu", "gpu"]:
@@ -110,17 +111,21 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps):
         n_k = np.array(output_shape, dtype=np.int64)
         full_output_shape = tuple(source_shape[:2]) + tuple(output_shape)
 
-    # The backend expects the output shape in Fortran order so we'll just
+    # The backend expects the output shape in Fortran order, so we'll just
     # fake it here, by sending in n_k and x in the reverse order.
     n_k_full = np.zeros(3, dtype=np.int64)
     n_k_full[:ndim] = n_k[::-1]
 
-    # Build the descriptor containing the transform parameters
-    opaque = getattr(jax_finufft_cpu, f"build_descriptor{suffix}")(
-        eps, iflag, n_tot, n_transf, n_j, *n_k_full
-    )
+    if opts is None:
+        opts = options.Opts()
+    opts = options.unpack_opts(opts, 2 if output_shape is None else 1, True)
+    assert isinstance(opts, options.Opts)
 
     if platform == "cpu":
+        opts = opts.to_finufft_opts()
+        opaque = getattr(jax_finufft_cpu, f"build_descriptor{suffix}")(
+            eps, iflag, n_tot, n_transf, n_j, *n_k_full, opts
+        )
         opaque_arg = hlo_const(np.frombuffer(opaque, dtype=np.uint8))
         opaque_shape = ir.RankedTensorType(opaque_arg.type).shape
         return custom_call(
@@ -137,6 +142,10 @@ def lowering(platform, ctx, source, *points, output_shape, iflag, eps):
         )
 
     else:
+        opts = opts.to_cufinufft_opts()
+        opaque = getattr(jax_finufft_gpu, f"build_descriptor{suffix}")(
+            eps, iflag, n_tot, n_transf, n_j, *n_k_full, opts
+        )
         return custom_call(
             op_name,
             result_types=[

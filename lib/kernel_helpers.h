@@ -11,8 +11,6 @@
 #include <string>
 #include <type_traits>
 
-#include "jax_finufft_common.h"
-
 namespace jax_finufft {
 
 // https://en.cppreference.com/w/cpp/numeric/bit_cast

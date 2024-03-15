@@ -1,11 +1,15 @@
 #ifndef _JAX_FINUFFT_H_
 #define _JAX_FINUFFT_H_
 
+#include <fftw3.h>
+
 #include <complex>
 
 #include "finufft.h"
 
 namespace jax_finufft {
+
+namespace cpu {
 
 template <typename T>
 struct plan_type;
@@ -123,6 +127,18 @@ float* z_index<3, float>(float* z, int64_t index) {
   return &(z[index]);
 }
 
+template <typename T>
+struct descriptor {
+  T eps;
+  int iflag;
+  int64_t n_tot;
+  int n_transf;
+  int64_t n_j;
+  int64_t n_k[3];
+  finufft_opts opts;
+};
+
+}  // namespace cpu
 }  // namespace jax_finufft
 
 #endif

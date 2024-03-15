@@ -11,9 +11,11 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
 # Enable CUDA if requested and available
 option(JAX_FINUFFT_USE_CUDA "Enable CUDA build" OFF)
+
 if(JAX_FINUFFT_USE_CUDA)
     include(CheckLanguage)
     check_language(CUDA)
+
     if(CMAKE_CUDA_COMPILER)
         message(STATUS "CUDA compiler found; compiling with GPU support")
         enable_language(CUDA)
@@ -28,7 +30,7 @@ else()
     set(FINUFFT_USE_CUDA OFF)
 endif()
 
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     # TODO(dfm): OpenMP segfaults on my system - can we enable this somehow?
     set(FINUFFT_USE_OPENMP OFF)
 else()
@@ -63,6 +65,7 @@ if(FINUFFT_USE_CUDA)
     )
     pybind11_add_module(jax_finufft_gpu
         ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
+        ${CMAKE_CURRENT_LIST_DIR}/lib/cufinufft_wrapper.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
     target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_INCLUDE_DIRS})
     target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_VENDORED_INCLUDE_DIRS})

@@ -8,11 +8,11 @@ from jax import jit
 from jax import numpy as jnp
 from jax.interpreters import ad, batching, xla, mlir
 
-from . import shapes, lowering
+from jax_finufft import shapes, lowering, options
 
 
-@partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps"))
-def nufft1(output_shape, source, *points, iflag=1, eps=1e-6):
+@partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps", "opts"))
+def nufft1(output_shape, source, *points, iflag=1, eps=1e-6, opts=None):
     iflag = int(iflag)
     eps = float(eps)
     ndim = len(points)
@@ -31,15 +31,15 @@ def nufft1(output_shape, source, *points, iflag=1, eps=1e-6):
 
     # Execute the transform primitive
     result = nufft1_p.bind(
-        source, *points, output_shape=output_shape, iflag=iflag, eps=eps
+        source, *points, output_shape=output_shape, iflag=iflag, eps=eps, opts=opts
     )
 
     # Move the axes back to their expected location
     return index.unflatten(result)
 
 
-@partial(jit, static_argnames=("iflag", "eps"))
-def nufft2(source, *points, iflag=-1, eps=1e-6):
+@partial(jit, static_argnames=("iflag", "eps", "opts"))
+def nufft2(source, *points, iflag=-1, eps=1e-6, opts=None):
     iflag = int(iflag)
     eps = float(eps)
     ndim = len(points)
@@ -50,13 +50,15 @@ def nufft2(source, *points, iflag=-1, eps=1e-6):
     index, source, *points = shapes.broadcast_and_flatten_inputs(None, source, *points)
 
     # Execute the transform primitive
-    result = nufft2_p.bind(source, *points, output_shape=None, iflag=iflag, eps=eps)
+    result = nufft2_p.bind(
+        source, *points, output_shape=None, iflag=iflag, eps=eps, opts=opts
+    )
 
     # Move the axes back to their expected location
     return index.unflatten(result)
 
 
-def jvp(prim, args, tangents, *, output_shape, iflag, eps):
+def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts):
     # Type 1:
     # f_k = sum_j c_j * exp(iflag * i * k * x_j)
     # df_k/dx_j = iflag * i * k * c_j * exp(iflag * i * k * x_j)
@@ -67,7 +69,9 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps):
 
     source, *points = args
     dsource, *dpoints = tangents
-    output = prim.bind(source, *points, output_shape=output_shape, iflag=iflag, eps=eps)
+    output = prim.bind(
+        source, *points, output_shape=output_shape, iflag=iflag, eps=eps, opts=opts
+    )
 
     # The JVP op can be written as a single transform of the same type with
     output_tangents = []
@@ -80,7 +84,12 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps):
             # the end, but then we'd be mixing tangents and concrete values
             output_tangents.append(
                 prim.bind(
-                    dsource, *points, output_shape=output_shape, iflag=iflag, eps=eps
+                    dsource,
+                    *points,
+                    output_shape=output_shape,
+                    iflag=iflag,
+                    eps=eps,
+                    opts=opts,
                 )
             )
         else:
@@ -110,17 +119,14 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps):
         func = nufft2 if output_shape is None else partial(nufft1, tuple(output_shape))
         argument = jnp.stack(arguments, axis=2)
         output_tangent = func(
-            argument,
-            *(p[:, None] for p in points),
-            iflag=iflag,
-            eps=eps,
+            argument, *(p[:, None] for p in points), iflag=iflag, eps=eps, opts=opts
         )
         output_tangents += [s * output_tangent[:, :, n] for n, s in enumerate(scales)]
 
     return output, reduce(ad.add_tangents, output_tangents, ad.Zero.from_value(output))
 
 
-def transpose(doutput, source, *points, output_shape, eps, iflag):
+def transpose(doutput, source, *points, output_shape, eps, iflag, opts):
     assert ad.is_undefined_primal(source)
     assert not any(map(ad.is_undefined_primal, points))
     assert type(doutput) is not ad.Zero
@@ -133,9 +139,16 @@ def transpose(doutput, source, *points, output_shape, eps, iflag):
             *points,
             eps=eps,
             iflag=iflag,
+            opts=options.unpack_opts(opts, 1, False),
         )
     else:
-        result = nufft2(doutput, *points, eps=eps, iflag=iflag)
+        result = nufft2(
+            doutput,
+            *points,
+            eps=eps,
+            iflag=iflag,
+            opts=options.unpack_opts(opts, 2, False),
+        )
 
     return (result,) + tuple(None for _ in range(len(points)))
 
