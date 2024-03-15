@@ -65,6 +65,7 @@ if(FINUFFT_USE_CUDA)
     )
     pybind11_add_module(jax_finufft_gpu
         ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
+        ${CMAKE_CURRENT_LIST_DIR}/lib/cufinufft_wrapper.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
     target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_INCLUDE_DIRS})
     target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_VENDORED_INCLUDE_DIRS})

@@ -1,4 +1,4 @@
-#include "jax_finufft_gpu.h"
+#include "cufinufft_wrapper.h"
 #include "kernel_helpers.h"
 #include "kernels.h"
 
