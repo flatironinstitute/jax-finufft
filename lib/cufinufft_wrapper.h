@@ -52,6 +52,18 @@ T* z_index(T* z, int64_t index) {
   return NULL;
 }
 
+template <>
+double* y_index<1, double>(double* y, int64_t index);
+
+template <>
+float* y_index<1, float>(float* y, int64_t index);
+
+template <>
+double* z_index<3, double>(double* z, int64_t index);
+
+template <>
+float* z_index<3, float>(float* z, int64_t index);
+
 }  // namespace gpu
 
 }  // namespace jax_finufft
