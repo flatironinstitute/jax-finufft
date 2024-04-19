@@ -45,12 +45,12 @@ use whatever workflow works for you!). For example, for a CPU build, you can use
 ```bash
 conda create -n jax-finufft -c conda-forge python=3.10 numpy scipy fftw cxx-compiler
 conda activate jax-finufft
-export CPATH=$CONDA_PREFIX/include:$CPATH
+export CMAKE_PREFIX_PATH=$CONDA_PREFIX
 python -m pip install "jax[cpu]"
 python -m pip install .
 ```
 
-The `CPATH` export is needed so that the build can find the headers for libraries like FFTW installed through conda.
+The `CMAKE_PREFIX_PATH` export is needed so that the build can find the headers for libraries like FFTW installed through conda.
 
 For a GPU build, while the CUDA libraries and compiler are nominally available through conda,
 our experience trying to install them this way suggests that the "traditional"
@@ -60,7 +60,7 @@ from NVIDIA may work best (see [related advice for Horovod](https://horovod.read
 ```bash
 conda create -n gpu-jax-finufft -c conda-forge python=3.10 numpy scipy fftw 'gxx<12'
 conda activate gpu-jax-finufft
-export CPATH=$CONDA_PREFIX/include:$CPATH
+export CMAKE_PREFIX_PATH=$CONDA_PREFIX
 export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=70 -DJAX_FINUFFT_USE_CUDA=ON"
 python -m pip install "jax[cuda11_local]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 python -m pip install .
