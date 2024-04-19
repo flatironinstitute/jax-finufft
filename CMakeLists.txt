@@ -9,13 +9,18 @@ message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 # https://github.com/pybind/pybind11/issues/4825
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
-# Default to not using OpenMP unless explicitly requested since it can introduce some issues
-option(JAX_FINUFFT_USE_OPENMP "Enable OpenMP support" OFF)
+# Enable OpenMP if requested and available
+option(JAX_FINUFFT_USE_OPENMP "Enable OpenMP" ON)
 if(JAX_FINUFFT_USE_OPENMP)
-    message(STATUS "OpenMP support enabled")
-    set(FINUFFT_USE_OPENMP ON)
+    find_package(OpenMP)
+    if(OpenMP_CXX_FOUND)
+        message(STATUS "jax_finufft: OpenMP found")
+        set(FINUFFT_USE_OPENMP ON)
+    else()
+        message(STATUS "jax_finufft: OpenMP not found")
+        set(FINUFFT_USE_OPENMP OFF)
+    endif()
 else()
-    message(STATUS "OpenMP support was not enabled")
     set(FINUFFT_USE_OPENMP OFF)
 endif()
 
@@ -26,16 +31,17 @@ if(JAX_FINUFFT_USE_CUDA)
     check_language(CUDA)
 
     if(CMAKE_CUDA_COMPILER)
-        message(STATUS "CUDA compiler found; compiling with GPU support")
+        message(STATUS "jax_finufft: CUDA compiler found; compiling with GPU support")
         enable_language(CUDA)
         set(FINUFFT_USE_CUDA ON)
     else()
-        message(FATAL_ERROR "No CUDA compiler found! Please ensure the CUDA Toolkit "
-            "is installed, or set JAX_FINUFFT_USE_CUDA=OFF to disable GPU support.")
+        message(FATAL_ERROR "jax_finufft: No CUDA compiler found! Please ensure the "
+            "CUDA Toolkit is installed, or set JAX_FINUFFT_USE_CUDA=OFF to disable "
+            "GPU support.")
         set(FINUFFT_USE_CUDA OFF)
     endif()
 else()
-    message(STATUS "GPU support was not requested")
+    message(STATUS "jax_finufft: GPU support was not requested")
     set(FINUFFT_USE_CUDA OFF)
 endif()
 
