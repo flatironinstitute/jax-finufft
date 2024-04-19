@@ -35,7 +35,7 @@ are untested). At runtime, you'll need `numpy` and `jax`.
 First, clone the repo and `cd` into the repo root (don't forget the `--recursive` flag because FINUFFT is included as a submodule):
 
 ```bash
-git clone --recursive https://github.com/dfm/jax-finufft
+git clone --recursive https://github.com/flatironinstitute/jax-finufft
 cd jax-finufft
 ```
 
