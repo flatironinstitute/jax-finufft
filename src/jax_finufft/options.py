@@ -70,12 +70,13 @@ class Opts:
     gpu_maxbatchsize: int = 0
 
     def to_finufft_opts(self):
+        compiled_with_omp = jax_finufft_cpu._omp_compile_check()
         return jax_finufft_cpu.FinufftOpts(
             modeord=self.modeord,
             chkbnds=self.chkbnds,
             debug=self.debug,
             spread_debug=self.spread_debug,
-            nthreads=self.nthreads,
+            nthreads=self.nthreads if compiled_with_omp else 1,
             fftw=self.fftw,
             spread_sort=self.spread_sort,
             spread_kerevalmeth=self.spread_kerevalmeth,
