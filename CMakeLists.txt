@@ -9,9 +9,18 @@ message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 # https://github.com/pybind/pybind11/issues/4825
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
+# Default to not using OpenMP unless explicitly requested since it can introduce some issues
+option(JAX_FINUFFT_USE_OPENMP "Enable OpenMP support" OFF)
+if(JAX_FINUFFT_USE_OPENMP)
+    message(STATUS "OpenMP support enabled")
+    set(FINUFFT_USE_OPENMP ON)
+else()
+    message(STATUS "OpenMP support was not enabled")
+    set(FINUFFT_USE_OPENMP OFF)
+endif()
+
 # Enable CUDA if requested and available
 option(JAX_FINUFFT_USE_CUDA "Enable CUDA build" OFF)
-
 if(JAX_FINUFFT_USE_CUDA)
     include(CheckLanguage)
     check_language(CUDA)
