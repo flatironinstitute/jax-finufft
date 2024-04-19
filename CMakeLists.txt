@@ -30,13 +30,6 @@ else()
     set(FINUFFT_USE_CUDA OFF)
 endif()
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    # TODO(dfm): OpenMP segfaults on my system - can we enable this somehow?
-    set(FINUFFT_USE_OPENMP OFF)
-else()
-    set(FINUFFT_USE_OPENMP ON)
-endif()
-
 # Add the FINUFFT project using the vendored version
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/vendor/finufft")
 
@@ -48,6 +41,10 @@ find_package(pybind11 CONFIG REQUIRED)
 pybind11_add_module(jax_finufft_cpu ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cpu.cc)
 target_link_libraries(jax_finufft_cpu PRIVATE finufft_static)
 install(TARGETS jax_finufft_cpu LIBRARY DESTINATION .)
+
+if (FINUFFT_USE_OPENMP)
+    target_compile_definitions(jax_finufft_cpu PRIVATE FINUFFT_USE_OPENMP)
+endif()
 
 # Include the CUDA extensions if possible - see above for where this is set
 if(FINUFFT_USE_CUDA)

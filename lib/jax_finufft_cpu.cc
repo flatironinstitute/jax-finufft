@@ -126,6 +126,14 @@ PYBIND11_MODULE(jax_finufft_cpu, m) {
   m.def("build_descriptorf", &build_descriptor<float>);
   m.def("build_descriptor", &build_descriptor<double>);
 
+  m.def("_omp_compile_check", []() {
+#ifdef FINUFFT_USE_OPENMP
+    return true;
+#else
+    return false;
+#endif
+  });
+
   m.attr("FFTW_ESTIMATE") = py::int_(FFTW_ESTIMATE);
   m.attr("FFTW_MEASURE") = py::int_(FFTW_MEASURE);
   m.attr("FFTW_PATIENT") = py::int_(FFTW_PATIENT);
