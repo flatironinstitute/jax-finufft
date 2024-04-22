@@ -11,24 +11,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-10.15]
+        os: ["ubuntu-22.04", "macos-12", "macos-14"]
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
           fetch-depth: 0
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.17.0
-        env:
-          CIBW_SKIP: "pp* *_i686 *musllinux*"
-          CIBW_BEFORE_ALL_LINUX: yum install -y fftw-devel
-          CIBW_BEFORE_ALL_MACOS: brew install fftw
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-
       - uses: actions/upload-artifact@v4
         with:
+          name: binary-${{ matrix.os }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -45,23 +39,27 @@ jobs:
       - name: Build sdist
         run: |
           python -m pip install -U pip
-          python -m pip install -U build
+          python -m pip install -U build twine
           python -m build --sdist .
+      - name: Check the sdist
+        run: python -m twine check dist/*.tar.gz
       - uses: actions/upload-artifact@v4
         with:
+          name: sdist
           path: dist/*.tar.gz
 
   upload_pypi:
+    environment:
+      name: pypi
+      url: https://pypi.org/p/jax-finufft
+    permissions:
+      id-token: write
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: artifact
+          merge-multiple: true
           path: dist
-
       - uses: pypa/gh-action-pypi-publish@v1.8.14
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_password }}
