@@ -2,8 +2,6 @@ name: Wheels
 
 on:
   push:
-    branches:
-      - update-publishing
     tags:
       - "*"
 
