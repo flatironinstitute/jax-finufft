@@ -1,0 +1,26 @@
+[project]
+name = "jax-finufft"
+authors = ["Dan F-M <foreman.mackey@gmail.com>"]
+channels = ["conda-forge"]
+platforms = ["osx-64", "osx-arm64", "linux-64"]
+
+[pypi-dependencies]
+jax-finufft = { path = ".", editable = true }
+
+[dependencies]
+python = ">=3.9"
+jax = ">=0.4.26"
+pydantic = ">=2"
+
+[environments]
+default = { solve-group = "default" }
+test = { features = ["test"], solve-group = "default" }
+
+[feature.test.dependencies]
+pytest = ">=8.1.1,<8.2"
+
+[feature.test.tasks]
+test = "pytest -v tests"
+
+[feature.test.pypi-dependencies]
+absl-py = "*"

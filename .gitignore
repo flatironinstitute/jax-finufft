@@ -7,3 +7,8 @@ MANIFEST
 __pycache__/
 *.egg-info
 .*_cache
+# pixi environments
+.pixi
+*.egg-info
+
+pixi.lock

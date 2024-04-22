@@ -1,0 +1,1 @@
+nanobind_add_module(custom_call_lib custom_call_lib.cc)
