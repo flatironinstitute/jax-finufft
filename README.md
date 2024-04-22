@@ -78,7 +78,7 @@ The non-Python dependencies that you'll need are:
 - CUDA (for GPU, >= 11.8), and
 - cuDNN (for GPU).
 
-Older versions of CUDA may work, but they are untested. 
+Older versions of CUDA may work, but they are untested.
 
 Below we provide some example workflows for installing the required dependencies:
 
