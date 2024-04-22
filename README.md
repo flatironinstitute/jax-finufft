@@ -25,6 +25,44 @@ forward, reverse, and higher-order differentiation, as well as batching using
 
 ## Installation
 
+The easiest ways to install jax-finufft is to install a pre-compiled binary from
+PyPI or conda-forge, but if you need GPU support or want to get tuned
+performance, you'll want to follow the instructions to install from source as
+described below.
+
+### Install binary from PyPI
+
+> [!NOTE]
+> Only the CPU-enabled build of jax-finufft is available as a binary wheel on
+> PyPI. For a GPU-enabled build, you'll need to build from source as described
+> below.
+
+To install a binary wheel from [PyPI](https://pypi.org/project/jax-finufft/)
+using pip, run the following commands:
+
+```bash
+python -m pip install "jax[cpu]"
+python -m pip install jax-finufft
+```
+
+If this fails, you may need to use a conda-forge binary, or install from source.
+
+### Install binary from conda-forge
+
+> [!NOTE]
+> Only the CPU-enabled build of jax-finufft is available as a binary from
+> conda-forge. For a GPU-enabled build, you'll need to build from source as
+> described below.
+
+To install using [mamba](https://github.com/mamba-org/mamba) (or
+[conda](https://docs.conda.io)), run:
+
+```bash
+mamba install -c conda-forge jax-finufft
+```
+
+### Install from source
+
 _For now, only a source build is supported._
 
 For building, you should only need a recent version of Python (>3.6) and
