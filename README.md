@@ -147,7 +147,7 @@ $ nvidia-smi --query-gpu=compute_cap --format=csv,noheader
 This corresponds to `CMAKE_CUDA_ARCHITECTURES=70`, i.e.:
 
 ```bash
-export CMAKE_ARGS="-DCMAKE_CUDA_ARCHITECTURES=70 -DJAX_FINUFFT_USE_CUDA=ON"
+export CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CUDA_ARCHITECTURES=70 -DJAX_FINUFFT_USE_CUDA=ON"
 ```
 
 Note that the pip installation below uses CMake, so `CMAKE_ARGS` has to be set
