@@ -9,7 +9,6 @@
 using namespace jax_finufft;
 using namespace jax_finufft::gpu;
 namespace nb = nanobind;
-using namespace nb::literals;
 
 namespace {
 
