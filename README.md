@@ -83,7 +83,7 @@ Older versions of CUDA may work, but they are untested.
 Below we provide some example workflows for installing the required dependencies:
 
 <details>
-<summary>Install CPU dependencies with mamba or conda</summary>
+<summary>**Install CPU dependencies with mamba or conda**</summary>
 
 ```bash
 mamba create -n jax-finufft -c conda-forge python jax fftw cxx-compiler
@@ -92,7 +92,7 @@ mamba activate jax-finufft
 </details>
 
 <details>
-<summary>Install GPU dependencies with mamba or conda</summary>
+<summary>**Install GPU dependencies with mamba or conda**</summary>
 
 For a GPU build, while the CUDA libraries and compiler are nominally available
 through conda, our experience trying to install them this way suggests that the
@@ -117,7 +117,7 @@ with the same Toolkit version as the CUDA runtime.
 </details>
 
 <details>
-<summary>Install GPU dependencies using Flatiron module system</summary>
+<summary>**Install GPU dependencies using Flatiron module system**</summary>
 
 ```bash
 ml modules/2.2
