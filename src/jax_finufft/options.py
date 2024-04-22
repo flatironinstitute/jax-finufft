@@ -44,6 +44,7 @@ class Opts:
     chkbnds: bool = True
     debug: DebugLevel = DebugLevel.Silent
     spread_debug: DebugLevel = DebugLevel.Silent
+    showwarn: bool = False
     nthreads: int = 0
     fftw: int = FftwFlags.Estimate
     spread_sort: SpreadSort = SpreadSort.Heuristic
@@ -72,39 +73,40 @@ class Opts:
     def to_finufft_opts(self):
         compiled_with_omp = jax_finufft_cpu._omp_compile_check()
         return jax_finufft_cpu.FinufftOpts(
-            modeord=self.modeord,
-            chkbnds=self.chkbnds,
-            debug=self.debug,
-            spread_debug=self.spread_debug,
-            nthreads=self.nthreads if compiled_with_omp else 1,
-            fftw=self.fftw,
-            spread_sort=self.spread_sort,
-            spread_kerevalmeth=self.spread_kerevalmeth,
-            spread_kerpad=self.spread_kerpad,
-            upsampfac=self.upsampfac,
-            spread_thread=self.spread_thread,
-            maxbatchsize=self.maxbatchsize,
-            spread_nthr_atomic=self.spread_nthr_atomic,
-            spread_max_sp_size=self.spread_max_sp_size,
+            self.modeord,
+            self.chkbnds,
+            int(self.debug),
+            int(self.spread_debug),
+            self.showwarn,
+            self.nthreads if compiled_with_omp else 1,
+            int(self.fftw),
+            int(self.spread_sort),
+            self.spread_kerevalmeth,
+            self.spread_kerpad,
+            self.upsampfac,
+            int(self.spread_thread),
+            self.maxbatchsize,
+            self.spread_nthr_atomic,
+            self.spread_max_sp_size,
         )
 
     def to_cufinufft_opts(self):
         from jax_finufft import jax_finufft_gpu
 
         return jax_finufft_gpu.CufinufftOpts(
-            upsampfac=self.gpu_upsampfac,
-            gpu_method=self.gpu_method,
-            gpu_sort=self.gpu_sort,
-            gpu_binsizex=self.gpu_binsizex,
-            gpu_binsizey=self.gpu_binsizey,
-            gpu_binsizez=self.gpu_binsizez,
-            gpu_obinsizex=self.gpu_obinsizex,
-            gpu_obinsizey=self.gpu_obinsizey,
-            gpu_obinsizez=self.gpu_obinsizez,
-            gpu_maxsubprobsize=self.gpu_maxsubprobsize,
-            gpu_kerevalmeth=self.gpu_kerevalmeth,
-            gpu_spreadinterponly=self.gpu_spreadinterponly,
-            gpu_maxbatchsize=self.gpu_maxbatchsize,
+            self.gpu_upsampfac,
+            int(self.gpu_method),
+            self.gpu_sort,
+            self.gpu_binsizex,
+            self.gpu_binsizey,
+            self.gpu_binsizez,
+            self.gpu_obinsizex,
+            self.gpu_obinsizey,
+            self.gpu_obinsizez,
+            self.gpu_maxsubprobsize,
+            self.gpu_kerevalmeth,
+            self.gpu_spreadinterponly,
+            self.gpu_maxbatchsize,
         )
 
 

@@ -1,14 +1,15 @@
 // This file defines the Python interface to the XLA custom call implemented on the CPU.
-// It is exposed as a standard pybind11 module defining "capsule" objects containing our
+// It is exposed as a standard nanobind module defining "capsule" objects containing our
 // method. For simplicity, we export a separate capsule for each supported dtype.
 
 #include "jax_finufft_cpu.h"
 
-#include "pybind11_kernel_helpers.h"
+#include "nanobind_kernel_helpers.h"
 
 using namespace jax_finufft;
 using namespace jax_finufft::cpu;
-namespace py = pybind11;
+namespace nb = nanobind;
+using namespace nb::literals;
 
 namespace {
 
@@ -68,41 +69,14 @@ void nufft2(void *out, void **in) {
 }
 
 template <typename T>
-py::bytes build_descriptor(T eps, int iflag, int64_t n_tot, int n_transf, int64_t n_j,
+nb::bytes build_descriptor(T eps, int iflag, int64_t n_tot, int n_transf, int64_t n_j,
                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, finufft_opts opts) {
   return pack_descriptor(
       descriptor<T>{eps, iflag, n_tot, n_transf, n_j, {n_k_1, n_k_2, n_k_3}, opts});
 }
 
-template <typename T>
-finufft_opts *build_opts(bool modeord, bool chkbnds, int debug, int spread_debug, bool showwarn,
-                         int nthreads, int fftw, int spread_sort, bool spread_kerevalmeth,
-                         bool spread_kerpad, double upsampfac, int spread_thread, int maxbatchsize,
-                         int spread_nthr_atomic, int spread_max_sp_size) {
-  finufft_opts *opts = new finufft_opts;
-  default_opts<T>(opts);
-
-  opts->modeord = int(modeord);
-  opts->chkbnds = int(chkbnds);
-  opts->debug = debug;
-  opts->spread_debug = spread_debug;
-  opts->showwarn = int(showwarn);
-  opts->nthreads = nthreads;
-  opts->fftw = fftw;
-  opts->spread_sort = spread_sort;
-  opts->spread_kerevalmeth = int(spread_kerevalmeth);
-  opts->spread_kerpad = int(spread_kerpad);
-  opts->upsampfac = upsampfac;
-  opts->spread_thread = int(spread_thread);
-  opts->maxbatchsize = maxbatchsize;
-  opts->spread_nthr_atomic = spread_nthr_atomic;
-  opts->spread_max_sp_size = spread_max_sp_size;
-
-  return opts;
-}
-
-pybind11::dict Registrations() {
-  pybind11::dict dict;
+nb::dict Registrations() {
+  nb::dict dict;
 
   dict["nufft1d1f"] = encapsulate_function(nufft1<1, float>);
   dict["nufft1d2f"] = encapsulate_function(nufft2<1, float>);
@@ -121,7 +95,7 @@ pybind11::dict Registrations() {
   return dict;
 }
 
-PYBIND11_MODULE(jax_finufft_cpu, m) {
+NB_MODULE(jax_finufft_cpu, m) {
   m.def("registrations", &Registrations);
   m.def("build_descriptorf", &build_descriptor<float>);
   m.def("build_descriptor", &build_descriptor<double>);
@@ -134,20 +108,36 @@ PYBIND11_MODULE(jax_finufft_cpu, m) {
 #endif
   });
 
-  m.attr("FFTW_ESTIMATE") = py::int_(FFTW_ESTIMATE);
-  m.attr("FFTW_MEASURE") = py::int_(FFTW_MEASURE);
-  m.attr("FFTW_PATIENT") = py::int_(FFTW_PATIENT);
-  m.attr("FFTW_EXHAUSTIVE") = py::int_(FFTW_EXHAUSTIVE);
-  m.attr("FFTW_WISDOM_ONLY") = py::int_(FFTW_WISDOM_ONLY);
+  m.attr("FFTW_ESTIMATE") = nb::int_(FFTW_ESTIMATE);
+  m.attr("FFTW_MEASURE") = nb::int_(FFTW_MEASURE);
+  m.attr("FFTW_PATIENT") = nb::int_(FFTW_PATIENT);
+  m.attr("FFTW_EXHAUSTIVE") = nb::int_(FFTW_EXHAUSTIVE);
+  m.attr("FFTW_WISDOM_ONLY") = nb::int_(FFTW_WISDOM_ONLY);
 
-  py::class_<finufft_opts> opts(m, "FinufftOpts");
-  opts.def(py::init(&build_opts<double>), py::arg("modeord") = false, py::arg("chkbnds") = true,
-           py::arg("debug") = 0, py::arg("spread_debug") = 0, py::arg("showwarn") = false,
-           py::arg("nthreads") = 0, py::arg("fftw") = int(FFTW_ESTIMATE),
-           py::arg("spread_sort") = 2, py::arg("spread_kerevalmeth") = true,
-           py::arg("spread_kerpad") = true, py::arg("upsampfac") = 0.0,
-           py::arg("spread_thread") = 0, py::arg("maxbatchsize") = 0,
-           py::arg("spread_nthr_atomic") = -1, py::arg("spread_max_sp_size") = 0);
+  nb::class_<finufft_opts> opts(m, "FinufftOpts");
+  opts.def("__init__",
+           [](finufft_opts *self, bool modeord, bool chkbnds, int debug, int spread_debug,
+              bool showwarn, int nthreads, int fftw, int spread_sort, bool spread_kerevalmeth,
+              bool spread_kerpad, double upsampfac, int spread_thread, int maxbatchsize,
+              int spread_nthr_atomic, int spread_max_sp_size) {
+             new (self) finufft_opts;
+             default_opts<double>(self);
+             self->modeord = int(modeord);
+             self->chkbnds = int(chkbnds);
+             self->debug = debug;
+             self->spread_debug = spread_debug;
+             self->showwarn = int(showwarn);
+             self->nthreads = nthreads;
+             self->fftw = fftw;
+             self->spread_sort = spread_sort;
+             self->spread_kerevalmeth = int(spread_kerevalmeth);
+             self->spread_kerpad = int(spread_kerpad);
+             self->upsampfac = upsampfac;
+             self->spread_thread = int(spread_thread);
+             self->maxbatchsize = maxbatchsize;
+             self->spread_nthr_atomic = spread_nthr_atomic;
+             self->spread_max_sp_size = spread_max_sp_size;
+           });
 }
 
 }  // namespace

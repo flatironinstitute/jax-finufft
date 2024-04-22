@@ -29,11 +29,6 @@ bit_cast(const From& src) noexcept {
 }
 
 template <typename T>
-std::string pack_descriptor_as_string(const T& descriptor) {
-  return std::string(bit_cast<const char*>(&descriptor), sizeof(T));
-}
-
-template <typename T>
 const T* unpack_descriptor(const char* opaque, std::size_t opaque_len) {
   if (opaque_len != sizeof(T)) {
     throw std::runtime_error("Invalid opaque object size");
