@@ -4,10 +4,13 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "jax-finufft"
-description = "Unofficial JAX bindings for finufft"
+description = "JAX bindings for the Flatiron Institute Nonuniform Fast Fourier Transform library"
 readme = "README.md"
-authors = [{ name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com" }]
-requires-python = ">=3.8"
+authors = [
+    { name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com" },
+    { name = "Lehman Garrison", email = "lgarrison@flatironinstitute.org" },
+]
+requires-python = ">=3.9"
 license = { file = "LICENSE" }
 urls = { Homepage = "https://github.com/dfm/jax-finufft" }
 dependencies = ["jax", "numpy", "pydantic>=2"]
@@ -30,6 +33,15 @@ build-dir = "build/{wheel_tag}"
 
 [tool.setuptools_scm]
 version_file = "src/jax_finufft/jax_finufft_version.py"
+
+[tool.cibuildwheel]
+skip = "pp* *-musllinux_* *-manylinux_i686"
+
+[tool.cibuildwheel.linux]
+before-all = "yum install -y fftw-devel"
+
+[tool.cibuildwheel.macos]
+before-all = "brew install fftw"
 
 [tool.black]
 target-version = ["py39"]
