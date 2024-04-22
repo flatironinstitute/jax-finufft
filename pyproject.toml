@@ -25,6 +25,7 @@ sdist.include = ["src/jax_finufft/jax_finufft_version.py"]
 wheel.install-dir = "jax_finufft"
 minimum-version = "0.5"
 build-dir = "build/{wheel_tag}"
+wheel.py-api = "cp312"
 
 # For debugging:
 # cmake.build-type = "Debug"
@@ -43,6 +44,10 @@ before-all = "yum install -y fftw-devel"
 
 [tool.cibuildwheel.macos]
 before-all = "brew install fftw"
+
+# Needed for full C++17 support
+[tool.cibuildwheel.macos.environment]
+MACOSX_DEPLOYMENT_TARGET = "10.14"
 
 [tool.black]
 target-version = ["py39"]
