@@ -1,18 +1,16 @@
-cmake_minimum_required(VERSION 3.15...3.26)
+cmake_minimum_required(VERSION 3.15...3.27)
 project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
 message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 
 # for cuda-gdb and verbose PTXAS output
 # set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} "-g -G -Xptxas -v")
 
-# Workaround for LTO applied incorrectly to CUDA fatbin
-# https://github.com/pybind/pybind11/issues/4825
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
-
 # Enable OpenMP if requested and available
 option(JAX_FINUFFT_USE_OPENMP "Enable OpenMP" ON)
+
 if(JAX_FINUFFT_USE_OPENMP)
     find_package(OpenMP)
+
     if(OpenMP_CXX_FOUND)
         message(STATUS "jax_finufft: OpenMP found")
         set(FINUFFT_USE_OPENMP ON)
@@ -26,6 +24,7 @@ endif()
 
 # Enable CUDA if requested and available
 option(JAX_FINUFFT_USE_CUDA "Enable CUDA build" OFF)
+
 if(JAX_FINUFFT_USE_CUDA)
     include(CheckLanguage)
     check_language(CUDA)
@@ -48,16 +47,21 @@ endif()
 # Add the FINUFFT project using the vendored version
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/vendor/finufft")
 
-# Find pybind11
-set(PYBIND11_NEWPYTHON ON)
-find_package(pybind11 CONFIG REQUIRED)
+# Find Python and nanobind
+find_package(Python 3.8 COMPONENTS Interpreter Development.Module REQUIRED)
+find_package(nanobind CONFIG REQUIRED)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
 
 # Build the CPU XLA bindings
-pybind11_add_module(jax_finufft_cpu ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cpu.cc)
+nanobind_add_module(jax_finufft_cpu ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cpu.cc)
 target_link_libraries(jax_finufft_cpu PRIVATE finufft_static)
 install(TARGETS jax_finufft_cpu LIBRARY DESTINATION .)
 
-if (FINUFFT_USE_OPENMP)
+if(FINUFFT_USE_OPENMP)
     target_compile_definitions(jax_finufft_cpu PRIVATE FINUFFT_USE_OPENMP)
 endif()
 
@@ -75,7 +79,7 @@ if(FINUFFT_USE_CUDA)
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/contrib
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include/cufinufft/contrib/cuda_samples
     )
-    pybind11_add_module(jax_finufft_gpu
+    nanobind_add_module(jax_finufft_gpu
         ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/cufinufft_wrapper.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
