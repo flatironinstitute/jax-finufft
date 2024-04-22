@@ -36,6 +36,7 @@ version_file = "src/jax_finufft/jax_finufft_version.py"
 
 [tool.cibuildwheel]
 skip = "pp* *-musllinux_* *-manylinux_i686"
+build-verbosity = 1
 
 [tool.cibuildwheel.linux]
 before-all = "yum install -y fftw-devel"
