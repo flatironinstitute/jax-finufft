@@ -5,10 +5,6 @@ message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 # for cuda-gdb and verbose PTXAS output
 # set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} "-g -G -Xptxas -v")
 
-# Workaround for LTO applied incorrectly to CUDA fatbin
-# https://github.com/pybind/pybind11/issues/4825
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
-
 # Enable OpenMP if requested and available
 option(JAX_FINUFFT_USE_OPENMP "Enable OpenMP" ON)
 
