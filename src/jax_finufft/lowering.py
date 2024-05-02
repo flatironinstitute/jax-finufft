@@ -35,7 +35,10 @@ def lowering(
 ):
     if len(ctx.module_context.platforms) > 1:
         raise ValueError("Multi-platform lowering is not supported")
-    platform = ctx.module_context.platforms[0]
+    try:
+        platform = ctx.module_context.platforms[0]
+    except AttributeError:
+        platform = ctx.module_context.platform
     if platform not in {"cpu", "cuda"}:
         raise ValueError(f"Unsupported platform '{platform}'")
     if platform == "cuda" and jax_finufft_gpu is None:
