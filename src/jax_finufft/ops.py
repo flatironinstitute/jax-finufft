@@ -195,9 +195,9 @@ def batch(args, axes, *, output_shape, **kwargs):
 nufft1_p = core.Primitive("nufft1")
 nufft1_p.def_impl(partial(xla.apply_primitive, nufft1_p))
 nufft1_p.def_abstract_eval(shapes.abstract_eval)
-mlir.register_lowering(nufft1_p, partial(lowering.lowering, "cpu"), platform="cpu")
+mlir.register_lowering(nufft1_p, lowering.lowering, platform="cpu")
 if lowering.jax_finufft_gpu is not None:
-    mlir.register_lowering(nufft1_p, partial(lowering.lowering, "gpu"), platform="gpu")
+    mlir.register_lowering(nufft1_p, lowering.lowering, platform="cuda")
 ad.primitive_jvps[nufft1_p] = partial(jvp, nufft1_p)
 ad.primitive_transposes[nufft1_p] = transpose
 batching.primitive_batchers[nufft1_p] = batch
@@ -206,9 +206,9 @@ batching.primitive_batchers[nufft1_p] = batch
 nufft2_p = core.Primitive("nufft2")
 nufft2_p.def_impl(partial(xla.apply_primitive, nufft2_p))
 nufft2_p.def_abstract_eval(shapes.abstract_eval)
-mlir.register_lowering(nufft2_p, partial(lowering.lowering, "cpu"), platform="cpu")
+mlir.register_lowering(nufft2_p, lowering.lowering, platform="cpu")
 if lowering.jax_finufft_gpu is not None:
-    mlir.register_lowering(nufft2_p, partial(lowering.lowering, "gpu"), platform="gpu")
+    mlir.register_lowering(nufft2_p, lowering.lowering, platform="cuda")
 ad.primitive_jvps[nufft2_p] = partial(jvp, nufft2_p)
 ad.primitive_transposes[nufft2_p] = transpose
 batching.primitive_batchers[nufft2_p] = batch

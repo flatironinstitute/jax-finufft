@@ -6,7 +6,6 @@ from typing import Sequence
 import jax.numpy as jnp
 import numpy as np
 from jax import dtypes
-from jax.core import ShapedArray
 
 
 @dataclass
@@ -116,10 +115,15 @@ def abstract_eval(source, *points, output_shape, **_):
     assert all(p.ndim == 2 for p in points)
     assert all(p.shape == points[0].shape for p in points[1:])
     assert source.shape[0] == points[0].shape[0]
-    if output_shape is None:
+
+    if output_shape is None:  # Type 2
         assert source.ndim == 2 + ndim
-        return ShapedArray(source.shape[:2] + (points[0].shape[-1],), source_dtype)
-    else:
+        return source.update(
+            shape=source.shape[:2] + (points[0].shape[-1],), dtype=source_dtype
+        )
+    else:  # Type 1
         assert source.ndim == 3
         assert source.shape[2] == points[0].shape[1]
-        return ShapedArray(source.shape[:2] + tuple(output_shape), source_dtype)
+        return source.update(
+            shape=source.shape[:2] + tuple(output_shape), dtype=source_dtype
+        )
