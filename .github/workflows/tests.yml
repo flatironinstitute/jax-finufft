@@ -8,12 +8,16 @@ on:
 
 jobs:
   tests:
-    name: ${{ matrix.os }}
+    name: ${{ matrix.os }}-${{ matrix.jax-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+        jax-version: ["jax[cpu]"]
+        include:
+          - os: ubuntu-latest
+            jax-version: "jax[cpu]==0.4.14"
 
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +41,7 @@ jobs:
       - name: Build
         run: |
           python -m pip install -U pip
-          python -m pip install -U jax[cpu]
+          python -m pip install -U ${{ matrix.jax-version }}
           python -m pip install -v .[test]
 
       - name: Run tests
