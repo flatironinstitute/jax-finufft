@@ -17,7 +17,7 @@ jobs:
         jax-version: ["jax[cpu]"]
         include:
           - os: ubuntu-latest
-            jax-version: "jax[cpu]==0.4.14"
+            jax-version: "jax[cpu]==0.4.20"
 
     steps:
       - uses: actions/checkout@v4
