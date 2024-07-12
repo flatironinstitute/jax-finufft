@@ -17,7 +17,7 @@ jobs:
         jax-version: ["jax[cpu]"]
         include:
           - os: ubuntu-latest
-            jax-version: "jax[cpu]==0.4.20 numpy<2.0"
+            jax-version: "'jax[cpu]==0.4.20' 'numpy<2.0'"
 
     steps:
       - uses: actions/checkout@v4
