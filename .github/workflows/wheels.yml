@@ -19,7 +19,7 @@ jobs:
           submodules: true
           fetch-depth: 0
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.18.1
+        uses: pypa/cibuildwheel@v2.19.2
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}
