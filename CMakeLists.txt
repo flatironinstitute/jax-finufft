@@ -49,7 +49,7 @@ endif()
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/vendor/finufft")
 set(JAX_FINUFFT_EXTRA_FLAGS -fPIC)
 filter_supported_compiler_flags(JAX_FINUFFT_EXTRA_FLAGS JAX_FINUFFT_EXTRA_FLAGS)
-target_compile_options(finufft PRIVATE JAX_FINUFFT_EXTRA_FLAGS)
+target_compile_options(finufft PRIVATE ${JAX_FINUFFT_EXTRA_FLAGS})
 
 # Find Python and nanobind
 find_package(Python 3.8 COMPONENTS Interpreter Development.Module REQUIRED)
