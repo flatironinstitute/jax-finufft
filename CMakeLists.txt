@@ -47,9 +47,9 @@ endif()
 
 # Add the FINUFFT project using the vendored version
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/vendor/finufft")
-set(JAX_FINUFFT_EXTRA_FLAGS -fPIC)
-filter_supported_compiler_flags(JAX_FINUFFT_EXTRA_FLAGS JAX_FINUFFT_EXTRA_FLAGS)
-target_compile_options(finufft PRIVATE ${JAX_FINUFFT_EXTRA_FLAGS})
+set_property(TARGET finufft PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET finufft_f32 PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_property(TARGET finufft_f64 PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 # Find Python and nanobind
 find_package(Python 3.8 COMPONENTS Interpreter Development.Module REQUIRED)
@@ -73,6 +73,9 @@ endif()
 if(FINUFFT_USE_CUDA)
     enable_language(CUDA)
     set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+    set_property(TARGET cufinufft_common_objects PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET cufinufft_objects PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET cufinufft PROPERTY POSITION_INDEPENDENT_CODE ON)
 
     # TODO(dfm): The ${CUFINUFFT_INCLUDE_DIRS} variable doesn't seem to get set
     # properly when FINUFFT is included as a submodule (maybe because of the use
