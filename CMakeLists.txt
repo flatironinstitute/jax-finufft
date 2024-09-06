@@ -62,6 +62,7 @@ endif()
 # Build the CPU XLA bindings
 nanobind_add_module(jax_finufft_cpu ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cpu.cc)
 target_link_libraries(jax_finufft_cpu PRIVATE finufft)
+target_include_directories(jax_finufft_cpu PRIVATE ${FFTW_INCLUDE_DIRS})
 install(TARGETS jax_finufft_cpu LIBRARY DESTINATION .)
 
 if(FINUFFT_USE_OPENMP)
