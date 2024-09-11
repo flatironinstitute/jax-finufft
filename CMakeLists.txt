@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15...3.27)
+cmake_minimum_required(VERSION 3.19...3.30)
 project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
 message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 
@@ -19,6 +19,7 @@ if(JAX_FINUFFT_USE_OPENMP)
         set(FINUFFT_USE_OPENMP OFF)
     endif()
 else()
+    message(STATUS "jax_finufft: OpenMP support was not requested")
     set(FINUFFT_USE_OPENMP OFF)
 endif()
 
@@ -44,6 +45,8 @@ else()
     set(FINUFFT_USE_CUDA OFF)
 endif()
 
+set(FINUFFT_POSITION_INDEPENDENT_CODE ON)
+
 # Add the FINUFFT project using the vendored version
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/vendor/finufft")
 
@@ -58,7 +61,8 @@ endif()
 
 # Build the CPU XLA bindings
 nanobind_add_module(jax_finufft_cpu ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cpu.cc)
-target_link_libraries(jax_finufft_cpu PRIVATE finufft_static)
+target_link_libraries(jax_finufft_cpu PRIVATE finufft)
+target_include_directories(jax_finufft_cpu PRIVATE ${FFTW_INCLUDE_DIRS})
 install(TARGETS jax_finufft_cpu LIBRARY DESTINATION .)
 
 if(FINUFFT_USE_OPENMP)
@@ -85,6 +89,6 @@ if(FINUFFT_USE_CUDA)
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
     target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_INCLUDE_DIRS})
     target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_VENDORED_INCLUDE_DIRS})
-    target_link_libraries(jax_finufft_gpu PRIVATE cufinufft_static)
+    target_link_libraries(jax_finufft_gpu PRIVATE cufinufft)
     install(TARGETS jax_finufft_gpu LIBRARY DESTINATION .)
 endif()
