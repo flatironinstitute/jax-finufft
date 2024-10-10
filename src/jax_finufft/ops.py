@@ -126,8 +126,8 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts):
     if jax.version.__version_info__ < (0, 4, 34):
         zero = ad.Zero.from_value(output)
     else:
-        zero = ad.Zero.from_primal_value(output)        
-    
+        zero = ad.Zero.from_primal_value(output)
+
     return output, reduce(ad.add_tangents, output_tangents, zero)
 
 
