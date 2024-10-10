@@ -123,7 +123,12 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts):
         )
         output_tangents += [s * output_tangent[:, :, n] for n, s in enumerate(scales)]
 
-    return output, reduce(ad.add_tangents, output_tangents, ad.Zero.from_value(output))
+    if jax.version.__version_info__ < (0, 4, 34):
+        zero = ad.Zero.from_value(output)
+    else:
+        zero = ad.Zero.from_primal_value(output)        
+    
+    return output, reduce(ad.add_tangents, output_tangents, zero)
 
 
 def transpose(doutput, source, *points, output_shape, eps, iflag, opts):
