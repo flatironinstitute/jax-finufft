@@ -3,6 +3,7 @@ __all__ = ["nufft1", "nufft2"]
 from functools import partial, reduce
 
 import numpy as np
+import jax
 from jax import core
 from jax import jit
 from jax import numpy as jnp
