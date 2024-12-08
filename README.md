@@ -19,9 +19,12 @@ through the [cuFINUFFT interface](https://finufft.readthedocs.io/en/latest/c_gpu
 of the FINUFFT library.
 
 [Type 1 and 2](https://finufft.readthedocs.io/en/latest/math.html) transforms
-are supported in 1-, 2-, and 3-dimensions. All of these functions support
-forward, reverse, and higher-order differentiation, as well as batching using
-`vmap`.
+are supported in 1, 2, and 3 dimensions on the CPU, and 2 and 3 dimensions on the GPU.
+All of these functions support forward, reverse, and higher-order differentiation,
+as well as batching using `vmap`.
+
+> [!NOTE]
+> The GPU backend does not currently support 1D ([#125](https://github.com/flatironinstitute/jax-finufft/issues/125)).
 
 ## Installation
 
@@ -76,7 +79,6 @@ The non-Python dependencies that you'll need are:
 - [FFTW](https://www.fftw.org),
 - [OpenMP](https://www.openmp.org) (for CPU, optional),
 - CUDA (for GPU, >= 11.8), and
-- cuDNN (for GPU).
 
 Older versions of CUDA may work, but they are untested.
 
@@ -113,47 +115,68 @@ Other ways of installing JAX are given on the JAX website; the ["local CUDA"
 install
 methods](https://jax.readthedocs.io/en/latest/installation.html#pip-installation-gpu-cuda-installed-locally-harder)
 are preferred for jax-finufft as this ensures the CUDA extensions are compiled
-with the same Toolkit version as the CUDA runtime.
+with the same Toolkit version as the CUDA runtime. However, this is not required
+as long as both JAX and jax-finufft use CUDA with the same major version.
 </details>
 
 <details>
 <summary>Install GPU dependencies using Flatiron module system</summary>
 
 ```bash
-ml modules/2.2
-ml gcc
-ml python/3.11
-ml fftw
-ml cuda/11
-ml cudnn
-ml nccl
+ml modules/2.3 \
+   gcc \
+   python/3.11 \
+   fftw \
+   cuda/12
 
-export LD_LIBRARY_PATH=$CUDA_HOME/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 export CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CUDA_ARCHITECTURES=60;70;80;90 -DJAX_FINUFFT_USE_CUDA=ON"
 ```
 </details>
 
+
+#### Configuring the build
+There are several important CMake variables that control aspects of the jax-finufft and (cu)finufft builds. These include:
+
+- **`JAX_FINUFFT_USE_CUDA`** [disabled by default]: build with GPU support
+- **`CMAKE_CUDA_ARCHITECTURES`** [default `native`]: the target GPU architecture. `native` means the GPU arch of the build system.
+- **`FINUFFT_ARCH_FLAGS`** [default `-march=native`]: the target CPU architecture. The default is the native CPU arch of the build system.
+
+Each of these can be set as `-Ccmake.define.NAME=VALUE` arguments to `pip install`. For example,
+to build with GPU support from the repo root, run:
+
+```bash
+pip install -Ccmake.define.JAX_FINUFFT_USE_CUDA=ON .
+```
+
+Use multiple `-C` arguments to set multiple variables. The `-C` argument will work with any of the source installation methods (e.g. PyPI source dist, GitHub, etc).
+
+Build options can also be set with the `CMAKE_ARGS` environment variable. For example:
+
+```bash
+export CMAKE_ARGS="$CMAKE_ARGS -DJAX_FINUFFT_USE_CUDA=ON"
+```
+
 #### GPU build configuration
+Building with GPU support requires passing `JAX_FINUFFT_USE_CUDA=ON` to CMake. See [Configuring the build](#configuring-the-build).
 
-You'll need to configure your build to select the appropriate CUDA
-architecture(s) using the environment variable `CMAKE_ARGS`. To query your GPU's
-CUDA architecture (compute capability), you can run:
+By default, jax-finufft will build for the GPU of the build machine. If you need to target
+a different compute capability, such as 8.0 for Ampere, set `CMAKE_CUDA_ARCHITECTURES` as a CMake define:
 
+```bash
+pip install -Ccmake.define.JAX_FINUFFT_USE_CUDA=ON -Ccmake.define.CMAKE_CUDA_ARCHITECTURES=80 .
+```
+
+`CMAKE_CUDA_ARCHITECTURES` also takes a semicolon-separated list.
+
+To detect the arch for a specific GPU, one can run:
 ```bash
 $ nvidia-smi --query-gpu=compute_cap --format=csv,noheader
-7.0
+8.0
 ```
 
-This corresponds to `CMAKE_CUDA_ARCHITECTURES=70`, i.e.:
+The values are also listed on the [NVIDIA website](https://developer.nvidia.com/cuda-gpus).
 
-```bash
-export CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CUDA_ARCHITECTURES=70 -DJAX_FINUFFT_USE_CUDA=ON"
-```
-
-Note that the pip installation below uses CMake, so `CMAKE_ARGS` has to be set
-before then, but is not needed at runtime.
-
-At runtime, you may also need:
+In some cases, you may also need the following at runtime:
 
 ```bash
 export LD_LIBRARY_PATH="$CUDA_PATH/extras/CUPTI/lib64:$LD_LIBRARY_PATH"
@@ -194,6 +217,13 @@ python -m pip install -e .
 
 where the `-e` flag optionally runs an "editable" install.
 
+As yet another alternative, the latest development version from GitHub can be
+installed directly (i.e. without cloning first) with
+
+```bash
+python -m pip install git+https://github.com/flatironinstitute/jax-finufft.git
+```
+
 ## Usage
 
 This library provides two high-level functions (and these should be all that you
@@ -202,7 +232,8 @@ transforms). If you're already familiar with the [Python
 interface](https://finufft.readthedocs.io/en/latest/python.html) to FINUFFT,
 _please note that the function signatures here are different_!
 
-For example, here's how you can do a 1-dimensional type 1 transform:
+For example, here's how you can do a 1-dimensional type 1 transform
+(only works on CPU):
 
 ```python
 import numpy as np
@@ -216,18 +247,11 @@ c = np.random.standard_normal(size=M) + 1j * np.random.standard_normal(size=M)
 f = nufft1(N, c, x, eps=1e-6, iflag=1)
 ```
 
-> [!WARNING]
-> As described in [the FINUFFT
-> documentation](https://finufft.readthedocs.io/en/latest/math.html), the
-> non-uniform points must lie within the range `[-3pi, 3pi]`, but this is _not
-> checked_, because JAX currently doesn't have a good interface for runtime
-> value checking. Unexpected crashes may occur if this condition is not met.
-
 Noting that the `eps` and `iflag` are optional, and that (for good reason, I
 promise!) the order of the positional arguments is reversed from the `finufft`
 Python package.
 
-The syntax for a 2-, or 3-dimensional transform is:
+The syntax for a 2-, or 3-dimensional transform (CPU or GPU) is:
 
 ```python
 f = nufft1((Nx, Ny), c, x, y)  # 2D
@@ -245,6 +269,10 @@ c = nufft2(f, x, y, z)  # 3D
 
 All of these functions support batching using `vmap`, and forward and reverse
 mode differentiation.
+
+## Selecting a platform
+If you compiled jax-finufft with GPU support, you can force it to use a particular
+backend by setting the environment variable `JAX_PLATFORMS=cpu` or `JAX_PLATFORMS=cuda`.
 
 ## Advanced usage
 
@@ -308,7 +336,7 @@ are currently only listed in source code form in
 This package, developed by Dan Foreman-Mackey is licensed under the Apache
 License, Version 2.0, with the following copyright:
 
-Copyright 2021, 2022, 2023 The Simons Foundation, Inc.
+Copyright 2021-2024 The Simons Foundation, Inc.
 
 If you use this software, please cite the primary references listed on the
 [FINUFFT docs](https://finufft.readthedocs.io/en/latest/refs.html).

@@ -32,8 +32,21 @@ if(JAX_FINUFFT_USE_CUDA)
 
     if(CMAKE_CUDA_COMPILER)
         message(STATUS "jax_finufft: CUDA compiler found; compiling with GPU support")
-        enable_language(CUDA)
+
         set(FINUFFT_USE_CUDA ON)
+
+        if(NOT CMAKE_CUDA_ARCHITECTURES)
+            set(CMAKE_CUDA_ARCHITECTURES "native")
+        endif()
+
+        message(STATUS "jax_finufft: CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
+
+        # Propagate to finufft, because it doesn't look at CMAKE_CUDA_ARCHITECTURES by default
+        set(FINUFFT_CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES})
+
+        # This needs to be run after the CMAKE_CUDA_ARCHITECTURES check, otherwise
+        # it will set it to the compiler default
+        enable_language(CUDA)
     else()
         message(FATAL_ERROR "jax_finufft: No CUDA compiler found! Please ensure the "
             "CUDA Toolkit is installed, or set JAX_FINUFFT_USE_CUDA=OFF to disable "
