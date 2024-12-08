@@ -43,7 +43,7 @@ def lowering(
 
     ndim = len(points)
     assert 1 <= ndim <= 3
-    if platform == "gpu" and ndim == 1:
+    if platform == "cuda" and ndim == 1:
         raise ValueError("1-D transforms are not yet supported on the GPU")
 
     source_aval = ctx.avals_in[0]
