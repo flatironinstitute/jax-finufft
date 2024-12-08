@@ -24,7 +24,7 @@ All of these functions support forward, reverse, and higher-order differentiatio
 as well as batching using `vmap`.
 
 > [!NOTE]
-> The GPU backend does not currently support 1D (#125).
+> The GPU backend does not currently support 1D ([#125](https://github.com/flatironinstitute/jax-finufft/issues/125)).
 
 ## Installation
 
@@ -139,7 +139,7 @@ There are several important CMake variables that control aspects of the jax-finu
 
 - **`JAX_FINUFFT_USE_CUDA`** [disabled by default]: build with GPU support
 - **`CMAKE_CUDA_ARCHITECTURES`** [default `native`]: the target GPU architecture. `native` means the GPU arch of the build system.
-- **`FINUFFT_ARCH_FLAGS`** [default `-march=native`]: the target CPU architecture. `native` means the CPU arch of the build system.
+- **`FINUFFT_ARCH_FLAGS`** [default `-march=native`]: the target CPU architecture. The default is the native CPU arch of the build system.
 
 Each of these can be set as `-Ccmake.define.NAME=VALUE` arguments to `pip install`. For example,
 to build with GPU support from the repo root, run:
