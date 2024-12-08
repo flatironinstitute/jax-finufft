@@ -19,9 +19,12 @@ through the [cuFINUFFT interface](https://finufft.readthedocs.io/en/latest/c_gpu
 of the FINUFFT library.
 
 [Type 1 and 2](https://finufft.readthedocs.io/en/latest/math.html) transforms
-are supported in 1-, 2-, and 3-dimensions. All of these functions support
-forward, reverse, and higher-order differentiation, as well as batching using
-`vmap`.
+are supported in 1, 2, and 3 dimensions on the CPU, and 2 and 3 dimensions on the GPU.
+All of these functions support forward, reverse, and higher-order differentiation,
+as well as batching using `vmap`.
+
+> [!NOTE]
+> The GPU backend does not currently support 1D (#125).
 
 ## Installation
 
@@ -202,7 +205,8 @@ transforms). If you're already familiar with the [Python
 interface](https://finufft.readthedocs.io/en/latest/python.html) to FINUFFT,
 _please note that the function signatures here are different_!
 
-For example, here's how you can do a 1-dimensional type 1 transform:
+For example, here's how you can do a 1-dimensional type 1 transform
+(only works on CPU):
 
 ```python
 import numpy as np
@@ -227,7 +231,7 @@ Noting that the `eps` and `iflag` are optional, and that (for good reason, I
 promise!) the order of the positional arguments is reversed from the `finufft`
 Python package.
 
-The syntax for a 2-, or 3-dimensional transform is:
+The syntax for a 2-, or 3-dimensional transform (CPU or GPU) is:
 
 ```python
 f = nufft1((Nx, Ny), c, x, y)  # 2D
@@ -245,6 +249,10 @@ c = nufft2(f, x, y, z)  # 3D
 
 All of these functions support batching using `vmap`, and forward and reverse
 mode differentiation.
+
+## Selecting a platform
+If you compiled jax-finufft with GPU support, you can force it to use a particular
+backend by setting the environment variable `JAX_PLATFORMS=cpu` or `JAX_PLATFORMS=cuda`.
 
 ## Advanced usage
 
@@ -308,7 +316,7 @@ are currently only listed in source code form in
 This package, developed by Dan Foreman-Mackey is licensed under the Apache
 License, Version 2.0, with the following copyright:
 
-Copyright 2021, 2022, 2023 The Simons Foundation, Inc.
+Copyright 2021-2024 The Simons Foundation, Inc.
 
 If you use this software, please cite the primary references listed on the
 [FINUFFT docs](https://finufft.readthedocs.io/en/latest/refs.html).
