@@ -247,13 +247,6 @@ c = np.random.standard_normal(size=M) + 1j * np.random.standard_normal(size=M)
 f = nufft1(N, c, x, eps=1e-6, iflag=1)
 ```
 
-> [!WARNING]
-> As described in [the FINUFFT
-> documentation](https://finufft.readthedocs.io/en/latest/math.html), the
-> non-uniform points must lie within the range `[-3pi, 3pi]`, but this is _not
-> checked_, because JAX currently doesn't have a good interface for runtime
-> value checking. Unexpected crashes may occur if this condition is not met.
-
 Noting that the `eps` and `iflag` are optional, and that (for good reason, I
 promise!) the order of the positional arguments is reversed from the `finufft`
 Python package.
