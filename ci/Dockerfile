@@ -2,7 +2,6 @@ FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
 
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    python3 \
-    python3-pip \
+    python3-full \
     git \
     libfftw3-dev
