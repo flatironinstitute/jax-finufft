@@ -10,14 +10,15 @@ authors = [
     { name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com" },
     { name = "Lehman Garrison", email = "lgarrison@flatironinstitute.org" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 urls = { Homepage = "https://github.com/dfm/jax-finufft" }
-dependencies = ["jax>=0.4.20", "numpy", "pydantic>=2"]
+dependencies = ["jax>=0.4.20,<0.6.0", "numpy", "pydantic>=2"]
 dynamic = ["version"]
 
 [project.optional-dependencies]
-test = ["pytest", "absl-py"]
+test = ["pytest", "pytest-xdist", "absl-py"]
+cuda12 = ["jax[cuda12]"]
 
 [tool.scikit-build]
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"

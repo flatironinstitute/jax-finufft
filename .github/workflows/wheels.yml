@@ -32,15 +32,10 @@ jobs:
         with:
           submodules: true
           fetch-depth: 0
-      - uses: actions/setup-python@v5
-        name: Install Python
-        with:
-          python-version: "3.12"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
       - name: Build sdist
-        run: |
-          python -m pip install -U pip
-          python -m pip install -U build twine
-          python -m build --sdist .
+        run: uv build --sdist
       - name: Check the sdist
         run: python -m twine check dist/*.tar.gz
       - uses: actions/upload-artifact@v4

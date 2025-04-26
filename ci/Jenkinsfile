@@ -13,29 +13,15 @@ pipeline {
         HOME = "$WORKSPACE"
     }
     stages {
-        stage('Build') {
-            environment {
-                CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON"
-            }
-            steps {
-                sh '''
-                    python3 -m venv venv
-                    . venv/bin/activate
-                    pip install -U pip
-                    pip install -U "jax[cuda12]"
-                    pip install -v ".[test]"
-                '''
-            }
-        }
         stage('CPU Tests') {
             environment {
                 JAX_PLATFORMS = "cpu"
                 OMP_NUM_THREADS = "${env.PARALLEL}"
+                CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON"
             }
             steps {
                 sh '''
-                    . venv/bin/activate
-                    pytest -v tests/
+                    uv run --extra test pytest -n 8 tests/
                 '''
             }
         }
@@ -43,11 +29,12 @@ pipeline {
             environment {
                 JAX_PLATFORMS = "cuda"
                 OMP_NUM_THREADS = "${env.PARALLEL}"
+                CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON"
             }
             steps {
+                // TODO: add "-n 8", but GPU kernels don't seem to be thread-safe
                 sh '''
-                    . venv/bin/activate
-                    pytest -v tests/
+                    uv run --extra test --extra cuda12 pytest tests/
                 '''
             }
         }

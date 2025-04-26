@@ -31,13 +31,9 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python -m pip install -U pip
-          python -m pip install -U jax[cpu]
+          python -m pip install uv
 
-      - name: Compile the extension
-        run: python -m pip install -v .
+      - name: Compile and check GPU extension
+        run: uv run python -c "import jax_finufft.jax_finufft_gpu"
         env:
           CMAKE_ARGS: "-DJAX_FINUFFT_USE_CUDA=ON"
-
-      - name: Check that the GPU extension was built
-        run: python -c "import jax_finufft.jax_finufft_gpu"
