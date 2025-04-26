@@ -1,8 +1,7 @@
 import numpy as np
+import jax
 from jax.interpreters import mlir
 from jax.interpreters.mlir import ir
-from jax.lib import xla_client
-from jaxlib.hlo_helpers import custom_call, hlo_const
 
 from jax_finufft import options
 
@@ -12,12 +11,12 @@ try:
     from . import jax_finufft_gpu
 
     for _name, _value in jax_finufft_gpu.registrations().items():
-        xla_client.register_custom_call_target(_name, _value, platform="CUDA")
+        jax.ffi.register_ffi_target(_name, _value, platform="CUDA", api_version=0)
 except ImportError:
     jax_finufft_gpu = None
 
 for _name, _value in jax_finufft_cpu.registrations().items():
-    xla_client.register_custom_call_target(_name, _value, platform="cpu")
+    jax.ffi.register_ffi_target(_name, _value, platform="cpu", api_version=0)
 
 
 def default_layouts(*shapes):
@@ -80,8 +79,8 @@ def lowering(
         descriptor_bytes = getattr(jax_finufft_cpu, f"build_descriptor{suffix}")(
             eps, iflag, n_tot, n_transf, n_j, *n_k_full, opts
         )
-        descriptor = hlo_const(np.frombuffer(descriptor_bytes, dtype=np.uint8))
-        return custom_call(
+        descriptor = mlir.ir_constant(np.frombuffer(descriptor_bytes, dtype=np.uint8))
+        return mlir.custom_call(
             op_name,
             result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
             # Reverse points because backend uses Fortran order
@@ -95,7 +94,7 @@ def lowering(
         descriptor_bytes = getattr(jax_finufft_gpu, f"build_descriptor{suffix}")(
             eps, iflag, n_tot, n_transf, n_j, *n_k_full, opts
         )
-        return custom_call(
+        return mlir.custom_call(
             op_name,
             result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
             # Reverse points because backend uses Fortran order
