@@ -5,4 +5,7 @@ RUN apt-get update && \
     python3-full \
     python3-dev \
     git \
+    curl \
     libfftw3-dev
+
+COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /uvx /bin/

@@ -8,13 +8,12 @@ on:
 
 jobs:
   tests:
-    name: ${{ matrix.os }}-${{ matrix.jax-version }}
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        jax-version: ["jax"]
 
     steps:
       - uses: actions/checkout@v4
@@ -22,10 +21,8 @@ jobs:
           submodules: true
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
 
       - name: Install fftw on ubuntu
         if: ${{ matrix.os == 'ubuntu-latest' }}
@@ -35,11 +32,5 @@ jobs:
         if: ${{ matrix.os == 'macos-latest' }}
         run: brew install fftw
 
-      - name: Build
-        run: |
-          python -m pip install -U pip
-          python -m pip install -U ${{ matrix.jax-version }}
-          python -m pip install -v .[test]
-
       - name: Run tests
-        run: python -m pytest -v tests
+        run: uv run --extra test --python 3.12 pytest -n auto tests
