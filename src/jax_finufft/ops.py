@@ -4,10 +4,10 @@ from functools import partial, reduce
 
 import numpy as np
 import jax
-from jax import core
 from jax import jit
 from jax import numpy as jnp
 from jax.interpreters import ad, batching, xla, mlir
+from jax.extend.core import Primitive
 
 from jax_finufft import shapes, lowering, options
 
@@ -198,7 +198,7 @@ def batch(args, axes, *, output_shape, **kwargs):
         return nufft1(tuple(output_shape), source, *mapped_points, **kwargs), 0
 
 
-nufft1_p = core.Primitive("nufft1")
+nufft1_p = Primitive("nufft1")
 nufft1_p.def_impl(partial(xla.apply_primitive, nufft1_p))
 nufft1_p.def_abstract_eval(shapes.abstract_eval)
 mlir.register_lowering(nufft1_p, lowering.lowering, platform="cpu")
@@ -209,7 +209,7 @@ ad.primitive_transposes[nufft1_p] = transpose
 batching.primitive_batchers[nufft1_p] = batch
 
 
-nufft2_p = core.Primitive("nufft2")
+nufft2_p = Primitive("nufft2")
 nufft2_p.def_impl(partial(xla.apply_primitive, nufft2_p))
 nufft2_p.def_abstract_eval(shapes.abstract_eval)
 mlir.register_lowering(nufft2_p, lowering.lowering, platform="cpu")
