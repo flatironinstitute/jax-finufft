@@ -63,3 +63,6 @@ exclude = []
 [tool.ruff.isort]
 known-first-party = ["jax-finufft"]
 combine-as-imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
