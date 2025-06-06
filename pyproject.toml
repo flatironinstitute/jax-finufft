@@ -45,6 +45,9 @@ config-settings = {"cmake.define.FINUFFT_ARCH_FLAGS" = ""}
 [tool.cibuildwheel.linux]
 before-all = "yum install -y fftw-devel"
 
+[tool.cibuildwheel.macos]
+before-all = "brew install llvm libomp"
+
 # Needed for full C++17 support
 [tool.cibuildwheel.macos.environment]
 MACOSX_DEPLOYMENT_TARGET = "10.14"

@@ -21,6 +21,13 @@ jobs:
           fetch-depth: 0
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
+        env:
+          # from https://github.com/flatironinstitute/finufft/blob/master/.github/workflows/build_finufft_wheels.yml
+          CIBW_ENVIRONMENT_MACOS: >
+            CC=$(brew --prefix llvm)/bin/clang
+            CXX=$(brew --prefix llvm)/bin/clang++
+            CFLAGS="-I$(brew --prefix libomp)/include"
+            LDFLAGS="-L$(brew --prefix libomp)/lib"
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}
