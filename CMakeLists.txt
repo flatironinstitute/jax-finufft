@@ -41,9 +41,6 @@ if(JAX_FINUFFT_USE_CUDA)
 
         message(STATUS "jax_finufft: CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
 
-        # Propagate to finufft, because it doesn't look at CMAKE_CUDA_ARCHITECTURES by default
-        set(FINUFFT_CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES})
-
         # This needs to be run after the CMAKE_CUDA_ARCHITECTURES check, otherwise
         # it will set it to the compiler default
         enable_language(CUDA)

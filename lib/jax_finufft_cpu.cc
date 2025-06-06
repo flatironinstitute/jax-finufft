@@ -115,14 +115,13 @@ NB_MODULE(jax_finufft_cpu, m) {
 
   nb::class_<finufft_opts> opts(m, "FinufftOpts");
   opts.def("__init__",
-           [](finufft_opts *self, bool modeord, bool chkbnds, int debug, int spread_debug,
+           [](finufft_opts *self, bool modeord, int debug, int spread_debug,
               bool showwarn, int nthreads, int fftw, int spread_sort, bool spread_kerevalmeth,
               bool spread_kerpad, double upsampfac, int spread_thread, int maxbatchsize,
               int spread_nthr_atomic, int spread_max_sp_size) {
              new (self) finufft_opts;
              default_opts<double>(self);
              self->modeord = int(modeord);
-             self->chkbnds = int(chkbnds);
              self->debug = debug;
              self->spread_debug = spread_debug;
              self->showwarn = int(showwarn);
