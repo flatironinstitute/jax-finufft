@@ -21,7 +21,7 @@ pipeline {
             }
             steps {
                 sh '''
-                    uv run --extra test pytest -n 8 tests/
+                    uv run --extra test pytest -n 8
                 '''
             }
         }
@@ -34,7 +34,7 @@ pipeline {
             steps {
                 // TODO: add "-n 8", but GPU kernels don't seem to be thread-safe
                 sh '''
-                    uv run --extra test --extra cuda12 pytest tests/
+                    uv run --extra test --extra cuda12 pytest
                 '''
             }
         }
