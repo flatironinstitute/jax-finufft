@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "*"
+  pull_request:
 
 jobs:
   build_wheels:
@@ -20,6 +21,13 @@ jobs:
           fetch-depth: 0
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
+        env:
+          # from https://github.com/flatironinstitute/finufft/blob/master/.github/workflows/build_finufft_wheels.yml
+          CIBW_ENVIRONMENT_MACOS: >
+            CC=$(brew --prefix llvm)/bin/clang
+            CXX=$(brew --prefix llvm)/bin/clang++
+            CFLAGS="-I$(brew --prefix libomp)/include"
+            LDFLAGS="-L$(brew --prefix libomp)/lib"
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}
@@ -37,7 +45,7 @@ jobs:
       - name: Build sdist
         run: uv build --sdist
       - name: Check the sdist
-        run: python -m twine check dist/*.tar.gz
+        run: uvx twine check dist/*.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: sdist
