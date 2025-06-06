@@ -78,9 +78,7 @@ The non-Python dependencies that you'll need are:
 
 - [FFTW](https://www.fftw.org),
 - [OpenMP](https://www.openmp.org) (for CPU, optional),
-- CUDA (for GPU, >= 11.8), and
-
-Older versions of CUDA may work, but they are untested.
+- CUDA (for GPU, >= 11.8)
 
 Below we provide some example workflows for installing the required dependencies:
 
@@ -133,6 +131,16 @@ export CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CUDA_ARCHITECTURES=60;70;80;90 -DJAX_FINU
 ```
 </details>
 
+#### Notes on CUDA versions
+While jax-finufft may build with a wide range of CUDA
+versions, the resulting binaries may not be compatible with JAX (resulting in
+odd runtime errors, like failed cuDNN or cuBLAS initialization). For the greatest
+chance of success, we recommend building with the same version as JAX was built with.
+To discover that, one can look at the requirements in [JAX's `build` directory](https://github.com/jax-ml/jax/tree/main/build)
+(be sure to select the git tag for your version of JAX). Similarly, we encourage installing
+`jax[cuda12-local]` so JAX and jax-finufft use the same CUDA libraries.
+
+Depending on how challenging the installation is, users might want to run jax-finufft in a container. The [`.devcontainer`](./.devcontainer) directory is a good starting point for this.
 
 #### Configuring the build
 There are several important CMake variables that control aspects of the jax-finufft and (cu)finufft builds. These include:
@@ -336,7 +344,7 @@ are currently only listed in source code form in
 This package, developed by Dan Foreman-Mackey is licensed under the Apache
 License, Version 2.0, with the following copyright:
 
-Copyright 2021-2024 The Simons Foundation, Inc.
+Copyright 2021-2025 The Simons Foundation, Inc.
 
 If you use this software, please cite the primary references listed on the
 [FINUFFT docs](https://finufft.readthedocs.io/en/latest/refs.html).
