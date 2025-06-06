@@ -44,7 +44,6 @@ class Opts:
     # These correspond to the default cufinufft options
     # set in vendor/finufft/src/cuda/cufinufft.cu
     modeord: bool = False
-    chkbnds: bool = True
     debug: DebugLevel = DebugLevel.Silent
     spread_debug: DebugLevel = DebugLevel.Silent
     showwarn: bool = False
@@ -77,7 +76,6 @@ class Opts:
         compiled_with_omp = jax_finufft_cpu._omp_compile_check()
         return jax_finufft_cpu.FinufftOpts(
             self.modeord,
-            self.chkbnds,
             int(self.debug),
             int(self.spread_debug),
             self.showwarn,
