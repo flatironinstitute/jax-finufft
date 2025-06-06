@@ -38,7 +38,7 @@ jobs:
       - name: Build sdist
         run: uv build --sdist
       - name: Check the sdist
-        run: python -m twine check dist/*.tar.gz
+        run: uvx twine check dist/*.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: sdist
