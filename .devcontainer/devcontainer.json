@@ -1,0 +1,9 @@
+{
+  "name": "CUDA",
+  "runArgs": [
+    "--gpus=all"
+  ],
+  "build": {
+    "dockerfile": "Dockerfile"
+  }
+}
