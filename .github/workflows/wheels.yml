@@ -4,6 +4,18 @@ on:
   push:
     tags:
       - "*"
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read # to fetch code
+  actions: write # to cancel previous workflows
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build_wheels:
@@ -11,7 +23,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ["ubuntu-22.04", "macos-12", "macos-14"]
+        os: ["ubuntu-latest", "macos-latest"]
 
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +49,7 @@ jobs:
       - name: Build sdist
         run: uv build --sdist
       - name: Check the sdist
-        run: python -m twine check dist/*.tar.gz
+        run: uvx twine check dist/*.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: sdist
