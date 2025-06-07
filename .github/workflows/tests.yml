@@ -6,6 +6,14 @@ on:
       - main
   pull_request:
 
+permissions:
+  contents: read # to fetch code
+  actions: write # to cancel previous workflows
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   tests:
     name: ${{ matrix.os }}
