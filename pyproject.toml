@@ -40,6 +40,8 @@ version_file = "src/jax_finufft/jax_finufft_version.py"
 skip = "pp* *-musllinux_* *-manylinux_i686"
 build-verbosity = 1
 config-settings = { "cmake.define.FINUFFT_ARCH_FLAGS" = "" }
+test-command = "pytest {project}/tests"
+test-extras = "test"
 
 [tool.cibuildwheel.linux]
 before-all = "yum install -y fftw-devel"
