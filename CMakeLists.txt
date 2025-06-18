@@ -60,6 +60,16 @@ set(FINUFFT_POSITION_INDEPENDENT_CODE ON)
 # Add the FINUFFT project using the vendored version
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/vendor/finufft")
 
+# Workaround for CUDA files using the cpp extension
+if (FINUFFT_USE_CUDA)
+    set_source_files_properties(
+    ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/cuda/utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/src/cuda/spreadinterp.cpp
+    TARGET_DIRECTORY cufinufft
+    PROPERTIES LANGUAGE CUDA
+    )
+endif()
+
 # Find Python and nanobind
 find_package(Python 3.8 COMPONENTS Interpreter Development.Module REQUIRED)
 find_package(nanobind CONFIG REQUIRED)
