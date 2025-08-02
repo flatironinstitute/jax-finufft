@@ -24,6 +24,7 @@ def nufft1(output_shape, source, *points, iflag=1, eps=1e-6, opts=None):
     output_shape = np.atleast_1d(output_shape).astype(np.int64)
     if output_shape.shape != (ndim,):
         raise ValueError(f"output_shape must have shape: ({ndim},)")
+    output_shape = tuple(output_shape)
 
     # Handle broadcasting and reshaping of inputs
     index, source, *points = shapes.broadcast_and_flatten_inputs(
