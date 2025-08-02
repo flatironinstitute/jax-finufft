@@ -23,9 +23,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         python-version: 3.13
-      include:
-        - os: ubuntu-latest
-          python-version: 3.13t
+        include:
+          - os: ubuntu-latest
+            python-version: 3.13t
 
     steps:
       - uses: actions/checkout@v4
