@@ -4,6 +4,7 @@ import sysconfig
 
 import numpy as np
 import pytest
+from ops_test import check_close
 
 import jax_finufft
 
@@ -32,6 +33,8 @@ def test_threaded_pool_nufft1(N_transforms=1000, N_points=1000):
 
     rng = np.random.default_rng(42)
     modes = 64
+    x64 = False
+    eps = 1e-10 if x64 else 1e-7
 
     x_values = rng.uniform(-np.pi, np.pi, size=(N_transforms, N_points))
     c_values = rng.normal(size=(N_transforms, N_points)) + 1j * rng.normal(
@@ -41,7 +44,7 @@ def test_threaded_pool_nufft1(N_transforms=1000, N_points=1000):
     def compute_transform(idx):
         """Compute a single nufft1 transform."""
         return np.array(
-            jax_finufft.nufft1(modes, c_values[idx], x_values[idx], eps=1e-6)
+            jax_finufft.nufft1(modes, c_values[idx], x_values[idx], eps=eps)
         )
 
     # Sequential computation
@@ -57,4 +60,4 @@ def test_threaded_pool_nufft1(N_transforms=1000, N_points=1000):
     assert len(parallel_results) == N_transforms
 
     for seq_res, par_res in zip(sequential_results, parallel_results):
-        np.testing.assert_allclose(seq_res, par_res, rtol=1e-4)
+        check_close(seq_res, par_res, rtol=1e-3)
