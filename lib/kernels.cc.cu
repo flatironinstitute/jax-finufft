@@ -87,6 +87,14 @@ void nufft2(cudaStream_t stream, void **buffers, const char *opaque, std::size_t
   ThrowIfError(cudaGetLastError());
 }
 
+void nufft1d1(cudaStream_t stream, void **buffers, const char *opaque, std::size_t opaque_len) {
+  nufft1<1, double>(stream, buffers, opaque, opaque_len);
+}
+
+void nufft1d2(cudaStream_t stream, void **buffers, const char *opaque, std::size_t opaque_len) {
+  nufft2<1, double>(stream, buffers, opaque, opaque_len);
+}
+
 void nufft2d1(cudaStream_t stream, void **buffers, const char *opaque, std::size_t opaque_len) {
   nufft1<2, double>(stream, buffers, opaque, opaque_len);
 }
@@ -101,6 +109,14 @@ void nufft3d1(cudaStream_t stream, void **buffers, const char *opaque, std::size
 
 void nufft3d2(cudaStream_t stream, void **buffers, const char *opaque, std::size_t opaque_len) {
   nufft2<3, double>(stream, buffers, opaque, opaque_len);
+}
+
+void nufft1d1f(cudaStream_t stream, void **buffers, const char *opaque, std::size_t opaque_len) {
+  nufft1<1, float>(stream, buffers, opaque, opaque_len);
+}
+
+void nufft1d2f(cudaStream_t stream, void **buffers, const char *opaque, std::size_t opaque_len) {
+  nufft2<1, float>(stream, buffers, opaque, opaque_len);
 }
 
 void nufft2d1f(cudaStream_t stream, void **buffers, const char *opaque, std::size_t opaque_len) {

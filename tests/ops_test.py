@@ -21,9 +21,6 @@ def check_close(a, b, **kwargs):
     product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
 )
 def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
-    if ndim == 1 and jax.default_backend() != "cpu":
-        pytest.skip("1D transforms not implemented on GPU")
-
     random = np.random.default_rng(657)
 
     eps = 1e-10 if x64 else 1e-7
@@ -56,9 +53,6 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
 )
 def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
-    if ndim == 1 and jax.default_backend() != "cpu":
-        pytest.skip("1D transforms not implemented on GPU")
-
     random = np.random.default_rng(657)
 
     eps = 1e-10 if x64 else 1e-7
@@ -98,9 +92,6 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
-    if ndim == 1 and jax.default_backend() != "cpu":
-        pytest.skip("1D transforms not implemented on GPU")
-
     random = np.random.default_rng(657)
 
     eps = 1e-10
@@ -133,9 +124,6 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
-    if ndim == 1 and jax.default_backend() != "cpu":
-        pytest.skip("1D transforms not implemented on GPU")
-
     random = np.random.default_rng(657)
 
     eps = 1e-10
@@ -168,9 +156,6 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
-    if ndim == 1 and jax.default_backend() != "cpu":
-        pytest.skip("1D transforms not implemented on GPU")
-
     random = np.random.default_rng(657)
 
     dtype = np.double
@@ -219,9 +204,6 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
 def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
-    if ndim == 1 and jax.default_backend() != "cpu":
-        pytest.skip("1D transforms not implemented on GPU")
-
     random = np.random.default_rng(657)
 
     dtype = np.double
@@ -266,10 +248,6 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
 
 
 def test_multi_transform():
-    # TODO: is there a 2D or 3D version of this test?
-    if jax.default_backend() != "cpu":
-        pytest.skip("1D transforms not implemented on GPU")
-
     random = np.random.default_rng(314)
 
     n_tot, n_tr, n_j, n_k = 4, 10, 100, 12
@@ -287,9 +265,6 @@ def test_multi_transform():
 
 
 def test_gh14():
-    if jax.default_backend() != "cpu":
-        pytest.skip("1D transforms not implemented on GPU")
-
     M = 100
     N = 200
 
