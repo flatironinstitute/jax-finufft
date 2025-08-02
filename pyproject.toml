@@ -37,7 +37,7 @@ build-dir = "build/{wheel_tag}"
 version_file = "src/jax_finufft/jax_finufft_version.py"
 
 [tool.cibuildwheel]
-skip = "pp* *-musllinux_* *-manylinux_i686"
+skip = "pp* *-musllinux_* *-manylinux_i686 cp31?t-*"
 build-verbosity = 1
 config-settings = { "cmake.define.FINUFFT_ARCH_FLAGS" = "" }
 test-command = "pytest {project}/tests"
