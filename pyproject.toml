@@ -40,6 +40,7 @@ version_file = "src/jax_finufft/jax_finufft_version.py"
 skip = "pp* *-musllinux_* *-manylinux_i686 cp31?t-*"
 build-verbosity = 1
 config-settings = { "cmake.define.FINUFFT_ARCH_FLAGS" = "" }
+enable = "cpython-freethreading"
 test-command = "pytest {project}/tests"
 test-extras = "test"
 # jaxlib does not support Python 3.14 yet
