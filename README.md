@@ -19,12 +19,9 @@ through the [cuFINUFFT interface](https://finufft.readthedocs.io/en/latest/c_gpu
 of the FINUFFT library.
 
 [Type 1 and 2](https://finufft.readthedocs.io/en/latest/math.html) transforms
-are supported in 1, 2, and 3 dimensions on the CPU, and 2 and 3 dimensions on the GPU.
+are supported in 1, 2, and 3 dimensions on the CPU and GPU.
 All of these functions support forward, reverse, and higher-order differentiation,
 as well as batching using `vmap`.
-
-> [!NOTE]
-> The GPU backend does not currently support 1D ([#125](https://github.com/flatironinstitute/jax-finufft/issues/125)).
 
 ## Installation
 
@@ -240,8 +237,7 @@ transforms). If you're already familiar with the [Python
 interface](https://finufft.readthedocs.io/en/latest/python.html) to FINUFFT,
 _please note that the function signatures here are different_!
 
-For example, here's how you can do a 1-dimensional type 1 transform
-(only works on CPU):
+For example, here's how you can do a 1-dimensional type 1 transform (CPU or GPU):
 
 ```python
 import numpy as np
