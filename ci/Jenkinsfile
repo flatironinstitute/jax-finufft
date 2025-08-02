@@ -43,10 +43,8 @@ pipeline {
                 JAX_PLATFORMS = "cuda"
                 OMP_NUM_THREADS = "${env.PARALLEL}"
                 CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON"
-                JAX_FINUFFT_FORCE_FREETHREADED_TEST= "1"
             }
             steps {
-                // TODO: add "-n 8", but GPU kernels don't seem to be thread-safe
                 sh '''
                     uv run -p 3.13t --extra test --extra cuda12-local pytest
                 '''

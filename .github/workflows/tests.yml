@@ -46,9 +46,3 @@ jobs:
 
       - name: Run tests
         run: uv run --extra test --python ${{ matrix.python-version }} pytest -n auto tests
-
-      - name: Run freethreaded tests
-        if: endsWith(matrix.python-version, 't')
-        env:
-          JAX_FINUFFT_FORCE_FREETHREADED_TEST: 1
-        run: uv run --extra test --python ${{ matrix.python-version }} pytest -n auto tests
