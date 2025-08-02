@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   tests:
-    name: ${{ matrix.os }}
+    name: ${{ matrix.os }}-${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
