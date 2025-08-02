@@ -1,9 +1,7 @@
 import concurrent.futures
-import os
 import sys
 import sysconfig
 
-import jax
 import numpy as np
 import pytest
 
