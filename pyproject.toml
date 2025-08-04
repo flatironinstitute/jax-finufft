@@ -44,7 +44,8 @@ enable = "cpython-freethreading"
 test-command = "pytest {project}/tests"
 test-extras = "test"
 # jaxlib does not support Python 3.14 yet
-test-skip = "cp314*"
+# jaxlib does not support free-threading on macOS yet
+test-skip = "cp314* cp313t-macosx*"
 
 [tool.cibuildwheel.linux]
 before-all = "yum install -y fftw-devel"
