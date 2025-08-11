@@ -80,7 +80,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # Build the CPU XLA bindings
-nanobind_add_module(jax_finufft_cpu ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cpu.cc)
+nanobind_add_module(jax_finufft_cpu FREE_THREADED ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_cpu.cc)
 target_link_libraries(jax_finufft_cpu PRIVATE finufft)
 
 if (NOT FFTW_INCLUDE_DIRS)
@@ -109,6 +109,7 @@ if(FINUFFT_USE_CUDA)
         ${CMAKE_CURRENT_LIST_DIR}/vendor/finufft/include/cufinufft/contrib/cuda_samples
     )
     nanobind_add_module(jax_finufft_gpu
+        FREE_THREADED
         ${CMAKE_CURRENT_LIST_DIR}/lib/jax_finufft_gpu.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/cufinufft_wrapper.cc
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
