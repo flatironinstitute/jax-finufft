@@ -139,21 +139,27 @@ def test_non_uniform_real_FFT_2D(func, m, n, domain_x, domain_y):
 
     f1 = 2 * jnp.fft.rfft2(c, norm="forward")
     f1 = f1.at[..., (0, -1) if (n % 2 == 0) else 0].divide(2)
-
     f2 = jnp.fft.fft2(c, norm="forward")
 
+    v = func(xq, yq)
+    np.testing.assert_allclose(nufft2r(f1, xq, yq, domain_x, domain_y), v)
+    np.testing.assert_allclose(nufft2r(f2, xq, yq, domain_x, domain_y, None), v)
+
+    @value_and_grad
     def fun1(xq, yq):
         return nufft2r(f1, xq, yq, domain_x, domain_y).sum()
 
+    @value_and_grad
     def fun2(xq, yq):
-        return nufft2r(f2, xq, yq, domain_x, domain_y, rfft_axis=None).sum()
+        return nufft2r(f2, xq, yq, domain_x, domain_y, None).sum()
 
+    @value_and_grad
     def truth(xq, yq):
         return func(xq, yq).sum()
 
-    v, g = value_and_grad(truth)(xq, yq)
-    f1v, f1g = value_and_grad(fun1)(xq, yq)
-    f2v, f2g = value_and_grad(fun2)(xq, yq)
+    v, g = truth(xq, yq)
+    f1v, f1g = fun1(xq, yq)
+    f2v, f2g = fun2(xq, yq)
 
     np.testing.assert_allclose(f1v, v)
     np.testing.assert_allclose(f2v, v)
