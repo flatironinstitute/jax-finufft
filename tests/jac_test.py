@@ -17,31 +17,29 @@ def nufft2r(
     domain_x=(0, 2 * jnp.pi),
     domain_y=(0, 2 * jnp.pi),
     rfft_axis=-1,
+    vec=False,
     eps=1e-6,
 ):
     """Non-uniform real fast Fourier transform of second type.
 
     Notes
     -----
-    Vectorization with the following signatures are supported for 1D, 2D transforms.
-     - ``(f,c0),(x)->(f,x)``
+    Vectorization with the following signatures are supported.
      - ``(f,c0,c1),(x),(x)->(f,x)``
 
     Parameters
     ----------
     c : jnp.ndarray
-        Fourier coefficients cₙ of the map x ↦ c(x) such that c(x) = ∑ₙ cₙ exp(i n x)
-        where n >= 0. If x₁ is given, then expects the Fourier coefficients cₘₙ of
-        the map x₀,x₁ ↦ c(x₀,x₁) such that c(x₀,x₁) = ∑ₘₙ cₘₙ exp(i m x₀) exp(i n x₁).
+        Fourier coefficients cₙ of the map x₀,x₁ ↦ c(x₀,x₁) such that
+        c(x₀,x₁) = ∑ₘₙ cₘₙ exp(i m x₀) exp(i n x₁).
     x0 : jnp.ndarray
         Real query points of coordinate in ``domain0`` where interpolation is desired.
-        For a 2D transform, the coordinates stored here must be the same coordinate
-        enumerated across axis ``-2`` of ``c``.
+        The coordinates stored here must be the same coordinate enumerated across axis
+        ``-2`` of ``c``.
     x1 : jnp.ndarray
         Real query points of coordinate in ``domain1`` where interpolation is desired.
-        If not given, performs a one-dimensional transform.
-        For a 2D transform, the coordinates stored here must be the same coordinate
-        enumerated across axis ``-1`` of ``c``.
+        The coordinates stored here must be the same coordinate enumerated across axis
+        ``-1`` of ``c``.
     domain0 : tuple[float]
         Domain of coordinate specified by x₀ over which samples were taken.
     domain1 : tuple[float]
@@ -54,7 +52,7 @@ def nufft2r(
     vec : bool
         If set to ``True``, then it is assumed that multiple Fourier series are
         to be evaluated at the same non-uniform points. In that case, this flag
-        must be set to retain the function signature of ``(f,c0),(x)->(f,x)``.
+        must be set to retain the function signature of ``(f,c0,c1),(x),(x)->(f,x)``.
     eps : float
         Precision requested. Default is ``1e-6``.
 
@@ -78,6 +76,7 @@ def nufft2r(
             )
         s = f.shape[rfft_axis] // 2
         s = jnp.exp(1j * s * (y if rfft_axis == -1 else x))
+        s = s[..., jnp.newaxis, :] if vec else s
         f = jnp.fft.ifftshift(f, rfft_axis)
 
     opts = options.Opts(modeord=1)
