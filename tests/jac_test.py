@@ -18,7 +18,7 @@ def nufft2r(
     domain_y=(0, 2 * jnp.pi),
     rfft_axis=-1,
     vec=False,
-    eps=1e-13,
+    eps=1e-7,
 ):
     """Non-uniform real fast Fourier transform of second type.
 
@@ -158,6 +158,6 @@ def test_non_uniform_real_FFT_2D(func, m, n, domain_x, domain_y):
     np.testing.assert_allclose(f1v, v)
     np.testing.assert_allclose(f2v, v)
 
-    np.testing.assert_allclose(f1g, f2g, err_msg="Good point to debug.")
+    np.testing.assert_allclose(f1g, f2g, err_msg="Something wrong with modeord")
     np.testing.assert_allclose(f1g, g)
     np.testing.assert_allclose(f2g, g)

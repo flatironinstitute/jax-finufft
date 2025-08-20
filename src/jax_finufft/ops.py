@@ -69,6 +69,8 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts):
     # c_j = sum_k f_k * exp(iflag * i * k * x_j)
     # dc_j/dx_j = sum_k iflag * i * k * f_k * exp(iflag * i * k * x_j)
 
+    modeord = 0 if opts is None else opts.modeord
+
     source, *points = args
     dsource, *dpoints = tangents
     output = prim.bind(
@@ -105,7 +107,11 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts):
         n = source.shape[-ndim + dim] if output_shape is None else output_shape[dim]
         shape = np.ones(ndim, dtype=int)
         shape[dim] = -1
-        k = np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1))
+
+        k = np.fft.fftfreq(n, 1/n).astype(int)
+        if modeord == 0:
+            k = np.fft.fftshift(k)
+
         k = k.reshape(shape)
         factor = 1j * iflag * k
         dx = dx[:, None, :]
