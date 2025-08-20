@@ -18,10 +18,6 @@ def nufft1d2r(x, f, domain=(0, 2 * jnp.pi), vec=False, eps=1e-6):
     Examples
     --------
     [Tutorial](https://finufft.readthedocs.io/en/latest/tutorial/realinterp1d.html#id1).
-    Also see the tests in the following directory.
-
-     - ``tests/test_interp_utils.py::TestFastInterp::test_non_uniform_real_FFT``
-     - ``tests/test_interp_utils.py::TestFastInterp::test_nufft2_vec``
 
     Parameters
     ----------
@@ -74,10 +70,6 @@ def nufft2d2r(
     Examples
     --------
     [Tutorial](https://finufft.readthedocs.io/en/latest/tutorial/realinterp1d.html#id1).
-    Also see the tests in the following directory.
-
-     - ``tests/test_interp_utils.py::TestFastInterp::test_non_uniform_real_FFT_2D``
-     - ``tests/test_interp_utils.py::TestFastInterp::test_nufft2_vec``
 
     Parameters
     ----------
