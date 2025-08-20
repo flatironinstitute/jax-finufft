@@ -2,13 +2,14 @@ __all__ = ["nufft1", "nufft2"]
 
 from functools import partial, reduce
 
-import jax
 import numpy as np
-from jax import jit, numpy as jnp
+import jax
+from jax import jit
+from jax import numpy as jnp
+from jax.interpreters import ad, batching, xla, mlir
 from jax.extend.core import Primitive
-from jax.interpreters import ad, batching, mlir, xla
 
-from jax_finufft import lowering, options, shapes
+from jax_finufft import shapes, lowering, options
 
 
 @partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps", "opts"))
