@@ -62,18 +62,16 @@ def nufft2r(
         Real function value at query points.
 
     """
-    scale_x = 2 * jnp.pi / (domain_x[1] - domain_x[0])
-    scale_y = 2 * jnp.pi / (domain_y[1] - domain_y[0])
-    x = (x - domain_x[0]) * scale_x
-    y = (y - domain_y[0]) * scale_y
+    sx = 2 * jnp.pi / (domain_x[1] - domain_x[0])
+    sy = 2 * jnp.pi / (domain_y[1] - domain_y[0])
+    x = (x - domain_x[0]) * sx
+    y = (y - domain_y[0]) * sy
 
     if rfft_axis is None:
         s = 1
+    elif rfft_axis != -1 and rfft_axis != -2:
+        raise NotImplementedError(f"rfft_axis must be -1 or -2, but got {rfft_axis}")
     else:
-        if rfft_axis != -1 and rfft_axis != -2:
-            raise NotImplementedError(
-                f"rfft_axis must be -1 or -2, but got {rfft_axis}"
-            )
         s = f.shape[rfft_axis] // 2
         s = jnp.exp(1j * s * (y if rfft_axis == -1 else x))
         s = s[..., jnp.newaxis, :] if vec else s
