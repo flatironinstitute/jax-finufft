@@ -5,7 +5,7 @@ import numpy as np
 
 
 from jax import config as jax_config
-from jax import grad
+from jax import value_and_grad
 
 jax_config.update("jax_enable_x64", True)
 
@@ -18,7 +18,7 @@ def nufft2r(
     domain_y=(0, 2 * jnp.pi),
     rfft_axis=-1,
     vec=False,
-    eps=1e-6,
+    eps=1e-13,
 ):
     """Non-uniform real fast Fourier transform of second type.
 
@@ -101,32 +101,32 @@ def _f_2d_nyquist_freq():
     return x_freq_nyquist, y_freq_nyquist
 
 
-_2d_inputs = [
-    (
-        _f_2d,
-        2 * _f_2d_nyquist_freq()[0] + 1,
-        2 * _f_2d_nyquist_freq()[1] + 1,
-        (0, 2 * jnp.pi),
-        (0, 2 * jnp.pi),
-    ),
-    (
-        _f_2d,
-        2 * _f_2d_nyquist_freq()[0] + 1,
-        2 * _f_2d_nyquist_freq()[1] + 1,
-        (-jnp.pi / 3, 5 * jnp.pi / 3),
-        (jnp.pi, 3 * jnp.pi),
-    ),
-    (
-        lambda x, y: jnp.cos(30 * x) + jnp.sin(y) ** 2 + 1,
-        2 * 30 // 30 + 1,
-        2 * 2 + 1,
-        (0, 2 * jnp.pi / 30),
-        (jnp.pi, 3 * jnp.pi),
-    ),
-]
-
-
-@pytest.mark.parametrize("func, m, n, domain_x, domain_y", _2d_inputs)
+@pytest.mark.parametrize(
+    "func, m, n, domain_x, domain_y",
+    [
+        (
+            _f_2d,
+            2 * _f_2d_nyquist_freq()[0] + 1,
+            2 * _f_2d_nyquist_freq()[1] + 1,
+            (0, 2 * jnp.pi),
+            (0, 2 * jnp.pi),
+        ),
+        (
+            _f_2d,
+            2 * _f_2d_nyquist_freq()[0] + 1,
+            2 * _f_2d_nyquist_freq()[1] + 1,
+            (-jnp.pi / 3, 5 * jnp.pi / 3),
+            (jnp.pi, 3 * jnp.pi),
+        ),
+        (
+            lambda x, y: jnp.cos(30 * x) + jnp.sin(y) ** 2 + 1,
+            2 * 30 // 30 + 1,
+            2 * 2 + 1,
+            (0, 2 * jnp.pi / 30),
+            (jnp.pi, 3 * jnp.pi),
+        ),
+    ],
+)
 def test_non_uniform_real_FFT_2D(func, m, n, domain_x, domain_y):
     """Test non-uniform real FFT 2D interpolation."""
     x = jnp.linspace(domain_x[0], domain_x[1], m, endpoint=False)
@@ -137,45 +137,27 @@ def test_non_uniform_real_FFT_2D(func, m, n, domain_x, domain_y):
     xq = jnp.array([7.34, 1.10134, 2.28, 1e3 * jnp.e])
     yq = jnp.array([1.1, 3.78432, 8.542, 0])
 
-    f = 2 * jnp.fft.rfft2(c, norm="forward")
-    f = f.at[..., (0, -1) if (n % 2 == 0) else 0].divide(2)
-    np.testing.assert_allclose(
-        nufft2r(f, xq, yq, domain_x, domain_y),
-        func(xq, yq),
-    )
+    f1 = 2 * jnp.fft.rfft2(c, norm="forward")
+    f1 = f1.at[..., (0, -1) if (n % 2 == 0) else 0].divide(2)
 
-    f = jnp.fft.fft2(c, norm="forward")
-    np.testing.assert_allclose(
-        nufft2r(f, xq, yq, domain_x, domain_y, rfft_axis=None),
-        func(xq, yq),
-    )
-
-
-@pytest.mark.parametrize("func, m, n, domain_x, domain_y", _2d_inputs)
-def test_non_uniform_real_FFT_2D_jac(func, m, n, domain_x, domain_y):
-    """Test non-uniform real FFT 2D interpolation Jacobian."""
-    x = jnp.linspace(domain_x[0], domain_x[1], m, endpoint=False)
-    y = jnp.linspace(domain_y[0], domain_y[1], n, endpoint=False)
-    x, y = map(jnp.ravel, tuple(jnp.meshgrid(x, y, indexing="ij")))
-    c = func(x, y).reshape(m, n)
-
-    xq = jnp.array([7.34, 1.10134, 2.28, 1e3 * jnp.e])
-    yq = jnp.array([1.1, 3.78432, 8.542, 0])
-
-    f = 2 * jnp.fft.rfft2(c, norm="forward")
-    f = f.at[..., (0, -1) if (n % 2 == 0) else 0].divide(2)
-
-    g = jnp.fft.fft2(c, norm="forward")
+    f2 = jnp.fft.fft2(c, norm="forward")
 
     def fun1(xq, yq):
-        return nufft2r(f, xq, yq, domain_x, domain_y).sum()
+        return nufft2r(f1, xq, yq, domain_x, domain_y).sum()
 
     def fun2(xq, yq):
-        return nufft2r(g, xq, yq, domain_x, domain_y, rfft_axis=None).sum()
+        return nufft2r(f2, xq, yq, domain_x, domain_y, rfft_axis=None).sum()
 
     def truth(xq, yq):
         return func(xq, yq).sum()
 
-    np.testing.assert_allclose(grad(fun1)(xq, yq), grad(fun2)(xq, yq))
-    np.testing.assert_allclose(grad(fun1)(xq, yq), grad(truth)(xq, yq))
-    np.testing.assert_allclose(grad(fun2)(xq, yq), grad(truth)(xq, yq))
+    v, g = value_and_grad(truth)(xq, yq)
+    f1v, f1g = value_and_grad(fun1)(xq, yq)
+    f2v, f2g = value_and_grad(fun2)(xq, yq)
+
+    np.testing.assert_allclose(f1v, v)
+    np.testing.assert_allclose(f2v, v)
+
+    np.testing.assert_allclose(f1g, f2g, err_msg="Good point to debug.")
+    np.testing.assert_allclose(f1g, g)
+    np.testing.assert_allclose(f2g, g)
