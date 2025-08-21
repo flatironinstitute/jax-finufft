@@ -95,6 +95,7 @@ class Opts:
         from jax_finufft import jax_finufft_gpu
 
         return jax_finufft_gpu.CufinufftOpts(
+            self.modeord,
             self.gpu_upsampfac,
             int(self.gpu_method),
             self.gpu_sort,
