@@ -48,6 +48,7 @@ class Opts:
     https://finufft.readthedocs.io/en/latest/c_gpu.html#options-for-gpu-code
 
     """
+
     # Parameters are chosen to match the default values in
     # vendor/finufft/src/finufft_core.cpp:finufft_default_opts
     # vendor/finufft/src/cuda/cufinufft.cu
