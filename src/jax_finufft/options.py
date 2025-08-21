@@ -40,13 +40,31 @@ class GpuMethod(IntEnum):
 
 @dataclass(frozen=True)
 class Opts:
+    """FINUFFT optional paramaters.
 
-    # These correspond to the default cufinufft options
-    # set in vendor/finufft/src/cuda/cufinufft.cu
+    Refrences
+    ---------
+    https://finufft.readthedocs.io/en/latest/opts.html
+    https://finufft.readthedocs.io/en/latest/c_gpu.html#options-for-gpu-code
+
+    """
+    # Parameters are chosen to match the default values in
+    # vendor/finufft/src/finufft_core.cpp:finufft_default_opts
+    # vendor/finufft/src/cuda/cufinufft.cu
+
+    # data handling opts
     modeord: bool = False
+    # TODO: Add warning stating that (cpu) spreadinterponly is not implemented.
+    # TODO: Add warning stating that gpu_device_id is not implemented.
+    gpu_spreadinterponly: bool = False
+
+    # diagnostic opts
     debug: DebugLevel = DebugLevel.Silent
     spread_debug: DebugLevel = DebugLevel.Silent
+    # TODO: Document (publicly) that this differs from default value.
     showwarn: bool = False
+
+    # algorithm performance opts
     nthreads: int = 0
     fftw: int = FftwFlags.Estimate
     spread_sort: SpreadSort = SpreadSort.Heuristic
@@ -58,19 +76,20 @@ class Opts:
     spread_nthr_atomic: int = -1
     spread_max_sp_size: int = 0
 
-    gpu_upsampfac: float = 2.0
     gpu_method: GpuMethod = 0
     gpu_sort: bool = True
-    gpu_binsizex: int = 0
-    gpu_binsizey: int = 0
-    gpu_binsizez: int = 0
+    gpu_kerevalmeth: bool = True
+    gpu_upsampfac: float = 2.0
+    gpu_maxsubprobsize: int = 1024
     gpu_obinsizex: int = 0
     gpu_obinsizey: int = 0
     gpu_obinsizez: int = 0
-    gpu_maxsubprobsize: int = 1024
-    gpu_kerevalmeth: bool = True
-    gpu_spreadinterponly: bool = False
+    gpu_binsizex: int = 0
+    gpu_binsizey: int = 0
+    gpu_binsizez: int = 0
     gpu_maxbatchsize: int = 0
+    # TODO: Add warning stating that gpu_np is not implemented.
+    # TODO: Add warning stating that gpustream is not implemented.
 
     def to_finufft_opts(self):
         compiled_with_omp = jax_finufft_cpu._omp_compile_check()
@@ -96,18 +115,19 @@ class Opts:
 
         return jax_finufft_gpu.CufinufftOpts(
             self.modeord,
-            self.gpu_upsampfac,
+            self.gpu_spreadinterponly,
+            int(self.debug),
             int(self.gpu_method),
             self.gpu_sort,
-            self.gpu_binsizex,
-            self.gpu_binsizey,
-            self.gpu_binsizez,
+            self.gpu_kerevalmeth,
+            self.gpu_upsampfac,
+            self.gpu_maxsubprobsize,
             self.gpu_obinsizex,
             self.gpu_obinsizey,
             self.gpu_obinsizez,
-            self.gpu_maxsubprobsize,
-            self.gpu_kerevalmeth,
-            self.gpu_spreadinterponly,
+            self.gpu_binsizex,
+            self.gpu_binsizey,
+            self.gpu_binsizez,
             self.gpu_maxbatchsize,
         )
 

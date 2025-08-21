@@ -47,26 +47,40 @@ NB_MODULE(jax_finufft_gpu, m) {
 
   nb::class_<cufinufft_opts> opts(m, "CufinufftOpts");
   opts.def("__init__",
-           [](cufinufft_opts *self, bool modeord, double upsampfac, int gpu_method, bool gpu_sort,
-              int gpu_binsizex, int gpu_binsizey, int gpu_binsizez, int gpu_obinsizex,
-              int gpu_obinsizey, int gpu_obinsizez, int gpu_maxsubprobsize, bool gpu_kerevalmeth,
-              int gpu_spreadinterponly, int gpu_maxbatchsize) {
+           [](cufinufft_opts *self,
+            bool modeord,
+            int gpu_spreadinterponly,
+            int debug,
+            int gpu_method,
+            bool gpu_sort,
+            bool gpu_kerevalmeth,
+            double upsampfac,
+            int gpu_maxsubprobsize,
+            int gpu_obinsizex,
+            int gpu_obinsizey,
+            int gpu_obinsizez,
+            int gpu_binsizex,
+            int gpu_binsizey,
+            int gpu_binsizez,
+            int gpu_maxbatchsize
+          ) {
              new (self) cufinufft_opts;
              default_opts<double>(self);
 
              self->modeord = int(modeord);
-             self->upsampfac = upsampfac;
+             self->gpu_spreadinterponly = gpu_spreadinterponly;
+             self->debug = debug;
              self->gpu_method = gpu_method;
              self->gpu_sort = int(gpu_sort);
-             self->gpu_binsizex = gpu_binsizex;
-             self->gpu_binsizey = gpu_binsizey;
-             self->gpu_binsizez = gpu_binsizez;
+             self->gpu_kerevalmeth = gpu_kerevalmeth;
+             self->upsampfac = upsampfac;
+             self->gpu_maxsubprobsize = gpu_maxsubprobsize;
              self->gpu_obinsizex = gpu_obinsizex;
              self->gpu_obinsizey = gpu_obinsizey;
              self->gpu_obinsizez = gpu_obinsizez;
-             self->gpu_maxsubprobsize = gpu_maxsubprobsize;
-             self->gpu_kerevalmeth = gpu_kerevalmeth;
-             self->gpu_spreadinterponly = gpu_spreadinterponly;
+             self->gpu_binsizex = gpu_binsizex;
+             self->gpu_binsizey = gpu_binsizey;
+             self->gpu_binsizez = gpu_binsizez;
              self->gpu_maxbatchsize = gpu_maxbatchsize;
            });
 }
