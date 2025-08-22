@@ -108,7 +108,7 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts):
         shape = np.ones(ndim, dtype=int)
         shape[dim] = -1
 
-        k = np.fft.fftfreq(n, 1 / n).astype(int)
+        k = np.fft.fftfreq(n, 1 / n)
         if modeord == 0:
             k = np.fft.fftshift(k)
 
