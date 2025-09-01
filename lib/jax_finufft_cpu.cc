@@ -13,15 +13,15 @@ namespace nb = nanobind;
 namespace {
 
 template <int ndim, typename T>
-void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, std::complex<T> *F) {
-  const descriptor<T> *desc = unpack_descriptor<descriptor<T>>(
-      reinterpret_cast<const char *>(desc_in), sizeof(descriptor<T>));
+void run_nufft(int type, void* desc_in, T* x, T* y, T* z, std::complex<T>* c, std::complex<T>* F) {
+  const descriptor<T>* desc = unpack_descriptor<descriptor<T>>(
+      reinterpret_cast<const char*>(desc_in), sizeof(descriptor<T>));
   int64_t n_k = 1;
   for (int d = 0; d < ndim; ++d) n_k *= desc->n_k[d];
   finufft_opts opts = desc->opts;
 
   typename plan_type<T>::type plan;
-  makeplan<T>(type, ndim, const_cast<int64_t *>(desc->n_k), desc->iflag, desc->n_transf, desc->eps,
+  makeplan<T>(type, ndim, const_cast<int64_t*>(desc->n_k), desc->iflag, desc->n_transf, desc->eps,
               &plan, &opts);
   for (int64_t index = 0; index < desc->n_tot; ++index) {
     int64_t i = index * desc->n_j;
@@ -36,34 +36,34 @@ void run_nufft(int type, void *desc_in, T *x, T *y, T *z, std::complex<T> *c, st
 }
 
 template <int ndim, typename T>
-void nufft1(void *out, void **in) {
-  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(in[1]);
-  T *x = reinterpret_cast<T *>(in[2]);
-  T *y = NULL;
-  T *z = NULL;
+void nufft1(void* out, void** in) {
+  std::complex<T>* c = reinterpret_cast<std::complex<T>*>(in[1]);
+  T* x = reinterpret_cast<T*>(in[2]);
+  T* y = NULL;
+  T* z = NULL;
   if (ndim > 1) {
-    y = reinterpret_cast<T *>(in[3]);
+    y = reinterpret_cast<T*>(in[3]);
   }
   if (ndim > 2) {
-    z = reinterpret_cast<T *>(in[4]);
+    z = reinterpret_cast<T*>(in[4]);
   }
-  std::complex<T> *F = reinterpret_cast<std::complex<T> *>(out);
+  std::complex<T>* F = reinterpret_cast<std::complex<T>*>(out);
   run_nufft<ndim, T>(1, in[0], x, y, z, c, F);
 }
 
 template <int ndim, typename T>
-void nufft2(void *out, void **in) {
-  std::complex<T> *F = reinterpret_cast<std::complex<T> *>(in[1]);
-  T *x = reinterpret_cast<T *>(in[2]);
-  T *y = NULL;
-  T *z = NULL;
+void nufft2(void* out, void** in) {
+  std::complex<T>* F = reinterpret_cast<std::complex<T>*>(in[1]);
+  T* x = reinterpret_cast<T*>(in[2]);
+  T* y = NULL;
+  T* z = NULL;
   if (ndim > 1) {
-    y = reinterpret_cast<T *>(in[3]);
+    y = reinterpret_cast<T*>(in[3]);
   }
   if (ndim > 2) {
-    z = reinterpret_cast<T *>(in[4]);
+    z = reinterpret_cast<T*>(in[4]);
   }
-  std::complex<T> *c = reinterpret_cast<std::complex<T> *>(out);
+  std::complex<T>* c = reinterpret_cast<std::complex<T>*>(out);
   run_nufft<ndim, T>(2, in[0], x, y, z, c, F);
 }
 
@@ -115,7 +115,7 @@ NB_MODULE(jax_finufft_cpu, m) {
 
   nb::class_<finufft_opts> opts(m, "FinufftOpts");
   opts.def("__init__",
-           [](finufft_opts *self, bool modeord, int debug, int spread_debug, bool showwarn,
+           [](finufft_opts* self, bool modeord, int debug, int spread_debug, bool showwarn,
               int nthreads, int fftw, int spread_sort, bool spread_kerevalmeth, bool spread_kerpad,
               double upsampfac, int spread_thread, int maxbatchsize, int spread_nthr_atomic,
               int spread_max_sp_size) {
