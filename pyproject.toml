@@ -1,5 +1,5 @@
 [build-system]
-requires = ["nanobind", "scikit-build-core>=0.5"]
+requires = ["nanobind>=2.9.0", "scikit-build-core>=0.5"]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -37,16 +37,12 @@ build-dir = "build/{wheel_tag}"
 version_file = "src/jax_finufft/jax_finufft_version.py"
 
 [tool.cibuildwheel]
-# For macos-314t, waiting for https://github.com/wjakob/nanobind/pull/1128 to be released
-skip = "pp* *-musllinux_* *-manylinux_i686 cp314t-macosx*"
+skip = "pp* *-musllinux_* *-manylinux_i686"
 build-verbosity = 1
 config-settings = { "cmake.define.FINUFFT_ARCH_FLAGS" = "" }
 enable = "cpython-freethreading"
 test-command = "pytest {project}/tests"
 test-extras = "test"
-# jaxlib does not support Python 3.14 yet
-# jaxlib does not support free-threading on macOS yet
-test-skip = "cp314* cp31?t-macosx*"
 
 [tool.cibuildwheel.linux]
 before-all = "yum install -y fftw-devel"
