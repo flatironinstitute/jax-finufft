@@ -55,7 +55,8 @@ before-all = "brew install llvm libomp"
 CC = "$(brew --prefix llvm)/bin/clang"
 CXX = "$(brew --prefix llvm)/bin/clang++"
 CFLAGS = "-I$(brew --prefix libomp)/include"
-LDFLAGS = "-L$(brew --prefix libomp)/lib"
+# c++ library path is workaround for clang bug https://github.com/llvm/llvm-project/issues/155531
+LDFLAGS = "-L$(brew --prefix libomp)/lib -L$(brew --prefix llvm)/lib/c++"
 MACOSX_DEPLOYMENT_TARGET = "14.0"
 
 [tool.black]
