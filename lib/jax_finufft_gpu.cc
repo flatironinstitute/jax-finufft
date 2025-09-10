@@ -47,7 +47,7 @@ NB_MODULE(jax_finufft_gpu, m) {
 
   nb::class_<cufinufft_opts> opts(m, "CufinufftOpts");
   opts.def("__init__",
-           [](cufinufft_opts *self, bool modeord, int gpu_spreadinterponly, int debug,
+           [](cufinufft_opts* self, bool modeord, int gpu_spreadinterponly, int debug,
               int gpu_method, bool gpu_sort, bool gpu_kerevalmeth, double upsampfac,
               int gpu_maxsubprobsize, int gpu_obinsizex, int gpu_obinsizey, int gpu_obinsizez,
               int gpu_binsizex, int gpu_binsizey, int gpu_binsizez, int gpu_maxbatchsize) {
