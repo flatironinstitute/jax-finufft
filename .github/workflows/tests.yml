@@ -22,13 +22,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.13]
-        include:
-          - os: ubuntu-latest
-            python-version: 3.13t
+        python-version: [3.13, 3.13t]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
           fetch-depth: 0
