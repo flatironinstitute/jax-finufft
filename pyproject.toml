@@ -1,5 +1,5 @@
 [build-system]
-requires = ["nanobind>=2.9.0", "scikit-build-core>=0.5"]
+requires = ["nanobind>=2.9.0", "scikit-build-core>=0.5", "cmake<4"]
 build-backend = "scikit_build_core.build"
 
 [project]
