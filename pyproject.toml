@@ -10,7 +10,7 @@ authors = [
     { name = "Dan Foreman-Mackey", email = "foreman.mackey@gmail.com" },
     { name = "Lehman Garrison", email = "lgarrison@flatironinstitute.org" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { file = "LICENSE" }
 urls = { Homepage = "https://github.com/dfm/jax-finufft" }
 dependencies = ["jax>=0.5.0", "numpy", "pydantic>=2"]
