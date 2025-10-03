@@ -36,6 +36,16 @@ void update_opts<double>(cufinufft_opts* opts, int dim, cudaStream_t stream) {
 }
 
 template <>
+void update_opts<float>(cufinufft_opts* opts, int dim, device_type device) {
+  opts->gpu_device_id = device.ordinal;
+}
+
+template <>
+void update_opts<double>(cufinufft_opts* opts, int dim, device_type device) {
+  opts->gpu_device_id = device.ordinal;
+}
+
+template <>
 int makeplan<float>(int type, int dim, const int64_t nmodes[3], int iflag, int ntr, float eps,
                     typename plan_type<float>::type* plan, cufinufft_opts* opts) {
   int64_t tmp_nmodes[3] = {nmodes[0], nmodes[1],

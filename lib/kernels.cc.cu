@@ -20,6 +20,9 @@ void run_nufft(int type, const descriptor<T>* descriptor, T* x, T* y, T* z, std:
 
   cufinufft_opts opts = descriptor->opts;
   update_opts<T>(&opts, ndim, stream);
+  device_type device;
+  ThrowIfError(cudaGetDevice(&device.ordinal));
+  update_opts<T>(&opts, ndim, device);
 
   typename plan_type<T>::type plan;
   makeplan<T>(type, ndim, descriptor->n_k, descriptor->iflag, descriptor->n_transf,

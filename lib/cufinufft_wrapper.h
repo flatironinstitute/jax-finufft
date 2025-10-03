@@ -22,11 +22,18 @@ struct plan_type<float> {
   typedef cufinufftf_plan type;
 };
 
+struct device_type {
+  int ordinal;
+};
+
 template <typename T>
 void default_opts(cufinufft_opts* opts);
 
 template <typename T>
 void update_opts(cufinufft_opts* opts, int dim, cudaStream_t stream);
+
+template <typename T>
+void update_opts(cufinufft_opts* opts, int dim, device_type device);
 
 template <typename T>
 int makeplan(int type, int dim, const int64_t nmodes[3], int iflag, int ntr, T eps,
