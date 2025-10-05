@@ -31,7 +31,7 @@ jobs:
           submodules: true
           fetch-depth: 0
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.1.4
+        uses: pypa/cibuildwheel@v3.2.0
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}
@@ -69,4 +69,4 @@ jobs:
         with:
           merge-multiple: true
           path: dist
-      - uses: pypa/gh-action-pypi-publish@v1.12.4
+      - uses: pypa/gh-action-pypi-publish@v1.13.0
