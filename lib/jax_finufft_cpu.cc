@@ -121,6 +121,7 @@ NB_MODULE(jax_finufft_cpu, m) {
               int spread_max_sp_size) {
              new (self) finufft_opts;
              default_opts<double>(self);
+
              self->modeord = int(modeord);
              self->debug = debug;
              self->spread_debug = spread_debug;
