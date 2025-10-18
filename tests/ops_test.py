@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from jax._src import test_util as jtu
 
-from jax_finufft import nufft1, nufft2
+from jax_finufft import nufft1, nufft2, nufft3
 from jax_finufft.options import Opts
 
 
@@ -86,6 +86,42 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
             f, *x, eps=eps, iflag=iflag
         )
         check_close(c_calc, c_expect)
+
+
+@pytest.mark.parametrize(
+    "ndim, x64, num_sources, num_targets, iflag",
+    product([1, 2, 3], [False, True], [25], [20], [-1, 1]),
+)
+def test_nufft3_forward(ndim, x64, num_sources, num_targets, iflag):
+    random = np.random.default_rng(657)
+
+    eps = 1e-10 if x64 else 1e-7
+    dtype = np.double if x64 else np.single
+    cdtype = np.cdouble if x64 else np.csingle
+
+    x = [
+        random.uniform(-1.0, 1.0, size=num_sources).astype(dtype) for _ in range(ndim)
+    ]
+    s = [
+        random.uniform(-1.0, 1.0, size=num_targets).astype(dtype) for _ in range(ndim)
+    ]
+    c = random.normal(size=num_sources) + 1j * random.normal(size=num_sources)
+    c = c.astype(cdtype)
+
+    f_expect = np.zeros(num_targets, dtype=cdtype)
+    for k in range(num_targets):
+        s_vec = np.array([s_dim[k] for s_dim in s])
+        x_mat = np.array([x_dim for x_dim in x])
+        f_expect[k] = np.sum(c * np.exp(iflag * 1j * np.dot(s_vec, x_mat)))
+
+    with jax.experimental.enable_x64(x64):
+        f_calc = nufft3(c, *x, *s, eps=eps, iflag=iflag)
+        check_close(f_calc, f_expect, rtol={"complex128": 1e-7, "complex64": 1e-3})
+
+        f_calc = jax.jit(nufft3, static_argnames=("eps", "iflag"))(
+            c, *x, *s, eps=eps, iflag=iflag
+        )
+        check_close(f_calc, f_expect, rtol={"complex128": 1e-7, "complex64": 1e-3})
 
 
 @pytest.mark.parametrize(
@@ -260,9 +296,11 @@ def test_multi_transform():
 
     calc1 = nufft1(n_k, c, x)
     calc2 = nufft2(f, x)
+    calc3 = nufft3(c, x, x)
     for n in range(n_tr):
         check_close(calc1[:, n], nufft1(n_k, c[:, n], x), rtol=1e-4)
         check_close(calc2[:, n], nufft2(f[:, n], x), rtol=1e-4)
+        check_close(calc3[:, n], nufft3(c[:, n], x, x), rtol=1e-4)
 
 
 def test_gh14():
