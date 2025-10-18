@@ -31,16 +31,22 @@ def lowering(
     iflag,
     eps,
     opts,
+    nufft_type,
 ):
     if len(ctx.module_context.platforms) > 1:
         raise ValueError("Multi-platform lowering is not supported")
     platform = ctx.module_context.platforms[0]
     if platform not in {"cpu", "cuda"}:
         raise ValueError(f"Unsupported platform '{platform}'")
+    if nufft_type == 3 and platform != "cpu":
+        raise NotImplementedError("type 3 only implemented on CPU currently")
     if platform == "cuda" and jax_finufft_gpu is None:
         raise ValueError("jax-finufft was not compiled with GPU support")
 
-    ndim = len(points)
+    if nufft_type == 3:
+        ndim = len(points) // 2
+    else:
+        ndim = len(points)
     assert 1 <= ndim <= 3
 
     source_aval = ctx.avals_in[0]
@@ -55,21 +61,31 @@ def lowering(
 
     # Dispatch to the correct custom call target depending on the dimension,
     # dtype, and NUFFT type.
-    if output_shape is None:  # Type 2
-        op_name = f"nufft{ndim}d2{suffix}".encode("ascii")
-        n_k = np.array(source_shape[2:], dtype=np.int64)
-    else:  # Type 1
+    if nufft_type == 1:
         op_name = f"nufft{ndim}d1{suffix}".encode("ascii")
         n_k = np.array(output_shape, dtype=np.int64)
+    elif nufft_type == 2:
+        op_name = f"nufft{ndim}d2{suffix}".encode("ascii")
+        n_k = np.array(source_shape[2:], dtype=np.int64)
+    elif nufft_type == 3:
+        op_name = f"nufft{ndim}d3{suffix}".encode("ascii")
+    else:
+        raise ValueError("nufft_type must be 1, 2, or 3")
 
     # The backend expects the output shape in Fortran order, so we'll just
     # fake it here, by sending in n_k and x in the reverse order.
     n_k_full = np.zeros(3, dtype=np.int64)
-    n_k_full[:ndim] = n_k[::-1]
+    if nufft_type != 3:
+        n_k_full[:ndim] = n_k[::-1]
+    else:
+        n_k_full[0] = points_shape[ndim][1]
+
+    # Reverse points because backend uses Fortran order
+    points_fortran = points[:ndim][::-1] + points[ndim:][::-1]
 
     if opts is None:
         opts = options.Opts()
-    opts = options.unpack_opts(opts, 2 if output_shape is None else 1, True)
+    opts = options.unpack_opts(opts, nufft_type, True)
     assert isinstance(opts, options.Opts)
 
     if platform == "cpu":
@@ -81,8 +97,7 @@ def lowering(
         return mlir.custom_call(
             op_name,
             result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
-            # Reverse points because backend uses Fortran order
-            operands=[descriptor, source, *points[::-1]],
+            operands=[descriptor, source, *points_fortran],
             operand_layouts=default_layouts([0], source_shape, *points_shape[::-1]),
             result_layouts=default_layouts(ctx.avals_out[0].shape),
         ).results
@@ -96,7 +111,7 @@ def lowering(
             op_name,
             result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
             # Reverse points because backend uses Fortran order
-            operands=[source, *points[::-1]],
+            operands=[source, *points_fortran],
             backend_config=descriptor_bytes,
             operand_layouts=default_layouts(source_shape, *points_shape[::-1]),
             result_layouts=default_layouts(ctx.avals_out[0].shape),

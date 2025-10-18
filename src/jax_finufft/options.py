@@ -115,6 +115,7 @@ class Opts:
 class NestedOpts:
     type1: Optional[Opts] = None
     type2: Optional[Opts] = None
+    type3: Optional[Opts] = None
 
     forward: Optional[Opts] = None
     backward: Optional[Union[Opts, "NestedOpts"]] = None
@@ -131,6 +132,8 @@ def unpack_opts(opts, finufft_type, forward):
             return opts.type1
         elif finufft_type == 2:
             return opts.type2
+        elif finufft_type == 3:
+            return opts.type3
     elif opts.backward is not None:
         return opts.backward
 

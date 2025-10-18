@@ -12,12 +12,18 @@ namespace nb = nanobind;
 
 namespace {
 
-template <int ndim, typename T>
-void run_nufft(int type, void* desc_in, T* x, T* y, T* z, std::complex<T>* c, std::complex<T>* F) {
+template <int ndim, typename T, int type>
+void run_nufft(void* desc_in, T* x, T* y, T* z, std::complex<T>* c, T* s, T* t, T* u,
+               std::complex<T>* F) {
   const descriptor<T>* desc = unpack_descriptor<descriptor<T>>(
       reinterpret_cast<const char*>(desc_in), sizeof(descriptor<T>));
   int64_t n_k = 1;
-  for (int d = 0; d < ndim; ++d) n_k *= desc->n_k[d];
+  if constexpr (type != 3) {
+    for (int d = 0; d < ndim; ++d) n_k *= desc->n_k[d];
+  } else {
+    // n_target is packed into n_k[0] for type 3 (n_k otherwise unused)
+    n_k = desc->n_k[0];
+  }
   finufft_opts opts = desc->opts;
 
   typename plan_type<T>::type plan;
@@ -28,9 +34,14 @@ void run_nufft(int type, void* desc_in, T* x, T* y, T* z, std::complex<T>* c, st
     int64_t j = i * desc->n_transf;
     int64_t k = index * n_k * desc->n_transf;
 
-    setpts<T>(plan, desc->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0, NULL,
-              NULL, NULL);
-    execute<T>(plan, &c[j], &F[k]);
+    if constexpr (type != 3) {
+      setpts<T>(plan, desc->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0, NULL,
+                NULL, NULL);
+    } else {
+      setpts<T>(plan, desc->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i),
+                n_k, &(s[i]), y_index<ndim, T>(t, i), z_index<ndim, T>(u, i));
+    }
+    execute<T>(plan, &c[j], &F[k]);  // type 1 & 3: c is input, F is output
   }
   destroy<T>(plan);
 }
@@ -41,14 +52,14 @@ void nufft1(void* out, void** in) {
   T* x = reinterpret_cast<T*>(in[2]);
   T* y = NULL;
   T* z = NULL;
-  if (ndim > 1) {
+  if constexpr (ndim > 1) {
     y = reinterpret_cast<T*>(in[3]);
   }
-  if (ndim > 2) {
+  if constexpr (ndim > 2) {
     z = reinterpret_cast<T*>(in[4]);
   }
   std::complex<T>* F = reinterpret_cast<std::complex<T>*>(out);
-  run_nufft<ndim, T>(1, in[0], x, y, z, c, F);
+  run_nufft<ndim, T, 1>(in[0], x, y, z, c, NULL, NULL, NULL, F);
 }
 
 template <int ndim, typename T>
@@ -57,14 +68,38 @@ void nufft2(void* out, void** in) {
   T* x = reinterpret_cast<T*>(in[2]);
   T* y = NULL;
   T* z = NULL;
-  if (ndim > 1) {
+  if constexpr (ndim > 1) {
     y = reinterpret_cast<T*>(in[3]);
   }
-  if (ndim > 2) {
+  if constexpr (ndim > 2) {
     z = reinterpret_cast<T*>(in[4]);
   }
   std::complex<T>* c = reinterpret_cast<std::complex<T>*>(out);
-  run_nufft<ndim, T>(2, in[0], x, y, z, c, F);
+  run_nufft<ndim, T, 2>(in[0], x, y, z, c, NULL, NULL, NULL, F);
+}
+
+template <int ndim, typename T>
+void nufft3(void* out, void** in) {
+  // Note that nufft3 is like nufft1 in that `c` is the input and `F` the output.
+  std::complex<T>* c = reinterpret_cast<std::complex<T>*>(in[1]);
+  T* x = reinterpret_cast<T*>(in[2]);
+  T* y = NULL;
+  T* z = NULL;
+  T* s = reinterpret_cast<T*>(in[2 + ndim]);
+  T* t = NULL;
+  T* u = NULL;
+
+  if constexpr (ndim > 1) {
+    y = reinterpret_cast<T*>(in[3]);
+    t = reinterpret_cast<T*>(in[3 + ndim]);
+  }
+  if constexpr (ndim > 2) {
+    z = reinterpret_cast<T*>(in[4]);
+    u = reinterpret_cast<T*>(in[4 + ndim]);
+  }
+
+  std::complex<T>* F = reinterpret_cast<std::complex<T>*>(out);
+  run_nufft<ndim, T, 3>(in[0], x, y, z, c, s, t, u, F);
 }
 
 template <typename T>
@@ -79,17 +114,23 @@ nb::dict Registrations() {
 
   dict["nufft1d1f"] = encapsulate_function(nufft1<1, float>);
   dict["nufft1d2f"] = encapsulate_function(nufft2<1, float>);
+  dict["nufft1d3f"] = encapsulate_function(nufft3<1, float>);
   dict["nufft2d1f"] = encapsulate_function(nufft1<2, float>);
   dict["nufft2d2f"] = encapsulate_function(nufft2<2, float>);
+  dict["nufft2d3f"] = encapsulate_function(nufft3<2, float>);
   dict["nufft3d1f"] = encapsulate_function(nufft1<3, float>);
   dict["nufft3d2f"] = encapsulate_function(nufft2<3, float>);
+  dict["nufft3d3f"] = encapsulate_function(nufft3<3, float>);
 
   dict["nufft1d1"] = encapsulate_function(nufft1<1, double>);
   dict["nufft1d2"] = encapsulate_function(nufft2<1, double>);
+  dict["nufft1d3"] = encapsulate_function(nufft3<1, double>);
   dict["nufft2d1"] = encapsulate_function(nufft1<2, double>);
   dict["nufft2d2"] = encapsulate_function(nufft2<2, double>);
+  dict["nufft2d3"] = encapsulate_function(nufft3<2, double>);
   dict["nufft3d1"] = encapsulate_function(nufft1<3, double>);
   dict["nufft3d2"] = encapsulate_function(nufft2<3, double>);
+  dict["nufft3d3"] = encapsulate_function(nufft3<3, double>);
 
   return dict;
 }
