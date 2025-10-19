@@ -99,12 +99,8 @@ def test_nufft3_forward(ndim, x64, num_sources, num_targets, iflag):
     dtype = np.double if x64 else np.single
     cdtype = np.cdouble if x64 else np.csingle
 
-    x = [
-        random.uniform(-1.0, 1.0, size=num_sources).astype(dtype) for _ in range(ndim)
-    ]
-    s = [
-        random.uniform(-1.0, 1.0, size=num_targets).astype(dtype) for _ in range(ndim)
-    ]
+    x = [random.uniform(-1.0, 1.0, size=num_sources).astype(dtype) for _ in range(ndim)]
+    s = [random.uniform(-1.0, 1.0, size=num_targets).astype(dtype) for _ in range(ndim)]
     c = random.normal(size=num_sources) + 1j * random.normal(size=num_sources)
     c = c.astype(cdtype)
 
