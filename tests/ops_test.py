@@ -280,6 +280,68 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
             )
 
 
+@pytest.mark.parametrize(
+    "ndim, num_source, num_target, iflag",
+    product([1, 2, 3], [50], [35], [-1, 1]),
+)
+def test_nufft3_vmap(ndim, num_source, num_target, iflag):
+    random = np.random.default_rng(657)
+
+    dtype = np.double
+    cdtype = np.cdouble
+
+    num_repeat = 5
+
+    x = [
+        random.uniform(-np.pi, np.pi, size=(num_repeat, num_source)).astype(dtype)
+        for _ in range(ndim)
+    ]
+    s = [
+        random.uniform(-1.0, 1.0, size=(num_repeat, num_target)).astype(dtype)
+        for _ in range(ndim)
+    ]
+    c = random.normal(size=(num_repeat, num_source)) + 1j * random.normal(
+        size=(num_repeat, num_source)
+    )
+    c = c.astype(cdtype)
+    func = partial(nufft3, iflag=iflag)
+
+    with jax.experimental.enable_x64():
+        # Start by checking the full basic vmap
+        calc = jax.vmap(func)(c, *x, *s)
+        for n in range(num_repeat):
+            check_close(calc[n], func(c[n], *(x_[n] for x_ in x), *(s_[n] for s_ in s)))
+
+        # With different in_axes
+        calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * 2 * ndim)(
+            jnp.moveaxis(c, 0, 1), *x, *s
+        )
+        check_close(calc_ax, calc)
+
+        # With unmapped source axis
+        calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * 2 * ndim)(c[0], *x, *s)
+        for n in range(num_repeat):
+            check_close(
+                calc_unmap[n], func(c[0], *(x_[n] for x_ in x), *(s_[n] for s_ in s))
+            )
+
+        # With unmapped points axis
+        calc_unmap_pt = jax.vmap(
+            func, in_axes=(0,) + 2 * ((0,) * (ndim - 1) + (None,))
+        )(c, *x[:-1], x[-1][0], *s[:-1], s[-1][0])
+        for n in range(num_repeat):
+            check_close(
+                calc_unmap_pt[n],
+                func(
+                    c[n],
+                    *(x_[n] for x_ in x[:-1]),
+                    x[-1][0],
+                    *(s_[n] for s_ in s[:-1]),
+                    s[-1][0],
+                ),
+            )
+
+
 def test_multi_transform():
     random = np.random.default_rng(314)
 

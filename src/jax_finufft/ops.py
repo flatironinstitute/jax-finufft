@@ -237,9 +237,6 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
     source, *points = args
     bsource, *bpoints = axes
 
-    if nufft_type not in (1, 2):
-        raise NotImplementedError("Batching not yet implemented for type 3 NUFFT")
-
     # If none of the points are being mapped, we can get a faster computation using
     # a single transform with num_transforms * num_repeats
     if all(bx is batching.not_mapped for bx in bpoints):
@@ -269,9 +266,11 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
             else:
                 mapped_points.append(batching.moveaxis(x, bx, 0))
 
-    if output_shape is None:
+    if nufft_type == 3:
+        return nufft3(source, *mapped_points, **kwargs), 0
+    elif nufft_type == 2:
         return nufft2(source, *mapped_points, **kwargs), 0
-    else:
+    elif nufft_type == 1:
         return nufft1(tuple(output_shape), source, *mapped_points, **kwargs), 0
 
 
@@ -305,4 +304,4 @@ mlir.register_lowering(nufft3_p, lowering.lowering, platform="cpu")
 #     mlir.register_lowering(nufft3_p, lowering.lowering, platform="cuda")
 # ad.primitive_jvps[nufft3_p] = partial(jvp, nufft3_p)
 # ad.primitive_transposes[nufft3_p] = transpose
-# batching.primitive_batchers[nufft3_p] = batch
+batching.primitive_batchers[nufft3_p] = batch
