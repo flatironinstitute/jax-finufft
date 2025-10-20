@@ -283,20 +283,21 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
 def test_multi_transform():
     random = np.random.default_rng(314)
 
-    n_tot, n_tr, n_j, n_k = 4, 10, 100, 12
+    n_tot, n_tr, n_j, n_k, n_target = 5, 1, 50, 12, 35
     f_shape = (n_tot, n_tr, n_k)
     c_shape = (n_tot, n_tr, n_j)
     f = random.standard_normal(size=f_shape) + 1j * random.standard_normal(size=f_shape)
     c = random.standard_normal(size=c_shape) + 1j * random.standard_normal(size=c_shape)
     x = random.uniform(-np.pi, np.pi, (n_tot, n_j))
+    x_target = random.uniform(-1.0, 1.0, (n_tot, n_target))
 
     calc1 = nufft1(n_k, c, x)
     calc2 = nufft2(f, x)
-    calc3 = nufft3(c, x, x)
+    calc3 = nufft3(c, x, x_target)
     for n in range(n_tr):
         check_close(calc1[:, n], nufft1(n_k, c[:, n], x), rtol=1e-4)
         check_close(calc2[:, n], nufft2(f[:, n], x), rtol=1e-4)
-        check_close(calc3[:, n], nufft3(c[:, n], x, x), rtol=1e-4)
+        check_close(calc3[:, n], nufft3(c[:, n], x, x_target), rtol=1e-4)
 
 
 def test_gh14():

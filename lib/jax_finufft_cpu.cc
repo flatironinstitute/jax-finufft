@@ -38,8 +38,9 @@ void run_nufft(void* desc_in, T* x, T* y, T* z, std::complex<T>* c, T* s, T* t, 
       setpts<T>(plan, desc->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0, NULL,
                 NULL, NULL);
     } else {
+      int64_t i_target = index * n_k;
       setpts<T>(plan, desc->n_j, &(x[i]), y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), n_k,
-                &(s[i]), y_index<ndim, T>(t, i), z_index<ndim, T>(u, i));
+                &(s[i_target]), y_index<ndim, T>(t, i_target), z_index<ndim, T>(u, i_target));
     }
     execute<T>(plan, &c[j], &F[k]);  // type 1 & 3: c is input, F is output
   }
