@@ -9,6 +9,7 @@ import pytest
 from jax._src import test_util as jtu
 
 from jax_finufft import nufft1, nufft2
+from jax_finufft.options import Opts
 
 
 def check_close(a, b, **kwargs):
@@ -356,3 +357,75 @@ def test_gh54_type2():
     )
     assert jax.grad(test, argnums=0)(f, x).shape == f.shape
     assert jax.grad(test, argnums=1)(f, x).shape == x.shape
+
+
+@pytest.mark.parametrize("modeord", [0, 1], ids=["mo0", "mo1"])
+@pytest.mark.parametrize("Nf", [16, 17], ids=["even", "odd"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
+@pytest.mark.parametrize("nufft_type", [1, 2], ids=["t1", "t2"])
+def test_modeord(modeord, Nf, ndim, nufft_type):
+    random = np.random.default_rng(657)
+
+    iflag = 1
+    num_uniform = tuple(Nf // ndim + 5 * np.arange(ndim))
+    num_nonnuniform = 50
+    eps = 1e-10
+    dtype = np.double
+    cdtype = np.cdouble
+
+    if modeord == 0:
+        ks = [
+            np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1)) for n in num_uniform
+        ]
+    else:
+        ks = [
+            np.concatenate(
+                (
+                    np.arange(0, np.floor(n / 2))
+                    if n % 2 == 0
+                    else np.arange(0, np.floor(n / 2) + 1),
+                    np.arange(-np.floor(n / 2), 0),
+                )
+            )
+            for n in num_uniform
+        ]
+
+    if nufft_type == 1:
+        x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(dtype)
+        c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
+        c = c.astype(cdtype)
+        f_expect = np.zeros(num_uniform, dtype=cdtype)
+        for coords in product(*map(range, num_uniform)):
+            k_vec = np.array([k[n] for (n, k) in zip(coords, ks)])
+            f_expect[coords] = np.sum(c * np.exp(iflag * 1j * np.dot(k_vec, x)))
+
+        opts = Opts(modeord=modeord)
+
+        with jax.experimental.enable_x64():
+            f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag, opts=opts)
+            check_close(f_calc, f_expect)
+
+            func = partial(nufft1, num_uniform, eps=eps, iflag=iflag, opts=opts)
+            jtu.check_grads(func, (c, *x), 1, modes=("fwd", "rev"))
+    else:
+        x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(dtype)
+        f = random.normal(size=num_uniform) + 1j * random.normal(size=num_uniform)
+        f = f.astype(cdtype)
+
+        c_expect = np.zeros(num_nonnuniform, dtype=cdtype)
+        for n in range(num_nonnuniform):
+            arg = np.copy(f)
+            for i, k in enumerate(ks):
+                coords = [None for _ in range(ndim)]
+                coords[i] = slice(None)
+                arg *= np.exp(iflag * 1j * k * x[i][n])[tuple(coords)]
+            c_expect[n] = np.sum(arg)
+
+        opts = Opts(modeord=modeord)
+
+        with jax.experimental.enable_x64():
+            c_calc = nufft2(f, *x, eps=eps, iflag=iflag, opts=opts)
+            check_close(c_calc, c_expect)
+
+            func = partial(nufft2, eps=eps, iflag=iflag, opts=opts)
+            jtu.check_grads(func, (f, *x), 1, modes=("fwd", "rev"))
