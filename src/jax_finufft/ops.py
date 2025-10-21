@@ -62,16 +62,12 @@ def nufft2(source, *points, iflag=-1, eps=1e-6, opts=None):
 
 def get_frequency_array(n, modeord):
     if modeord == 0:
-        return np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1))
+        return np.arange(-(n // 2), (n + 1) // 2)
     elif modeord == 1:
-        if n % 2 == 0:
-            pos = np.arange(0, n // 2)
-            neg = np.arange(-n // 2, 0)
-            return np.concatenate([pos, neg])
-        else:
-            pos = np.arange(0, (n + 1) // 2)
-            neg = np.arange(-(n - 1) // 2, 0)
-            return np.concatenate([pos, neg])
+        f = np.empty(n, dtype=np.int64)
+        f[: (n + 1) // 2] = np.arange(0, (n + 1) // 2)
+        f[(n + 1) // 2 :] = np.arange(-(n // 2), 0)
+        return f
     else:
         raise ValueError(f"Unsupported modeord: {modeord}")
 
