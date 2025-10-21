@@ -381,9 +381,11 @@ def test_modeord(modeord, Nf, ndim, nufft_type):
         ks = [
             np.concatenate(
                 (
-                    np.arange(0, np.floor(n / 2))
-                    if n % 2 == 0
-                    else np.arange(0, np.floor(n / 2) + 1),
+                    (
+                        np.arange(0, np.floor(n / 2))
+                        if n % 2 == 0
+                        else np.arange(0, np.floor(n / 2) + 1)
+                    ),
                     np.arange(-np.floor(n / 2), 0),
                 )
             )
@@ -392,7 +394,9 @@ def test_modeord(modeord, Nf, ndim, nufft_type):
 
     if nufft_type == 1:
         x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(dtype)
-        c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
+        c = random.normal(size=num_nonnuniform) + 1j * random.normal(
+            size=num_nonnuniform
+        )
         c = c.astype(cdtype)
         f_expect = np.zeros(num_uniform, dtype=cdtype)
         for coords in product(*map(range, num_uniform)):
