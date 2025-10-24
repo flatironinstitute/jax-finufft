@@ -126,8 +126,10 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
     # c_j = sum_k f_k * exp(iflag * i * k * x_j)
     # dc_j/dx_j = sum_k iflag * i * k * f_k * exp(iflag * i * k * x_j)
 
-    if nufft_type not in (1, 2):
-        raise NotImplementedError("JVP not yet implemented for type 3 NUFFT")
+    # Type 3:
+    # f_k = sum_j c_j * exp(iflag * i * s_k * x_j)
+    # df_k/dx_j = iflag * i * s_k * c_j * exp(iflag * i * s_k * x_j)
+    # df_k/ds_k = sum_j iflag * i * x_j * c_j * exp(iflag * i * s_k * x_j)
 
     source, *points = args
     dsource, *dpoints = tangents
@@ -146,11 +148,14 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
 
     # The JVP op can be written as a single transform of the same type with
     output_tangents = []
-    ndim = len(points)
+    if nufft_type == 3:
+        ndim = len(points) // 2
+    else:
+        ndim = len(points)
     scales = []
     arguments = []
     if type(dsource) is not ad.Zero:
-        if output_shape is None:
+        if nufft_type == 2:
             # It might look like we could combine this with the single transform at
             # the end, but then we'd be mixing tangents and concrete values
             output_tangents.append(
@@ -168,27 +173,63 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
             scales.append(1.0)
             arguments.append(dsource)
 
-    for dim, dx in enumerate(dpoints):
+    for dim in range(ndim):
+        dx = dpoints[dim]
         if type(dx) is ad.Zero:
             continue
 
-        n = source.shape[-ndim + dim] if output_shape is None else output_shape[dim]
-        shape = np.ones(ndim, dtype=int)
-        shape[dim] = -1
-        k = get_frequency_array(n, modeord)
-        k = k.reshape(shape)
-        factor = 1j * iflag * k
+        if nufft_type == 3:
+            s = points[ndim + dim]
+            s = s.reshape(-1)
+            factor = 1j * iflag * s
+        else:
+            shape = np.ones(ndim, dtype=int)
+            shape[dim] = -1
+            n = source.shape[-ndim + dim] if nufft_type == 2 else output_shape[dim]
+            k = get_frequency_array(n, modeord)
+            k = k.reshape(shape)
+            factor = 1j * iflag * k
         dx = dx[:, None, :]
 
-        if output_shape is None:
+        if nufft_type == 2:
             scales.append(dx)
             arguments.append(factor * source)
         else:
             scales.append(factor)
             arguments.append(dx * source)
 
+    if nufft_type == 3:
+        # target point derivatives
+        scales_s = []
+        arguments_s = []
+        for dim in range(ndim):
+            dx = dpoints[ndim + dim]
+            if type(dx) is ad.Zero:
+                continue
+
+            x = points[dim]
+            x = x.reshape(-1)
+            factor = 1j * iflag * x
+
+            scales_s.append(dx)
+            arguments_s.append(factor * source)
+
+        if len(scales_s):
+            argument = jnp.stack(arguments_s, axis=2)
+            output_tangent_s = nufft3(
+                argument, *(p[:, None] for p in points), iflag=iflag, eps=eps, opts=opts
+            )
+            output_tangents += [
+                s * output_tangent_s[:, :, n] for n, s in enumerate(scales_s)
+            ]
+
     if len(scales):
-        func = nufft2 if output_shape is None else partial(nufft1, tuple(output_shape))
+        if nufft_type == 3:
+            func = nufft3
+        elif nufft_type == 2:
+            func = nufft2
+        else:
+            func = partial(nufft1, tuple(output_shape))
         argument = jnp.stack(arguments, axis=2)
         output_tangent = func(
             argument, *(p[:, None] for p in points), iflag=iflag, eps=eps, opts=opts
@@ -208,10 +249,17 @@ def transpose(doutput, source, *points, output_shape, eps, iflag, opts, nufft_ty
     assert not any(map(ad.is_undefined_primal, points))
     assert type(doutput) is not ad.Zero
 
-    if nufft_type not in (1, 2):
-        raise NotImplementedError("Transpose not yet implemented for type 3 NUFFT")
-
-    if output_shape is None:
+    if nufft_type == 3:
+        ndim = len(points) // 2
+        result = nufft3(
+            doutput,
+            *points[ndim:],
+            *points[:ndim],
+            eps=eps,
+            iflag=iflag,
+            opts=options.unpack_opts(opts, 3, False),
+        )
+    elif nufft_type == 2:
         ndim = len(points)
         result = nufft1(
             source.aval.shape[-ndim:],
@@ -221,7 +269,7 @@ def transpose(doutput, source, *points, output_shape, eps, iflag, opts, nufft_ty
             iflag=iflag,
             opts=options.unpack_opts(opts, 1, False),
         )
-    else:
+    elif nufft_type == 1:
         result = nufft2(
             doutput,
             *points,
@@ -302,6 +350,6 @@ nufft3_p.def_abstract_eval(shapes.abstract_eval)
 mlir.register_lowering(nufft3_p, lowering.lowering, platform="cpu")
 # if lowering.jax_finufft_gpu is not None:
 #     mlir.register_lowering(nufft3_p, lowering.lowering, platform="cuda")
-# ad.primitive_jvps[nufft3_p] = partial(jvp, nufft3_p)
-# ad.primitive_transposes[nufft3_p] = transpose
+ad.primitive_jvps[nufft3_p] = partial(jvp, nufft3_p)
+ad.primitive_transposes[nufft3_p] = transpose
 batching.primitive_batchers[nufft3_p] = batch

@@ -185,6 +185,36 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
 
 
 @pytest.mark.parametrize(
+    "ndim, num_source, num_target, iflag",
+    product([1, 2, 3], [50], [35], [-1, 1]),
+)
+def test_nufft3_grad(ndim, num_source, num_target, iflag):
+    random = np.random.default_rng(657)
+
+    eps = 1e-10
+    dtype = np.double
+    cdtype = np.cdouble
+
+    x = [random.uniform(-1.0, 1.0, size=num_source).astype(dtype) for _ in range(ndim)]
+    s = [random.uniform(-1.0, 1.0, size=num_target).astype(dtype) for _ in range(ndim)]
+    c = random.normal(size=num_source) + 1j * random.normal(size=num_source)
+    c = c.astype(cdtype)
+
+    with jax.experimental.enable_x64():
+        func = partial(nufft3, eps=eps, iflag=iflag)
+        jtu.check_grads(func, (c, *x, *s), 1, modes=("fwd", "rev"))
+
+        def scalar_func(*args):
+            return jnp.linalg.norm(func(*args))
+
+        expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + len(s) + 1)))(
+            c, *x, *s
+        )
+        for n, g in enumerate(expect):
+            check_close(jax.grad(scalar_func, argnums=(n,))(c, *x, *s)[0], g)
+
+
+@pytest.mark.parametrize(
     "ndim, num_nonnuniform, num_uniform, iflag",
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
