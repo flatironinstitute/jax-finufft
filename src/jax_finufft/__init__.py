@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__all__ = ["__version__", "nufft1", "nufft2"]
+__all__ = ["__version__", "nufft1", "nufft2", "nufft3"]
 
 from .jax_finufft_version import version as __version__
-from .ops import nufft1, nufft2
+from .ops import nufft1, nufft2, nufft3

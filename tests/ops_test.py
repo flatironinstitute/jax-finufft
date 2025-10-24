@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from jax._src import test_util as jtu
 
-from jax_finufft import nufft1, nufft2
+from jax_finufft import nufft1, nufft2, nufft3
 from jax_finufft.options import Opts
 
 
@@ -89,6 +89,38 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
 
 
 @pytest.mark.parametrize(
+    "ndim, x64, num_sources, num_targets, iflag",
+    product([1, 2, 3], [False, True], [25], [20], [-1, 1]),
+)
+def test_nufft3_forward(ndim, x64, num_sources, num_targets, iflag):
+    random = np.random.default_rng(657)
+
+    eps = 1e-10 if x64 else 1e-7
+    dtype = np.double if x64 else np.single
+    cdtype = np.cdouble if x64 else np.csingle
+
+    x = [random.uniform(-1.0, 1.0, size=num_sources).astype(dtype) for _ in range(ndim)]
+    s = [random.uniform(-1.0, 1.0, size=num_targets).astype(dtype) for _ in range(ndim)]
+    c = random.normal(size=num_sources) + 1j * random.normal(size=num_sources)
+    c = c.astype(cdtype)
+
+    f_expect = np.zeros(num_targets, dtype=cdtype)
+    for k in range(num_targets):
+        s_vec = np.array([s_dim[k] for s_dim in s])
+        x_mat = np.array([x_dim for x_dim in x])
+        f_expect[k] = np.sum(c * np.exp(iflag * 1j * np.dot(s_vec, x_mat)))
+
+    with jax.experimental.enable_x64(x64):
+        f_calc = nufft3(c, *x, *s, eps=eps, iflag=iflag)
+        check_close(f_calc, f_expect, rtol={"complex128": 1e-7, "complex64": 1e-3})
+
+        f_calc = jax.jit(nufft3, static_argnames=("eps", "iflag"))(
+            c, *x, *s, eps=eps, iflag=iflag
+        )
+        check_close(f_calc, f_expect, rtol={"complex128": 1e-7, "complex64": 1e-3})
+
+
+@pytest.mark.parametrize(
     "ndim, num_nonnuniform, num_uniform, iflag",
     product([1, 2, 3], [50], [35], [-1, 1]),
 )
@@ -150,6 +182,36 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
         expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + 1)))(f, *x)
         for n, g in enumerate(expect):
             check_close(jax.grad(scalar_func, argnums=(n,))(f, *x)[0], g)
+
+
+@pytest.mark.parametrize(
+    "ndim, num_source, num_target, iflag",
+    product([1, 2, 3], [50], [35], [-1, 1]),
+)
+def test_nufft3_grad(ndim, num_source, num_target, iflag):
+    random = np.random.default_rng(657)
+
+    eps = 1e-10
+    dtype = np.double
+    cdtype = np.cdouble
+
+    x = [random.uniform(-1.0, 1.0, size=num_source).astype(dtype) for _ in range(ndim)]
+    s = [random.uniform(-1.0, 1.0, size=num_target).astype(dtype) for _ in range(ndim)]
+    c = random.normal(size=num_source) + 1j * random.normal(size=num_source)
+    c = c.astype(cdtype)
+
+    with jax.experimental.enable_x64():
+        func = partial(nufft3, eps=eps, iflag=iflag)
+        jtu.check_grads(func, (c, *x, *s), 1, modes=("fwd", "rev"))
+
+        def scalar_func(*args):
+            return jnp.linalg.norm(func(*args))
+
+        expect = jax.grad(scalar_func, argnums=tuple(range(len(x) + len(s) + 1)))(
+            c, *x, *s
+        )
+        for n, g in enumerate(expect):
+            check_close(jax.grad(scalar_func, argnums=(n,))(c, *x, *s)[0], g)
 
 
 @pytest.mark.parametrize(
@@ -248,21 +310,86 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
             )
 
 
+@pytest.mark.parametrize(
+    "ndim, num_source, num_target, iflag",
+    product([1, 2, 3], [50], [35], [-1, 1]),
+)
+def test_nufft3_vmap(ndim, num_source, num_target, iflag):
+    random = np.random.default_rng(657)
+
+    dtype = np.double
+    cdtype = np.cdouble
+
+    num_repeat = 5
+
+    x = [
+        random.uniform(-np.pi, np.pi, size=(num_repeat, num_source)).astype(dtype)
+        for _ in range(ndim)
+    ]
+    s = [
+        random.uniform(-1.0, 1.0, size=(num_repeat, num_target)).astype(dtype)
+        for _ in range(ndim)
+    ]
+    c = random.normal(size=(num_repeat, num_source)) + 1j * random.normal(
+        size=(num_repeat, num_source)
+    )
+    c = c.astype(cdtype)
+    func = partial(nufft3, iflag=iflag)
+
+    with jax.experimental.enable_x64():
+        # Start by checking the full basic vmap
+        calc = jax.vmap(func)(c, *x, *s)
+        for n in range(num_repeat):
+            check_close(calc[n], func(c[n], *(x_[n] for x_ in x), *(s_[n] for s_ in s)))
+
+        # With different in_axes
+        calc_ax = jax.vmap(func, in_axes=(1,) + (0,) * 2 * ndim)(
+            jnp.moveaxis(c, 0, 1), *x, *s
+        )
+        check_close(calc_ax, calc)
+
+        # With unmapped source axis
+        calc_unmap = jax.vmap(func, in_axes=(None,) + (0,) * 2 * ndim)(c[0], *x, *s)
+        for n in range(num_repeat):
+            check_close(
+                calc_unmap[n], func(c[0], *(x_[n] for x_ in x), *(s_[n] for s_ in s))
+            )
+
+        # With unmapped points axis
+        calc_unmap_pt = jax.vmap(
+            func, in_axes=(0,) + 2 * ((0,) * (ndim - 1) + (None,))
+        )(c, *x[:-1], x[-1][0], *s[:-1], s[-1][0])
+        for n in range(num_repeat):
+            check_close(
+                calc_unmap_pt[n],
+                func(
+                    c[n],
+                    *(x_[n] for x_ in x[:-1]),
+                    x[-1][0],
+                    *(s_[n] for s_ in s[:-1]),
+                    s[-1][0],
+                ),
+            )
+
+
 def test_multi_transform():
     random = np.random.default_rng(314)
 
-    n_tot, n_tr, n_j, n_k = 4, 10, 100, 12
+    n_tot, n_tr, n_j, n_k, n_target = 5, 1, 50, 12, 35
     f_shape = (n_tot, n_tr, n_k)
     c_shape = (n_tot, n_tr, n_j)
     f = random.standard_normal(size=f_shape) + 1j * random.standard_normal(size=f_shape)
     c = random.standard_normal(size=c_shape) + 1j * random.standard_normal(size=c_shape)
     x = random.uniform(-np.pi, np.pi, (n_tot, n_j))
+    x_target = random.uniform(-1.0, 1.0, (n_tot, n_target))
 
     calc1 = nufft1(n_k, c, x)
     calc2 = nufft2(f, x)
+    calc3 = nufft3(c, x, x_target)
     for n in range(n_tr):
         check_close(calc1[:, n], nufft1(n_k, c[:, n], x), rtol=1e-4)
         check_close(calc2[:, n], nufft2(f[:, n], x), rtol=1e-4)
+        check_close(calc3[:, n], nufft3(c[:, n], x, x_target), rtol=1e-4)
 
 
 def test_gh14():

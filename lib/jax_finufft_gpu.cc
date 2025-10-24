@@ -25,17 +25,23 @@ nb::dict Registrations() {
   // TODO: do we prefer to keep these names the same as the CPU version or prefix them with "cu"?
   dict["nufft1d1f"] = encapsulate_function(nufft1d1f);
   dict["nufft1d2f"] = encapsulate_function(nufft1d2f);
+  dict["nufft1d3f"] = encapsulate_function(nufft1d3f);
   dict["nufft2d1f"] = encapsulate_function(nufft2d1f);
   dict["nufft2d2f"] = encapsulate_function(nufft2d2f);
+  dict["nufft2d3f"] = encapsulate_function(nufft2d3f);
   dict["nufft3d1f"] = encapsulate_function(nufft3d1f);
   dict["nufft3d2f"] = encapsulate_function(nufft3d2f);
+  dict["nufft3d3f"] = encapsulate_function(nufft3d3f);
 
   dict["nufft1d1"] = encapsulate_function(nufft1d1);
   dict["nufft1d2"] = encapsulate_function(nufft1d2);
+  dict["nufft1d3"] = encapsulate_function(nufft1d3);
   dict["nufft2d1"] = encapsulate_function(nufft2d1);
   dict["nufft2d2"] = encapsulate_function(nufft2d2);
+  dict["nufft2d3"] = encapsulate_function(nufft2d3);
   dict["nufft3d1"] = encapsulate_function(nufft3d1);
   dict["nufft3d2"] = encapsulate_function(nufft3d2);
+  dict["nufft3d3"] = encapsulate_function(nufft3d3);
 
   return dict;
 }

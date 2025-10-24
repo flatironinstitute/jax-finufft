@@ -21,17 +21,23 @@ struct descriptor {
 
 void nufft1d1(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft1d2(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
+void nufft1d3(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft2d1(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft2d2(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
+void nufft2d3(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft3d1(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft3d2(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
+void nufft3d3(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 
 void nufft1d1f(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft1d2f(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
+void nufft1d3f(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft2d1f(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft2d2f(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
+void nufft2d3f(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft3d1f(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 void nufft3d2f(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
+void nufft3d3f(cudaStream_t stream, void** buffers, const char* opaque, std::size_t opaque_len);
 
 }  // namespace jax_finufft
 
