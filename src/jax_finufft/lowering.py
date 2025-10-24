@@ -38,8 +38,6 @@ def lowering(
     platform = ctx.module_context.platforms[0]
     if platform not in {"cpu", "cuda"}:
         raise ValueError(f"Unsupported platform '{platform}'")
-    if nufft_type == 3 and platform != "cpu":
-        raise NotImplementedError("type 3 only implemented on CPU currently")
     if platform == "cuda" and jax_finufft_gpu is None:
         raise ValueError("jax-finufft was not compiled with GPU support")
 

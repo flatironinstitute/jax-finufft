@@ -348,8 +348,8 @@ nufft3_p = Primitive("nufft3")
 nufft3_p.def_impl(partial(xla.apply_primitive, nufft3_p))
 nufft3_p.def_abstract_eval(shapes.abstract_eval)
 mlir.register_lowering(nufft3_p, lowering.lowering, platform="cpu")
-# if lowering.jax_finufft_gpu is not None:
-#     mlir.register_lowering(nufft3_p, lowering.lowering, platform="cuda")
+if lowering.jax_finufft_gpu is not None:
+    mlir.register_lowering(nufft3_p, lowering.lowering, platform="cuda")
 ad.primitive_jvps[nufft3_p] = partial(jvp, nufft3_p)
 ad.primitive_transposes[nufft3_p] = transpose
 batching.primitive_batchers[nufft3_p] = batch
