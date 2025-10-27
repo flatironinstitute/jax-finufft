@@ -34,7 +34,7 @@ pipeline {
             steps {
                 // TODO: add "-n 8", but GPU kernels don't seem to be thread-safe
                 sh '''
-                    uv run --extra test --extra cuda12-local pytest
+                    uv run --extra test --extra cuda12-local pytest -vs
                 '''
             }
         }
@@ -46,7 +46,7 @@ pipeline {
             }
             steps {
                 sh '''
-                    uv run -p 3.13t --extra test --extra cuda12-local pytest
+                    uv run -p 3.13t --extra test --extra cuda12-local pytest -vs
                 '''
             }
         }
