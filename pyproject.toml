@@ -43,8 +43,6 @@ config-settings = { "cmake.define.FINUFFT_ARCH_FLAGS" = "" }
 enable = "cpython-freethreading"
 test-command = "pytest {project}/tests"
 test-extras = "test"
-# waiting for pydantic support for 3.14
-test-skip = "cp314*"
 
 [tool.cibuildwheel.linux]
 before-all = "yum install -y fftw-devel"
