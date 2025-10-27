@@ -18,7 +18,7 @@ This library includes CPU and GPU (CUDA) support. GPU support is implemented
 through the [cuFINUFFT interface](https://finufft.readthedocs.io/en/latest/c_gpu.html)
 of the FINUFFT library.
 
-[Type 1 and 2](https://finufft.readthedocs.io/en/latest/math.html) transforms
+[Type 1, 2, and 3](https://finufft.readthedocs.io/en/latest/math.html) transforms
 are supported in 1, 2, and 3 dimensions on the CPU and GPU.
 All of these functions support forward, reverse, and higher-order differentiation,
 as well as batching using `vmap`.
@@ -231,8 +231,8 @@ python -m pip install git+https://github.com/flatironinstitute/jax-finufft.git
 
 ## Usage
 
-This library provides two high-level functions (and these should be all that you
-generally need to interact with): `nufft1` and `nufft2` (for the two "types" of
+This library provides three high-level functions (and these should be all that you
+generally need to interact with): `nufft1`, `nufft2`, and `nufft3` (for the three "types" of
 transforms). If you're already familiar with the [Python
 interface](https://finufft.readthedocs.io/en/latest/python.html) to FINUFFT,
 _please note that the function signatures here are different_!
@@ -271,6 +271,14 @@ c = nufft2(f, x, y)  # 2D
 c = nufft2(f, x, y, z)  # 3D
 ```
 
+The syntax for a type 3 transform with "source points" `x`, `y`, `z` and
+"target points" `s`, `t`, `u` is:
+```python
+f = nufft3(c, x, s)  # 1D
+f = nufft3(c, x, y, s, t)  # 2D
+f = nufft3(c, x, y, z, s, t, u)  # 3D
+```
+
 All of these functions support batching using `vmap`, and forward and reverse
 mode differentiation.
 
@@ -281,7 +289,7 @@ backend by setting the environment variable `JAX_PLATFORMS=cpu` or `JAX_PLATFORM
 ## Advanced usage
 
 The tuning parameters for the library can be set using the `opts` parameter to
-`nufft1` and `nufft2`. For example, to explicitly set the CPU [up-sampling
+`nufft1`, `nufft2`, and `nufft3`. For example, to explicitly set the CPU [up-sampling
 factor](https://finufft.readthedocs.io/en/latest/opts.html) that FINUFFT should
 use, you can update the example from above as follows:
 
