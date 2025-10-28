@@ -248,17 +248,19 @@ transforms). If you're already familiar with the [Python
 interface](https://finufft.readthedocs.io/en/latest/python.html) to FINUFFT,
 _please note that the function signatures here are different_!
 
-For example, here's how you can do a 1-dimensional type 1 transform (CPU or GPU):
+For example, here's how you can do a 1-dimensional type 1 transform:
 
 ```python
 import numpy as np
+
 from jax_finufft import nufft1
 
 M = 100000
 N = 200000
 
-x = 2 * np.pi * np.random.uniform(size=M)
-c = np.random.standard_normal(size=M) + 1j * np.random.standard_normal(size=M)
+rng = np.random.default_rng(123)
+x = 2 * np.pi * rng.random(M)
+c = rng.standard_normal(M) + 1j * rng.standard_normal(M)
 f = nufft1(N, c, x, eps=1e-6, iflag=1)
 ```
 
@@ -266,7 +268,7 @@ Noting that the `eps` and `iflag` are optional, and that (for good reason, we
 promise!) the order of the positional arguments is reversed from the `finufft`
 Python package.
 
-The syntax for a 2-, or 3-dimensional transform (CPU or GPU) is:
+The syntax for a 2-, or 3-dimensional transform is:
 
 ```python
 f = nufft1((Nx, Ny), c, x, y)  # 2D
@@ -293,11 +295,47 @@ f = nufft3(c, x, y, z, s, t, u)  # 3D
 All of these functions support batching using `vmap`, and forward and reverse
 mode differentiation.
 
+### Stacked Transforms and Broadcasting
+
+A "stacked", or "vectorized", finufft transform is one where the same non-uniform points are reused for multiple sets of source strengths. In the JAX interface, this is achieved by broadcasting. In the following example, only one finufft plan is created and one `setpts` call made, with a stack of 32 source strengths:
+
+```python
+import numpy as np
+
+from jax_finufft import nufft1
+
+M = 100000
+N = 200000
+S = 32
+
+rng = np.random.default_rng(123)
+x = 2 * np.pi * rng.random(M)
+c = rng.standard_normal((S, M)) + 1j * rng.standard_normal((S, M))
+f = nufft1(N, c, x)
+```
+
+To verify that a stacked transform is being used, see [Inspecting the finufft calls](#inspecting-the-finufft-calls).
+
+Note that the broadcasting occurs because an implicit axis of length 1 is inserted in the second-to-last dimension of `x`. Currently, this is the only style of broadcasting that is supported when the strengths and points have unequal numbers of non-core dimensions. For other styles of broadcasting, insert axes of length 1 into the inputs. Any broadcast axes (even non-consecutive ones) are grouped and stacked in the transform.
+
+Matched, but not broadcast, axes will be executed as separate transforms, each with their own `setpts` calls (but a single shared plan). In the following example (which continues from the previous), 1 plan is created and 4 `setpts` and 4 `execute` calls are made, each executing a stack of 32 transforms:
+
+```python
+P = 4
+
+x = 2 * np.pi * rng.random((P, 1, M))
+c = rng.standard_normal((P, S, M)) + 1j * rng.standard_normal((P, S, M))
+f = nufft1(N, c, x)
+```
+
+
 ## Selecting a platform
 If you compiled jax-finufft with GPU support, you can force it to use a particular
 backend by setting the environment variable `JAX_PLATFORMS=cpu` or `JAX_PLATFORMS=cuda`.
 
 ## Advanced usage
+
+### Options
 
 The tuning parameters for the library can be set using the `opts` parameter to
 `nufft1`, `nufft2`, and `nufft3`. For example, to explicitly set the CPU [up-sampling
@@ -312,7 +350,7 @@ nufft1(N, c, x, opts=opts)
 ```
 
 The corresponding option for the GPU is `gpu_upsampfac`. In fact, all options
-for the GPU are prefixed with `gpu_`.
+for the GPU are prefixed with `gpu_`, with the exception of `modeord`.
 
 One complication here is that the [vector-Jacobian
 product](https://jax.readthedocs.io/en/latest/notebooks/autodiff_cookbook.html#vector-jacobian-products-vjps-aka-reverse-mode-autodiff)
@@ -341,18 +379,62 @@ opts = options.NestedOpts(
 )
 ```
 
-See [the FINUFFT docs](https://finufft.readthedocs.io/en/latest/opts.html) for
-descriptions of all the CPU tuning parameters. The corresponding GPU parameters
-are currently only listed in source code form in
-[`cufinufft_opts.h`](https://github.com/flatironinstitute/finufft/blob/master/include/cufinufft_opts.h).
+For descriptions of the options, see these pages in the FINUFFT docs:
+- CPU: https://finufft.readthedocs.io/en/latest/opts.html
+- GPU: https://finufft.readthedocs.io/en/latest/c_gpu.html#options-for-gpu-code
+
+### Inspecting the finufft calls
+When evaluating a single NUFFT, it's fairly obvious that jax-finufft will execute one
+finufft transform under the hood. However, when evaluating a stacked NUFFT, or taking
+the gradients of a NUFFT, the sequence of calls may be less obvious. One way to inspect
+exactly what finufft calls are being made is to enable finufft's debug output by
+passing `opts=Opts(debug=True)` or `opts=Opts(gpu_debug=True)`.
+
+For example, taking the [Stacked Transforms](#stacked-transforms-and-broadcasting) example and enabling
+debug output, we see the following:
+
+```python-repl
+>>> f = nufft1(N, c, x, eps=1e-6, iflag=1, opts=Opts(debug=True))
+[FINUFFT_PLAN_T] new plan: FINUFFT version 2.4.1 .................
+[FINUFFT_PLAN_T] 1d1: (ms,mt,mu)=(200000,1,1) (nf1,nf2,nf3)=(400000,1,1)
+               ntrans=32 nthr=16 batchSize=16  spread_thread=2
+[FINUFFT_PLAN_T] kernel fser (ns=7):            0.000765 s
+[FINUFFT_PLAN_T] fwBatch 0.05GB alloc:          0.00703 s
+[FINUFFT_PLAN_T] FFT plan (mode 64, nthr=16):   0.00892 s
+[setpts] sort (didSort=1):              0.00327 s
+[execute] start ntrans=32 (2 batches, bsize=16)...
+[execute] done. tot spread:             0.0236 s
+               tot FFT:                         0.0164 s
+               tot deconvolve:                  0.00191 s
+```
+
+Evidently, we are creating a single plan with 32 transforms, and finufft has chosen to
+batch them into two sets of 16. `setpts` is only called once, as is `execute`, as we
+would expect for a stacked transform.
+
+## Notes on the Implementation of the Gradients
+The NUFFT gradients are implemented as [Jacobian-vector products](https://docs.jax.dev/en/latest/notebooks/autodiff_cookbook.html#jacobian-vector-products-jvps-aka-forward-mode-autodiff) (JVP, i.e. forward-mode autodiff), with associated transpose rules that implement the vector-Jacobian product (VJP, reverse mode). These are found in [`ops.py`](./src/jax_finufft/ops.py), in the `jvp` and `transpose` functions.
+
+The JVP of a D-dimensional type 1 or 2 NUFFT requires D transforms of the same type in D dimensions (considering just the gradients with respect to the non-uniform locations). Each transform is weighted by the frequencies (as a overall scaling for type 1, and at the Fourier strength level for type 2). These transforms are fully stacked, and finufft plans are reused where possible.
+
+Furthermore, the JAX `jvp` evaluates the function in addition to its JVP, so 1 more transform is necessary. This transform is not stacked with the JVP transforms. Likewise, 1 more is needed when the gradient with respect to the source or Fourier strengths is requested. However, this transform is stacked with the JVP.
+
+In reverse mode, the VJP of a type 1 NUFFT requires type 2 transforms, and type 2 requires type 1. In either case, the function evaluation returned under JAX's `vjp` still requires an NUFFT of the original type (which cannot be stacked with the VJP transforms, as they are of a different type).
+
+For type 3, the JVP requires `2*D` type 3 transforms of dimension D to evaluate the gradients with respect to both the source and target locations. The strengths of each transform are weighted by the source or target locations. The source and target transforms are stacked separately. As with type 1 and 2, the strengths gradient transform is stacked with the source locations and the function evaluation transform is not stacked.
+
+The VJP of a type 3 NUFFT also uses type 3 NUFFTs, but with the source and target points swapped.
+
+In all of the above, whenever a user requests [stacked transforms via broadcasting](#stacked-transforms-and-broadcasting), this does not introduce new plans or finufft calls—the stacks simply get deeper. New sets of non-uniform points necessarily introduce new `setpts` and new executions, but not new plans.
+
+To see all of the stacking behavior in action, take a look at [Inspecting the finufft calls](#inspecting-the-finufft-calls).
 
 ## Similar libraries
 
 - [finufft](https://finufft.readthedocs.io/en/latest/python.html): The
   "official" Python bindings to FINUFFT. A good choice if you're not already
   using JAX and if you don't need to differentiate through your transform.
-- [mrphys/tensorflow-nufft](https://github.com/mrphys/tensorflow-nufft):
-  TensorFlow bindings for FINUFFT and cuFINUFFT.
+- A list of other finufft binding libraries (e.g. for Julia, TensorFlow, PyTorch) is maintained at https://finufft.readthedocs.io/en/latest/users.html#other-wrappers-to-cu-finufft
 
 ## License & attribution
 
