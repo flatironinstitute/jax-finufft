@@ -292,6 +292,28 @@ f = nufft3(c, x, y, z, s, t, u)  # 3D
 All of these functions support batching using `vmap`, and forward and reverse
 mode differentiation.
 
+"Stacked", or "vectorized", finufft transforms, where multiple NUFFTs are executed with
+the same non-uniform points but different source strengths, are achieved by
+broadcasting. In the following example, only a single finufft plan and `setpts` call
+are used internally, with a stack of 32 source strengths:
+
+```python
+import numpy as np
+from jax_finufft import nufft1
+
+M = 100000
+N = 200000
+Mstack = 32
+
+x = 2 * np.pi * np.random.uniform(size=M)
+c = np.random.standard_normal(size=(Mstack, M)) + 1j * np.random.standard_normal(size=(Mstack, M))
+f = nufft1(N, c, x, eps=1e-6, iflag=1)
+```
+
+Any broadcast axes will be stacked this way. If you're unsure if a stacked transform is
+being used, pass `opts=Opts(debug=True)` (or `gpu_debug=True`; see [Advanced Usage](#advanced-usage))
+and inspect finufft's debug output.
+
 ## Selecting a platform
 If you compiled jax-finufft with GPU support, you can force it to use a particular
 backend by setting the environment variable `JAX_PLATFORMS=cpu` or `JAX_PLATFORMS=cuda`.
@@ -311,7 +333,7 @@ nufft1(N, c, x, opts=opts)
 ```
 
 The corresponding option for the GPU is `gpu_upsampfac`. In fact, all options
-for the GPU are prefixed with `gpu_`.
+for the GPU are prefixed with `gpu_`, with the exception of `modeord`.
 
 One complication here is that the [vector-Jacobian
 product](https://jax.readthedocs.io/en/latest/notebooks/autodiff_cookbook.html#vector-jacobian-products-vjps-aka-reverse-mode-autodiff)
@@ -340,10 +362,9 @@ opts = options.NestedOpts(
 )
 ```
 
-See [the FINUFFT docs](https://finufft.readthedocs.io/en/latest/opts.html) for
-descriptions of all the CPU tuning parameters. The corresponding GPU parameters
-are currently only listed in source code form in
-[`cufinufft_opts.h`](https://github.com/flatironinstitute/finufft/blob/master/include/cufinufft_opts.h).
+For descriptions of the options, see these pages in the FINUFFT docs:
+- CPU: https://finufft.readthedocs.io/en/latest/opts.html
+- GPU: https://finufft.readthedocs.io/en/latest/c_gpu.html#options-for-gpu-code
 
 ## Similar libraries
 
