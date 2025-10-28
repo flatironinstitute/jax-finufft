@@ -56,7 +56,7 @@ NB_MODULE(jax_finufft_gpu, m) {
            [](cufinufft_opts* self, bool modeord, double upsampfac, int gpu_method, bool gpu_sort,
               int gpu_binsizex, int gpu_binsizey, int gpu_binsizez, int gpu_obinsizex,
               int gpu_obinsizey, int gpu_obinsizez, int gpu_maxsubprobsize, bool gpu_kerevalmeth,
-              int gpu_spreadinterponly, int gpu_maxbatchsize) {
+              int gpu_spreadinterponly, int gpu_maxbatchsize, int debug) {
              new (self) cufinufft_opts;
              default_opts<double>(self);
 
@@ -74,6 +74,7 @@ NB_MODULE(jax_finufft_gpu, m) {
              self->gpu_kerevalmeth = gpu_kerevalmeth;
              self->gpu_spreadinterponly = gpu_spreadinterponly;
              self->gpu_maxbatchsize = gpu_maxbatchsize;
+             self->debug = debug;
            });
 }
 

@@ -12,6 +12,11 @@ class DebugLevel(IntEnum):
     Noisy = 2
 
 
+class GpuDebugLevel(IntEnum):
+    Silent = 0
+    Verbose = 1
+
+
 class FftwFlags(IntEnum):
     Estimate = jax_finufft_cpu.FFTW_ESTIMATE
     Measure = jax_finufft_cpu.FFTW_MEASURE
@@ -71,6 +76,7 @@ class Opts:
     gpu_kerevalmeth: bool = True
     gpu_spreadinterponly: bool = False
     gpu_maxbatchsize: int = 0
+    gpu_debug: GpuDebugLevel = GpuDebugLevel.Silent
 
     def to_finufft_opts(self):
         compiled_with_omp = jax_finufft_cpu._omp_compile_check()
@@ -109,6 +115,7 @@ class Opts:
             self.gpu_kerevalmeth,
             self.gpu_spreadinterponly,
             self.gpu_maxbatchsize,
+            int(self.gpu_debug),
         )
 
 
