@@ -1,8 +1,6 @@
-// This header extends kernel_helpers.h with the nanobind specific interface to
-// serializing descriptors. It also adds a nanobind function for wrapping our
-// custom calls in a Python capsule. This is separate from kernel_helpers so that
-// the CUDA code itself doesn't include nanobind. I don't think that this is
-// strictly necessary, but they do it in jaxlib, so let's do it here too.
+// Nanobind-specific interface for serializing descriptors and wrapping custom
+// calls in Python capsules. This is separate from kernel_helpers.h so that
+// CUDA code doesn't need to include nanobind headers.
 
 #ifndef _JAX_FINUFFT_NANOBIND_KERNEL_HELPERS_H_
 #define _JAX_FINUFFT_NANOBIND_KERNEL_HELPERS_H_

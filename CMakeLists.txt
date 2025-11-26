@@ -74,6 +74,21 @@ endif()
 find_package(Python 3.8 COMPONENTS Interpreter Development.Module REQUIRED)
 find_package(nanobind CONFIG REQUIRED)
 
+# Find jaxlib include directory for XLA FFI headers
+execute_process(
+    COMMAND ${Python_EXECUTABLE} -c "import jaxlib; print(jaxlib.__path__[0])"
+    OUTPUT_VARIABLE JAXLIB_PATH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE JAXLIB_RESULT
+)
+
+if(JAXLIB_RESULT EQUAL 0)
+    set(XLA_FFI_INCLUDE_DIR "${JAXLIB_PATH}/include")
+    message(STATUS "Found XLA FFI headers at: ${XLA_FFI_INCLUDE_DIR}")
+else()
+    message(FATAL_ERROR "Could not find jaxlib. Please install jax with: pip install jax")
+endif()
+
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
@@ -87,7 +102,7 @@ if (NOT FFTW_INCLUDE_DIRS)
     get_target_property(FFTW_INCLUDE_DIRS fftw3 INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
-target_include_directories(jax_finufft_cpu PRIVATE ${FFTW_INCLUDE_DIRS})
+target_include_directories(jax_finufft_cpu PRIVATE ${FFTW_INCLUDE_DIRS} ${XLA_FFI_INCLUDE_DIR})
 install(TARGETS jax_finufft_cpu LIBRARY DESTINATION .)
 
 if(FINUFFT_USE_OPENMP)
@@ -115,6 +130,7 @@ if(FINUFFT_USE_CUDA)
         ${CMAKE_CURRENT_LIST_DIR}/lib/kernels.cc.cu)
     target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_INCLUDE_DIRS})
     target_include_directories(jax_finufft_gpu PUBLIC ${CUFINUFFT_VENDORED_INCLUDE_DIRS})
+    target_include_directories(jax_finufft_gpu PRIVATE ${XLA_FFI_INCLUDE_DIR})
     target_link_libraries(jax_finufft_gpu PRIVATE cufinufft)
     install(TARGETS jax_finufft_gpu LIBRARY DESTINATION .)
 endif()

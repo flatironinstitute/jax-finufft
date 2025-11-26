@@ -79,44 +79,44 @@ class Opts:
     gpu_debug: GpuDebugLevel = GpuDebugLevel.Silent
 
     def to_finufft_opts(self):
+        """Return a simple object with native FINUFFT options for FFI."""
         compiled_with_omp = jax_finufft_cpu._omp_compile_check()
-        return jax_finufft_cpu.FinufftOpts(
-            self.modeord,
-            int(self.debug),
-            int(self.spread_debug),
-            self.showwarn,
-            self.nthreads if compiled_with_omp else 1,
-            int(self.fftw),
-            int(self.spread_sort),
-            self.spread_kerevalmeth,
-            self.spread_kerpad,
-            self.upsampfac,
-            int(self.spread_thread),
-            self.maxbatchsize,
-            self.spread_nthr_atomic,
-            self.spread_max_sp_size,
-        )
+
+        class NativeOpts:
+            pass
+
+        opts = NativeOpts()
+        opts.modeord = int(self.modeord)
+        opts.debug = int(self.debug)
+        opts.spread_debug = int(self.spread_debug)
+        opts.showwarn = int(self.showwarn)
+        opts.nthreads = self.nthreads if compiled_with_omp else 1
+        opts.fftw = int(self.fftw)
+        opts.spread_sort = int(self.spread_sort)
+        opts.spread_kerevalmeth = int(self.spread_kerevalmeth)
+        opts.spread_kerpad = int(self.spread_kerpad)
+        opts.upsampfac = float(self.upsampfac)
+        opts.spread_thread = int(self.spread_thread)
+        opts.maxbatchsize = int(self.maxbatchsize)
+        opts.spread_nthr_atomic = int(self.spread_nthr_atomic)
+        opts.spread_max_sp_size = int(self.spread_max_sp_size)
+        return opts
 
     def to_cufinufft_opts(self):
-        from jax_finufft import jax_finufft_gpu
+        """Return a simple object with native cuFINUFFT options for FFI."""
 
-        return jax_finufft_gpu.CufinufftOpts(
-            self.modeord,
-            self.gpu_upsampfac,
-            int(self.gpu_method),
-            self.gpu_sort,
-            self.gpu_binsizex,
-            self.gpu_binsizey,
-            self.gpu_binsizez,
-            self.gpu_obinsizex,
-            self.gpu_obinsizey,
-            self.gpu_obinsizez,
-            self.gpu_maxsubprobsize,
-            self.gpu_kerevalmeth,
-            self.gpu_spreadinterponly,
-            self.gpu_maxbatchsize,
-            int(self.gpu_debug),
-        )
+        class NativeOpts:
+            pass
+
+        opts = NativeOpts()
+        opts.modeord = int(self.modeord)
+        opts.upsampfac = float(self.gpu_upsampfac)
+        opts.gpu_method = int(self.gpu_method)
+        opts.gpu_sort = int(self.gpu_sort)
+        opts.gpu_kerevalmeth = int(self.gpu_kerevalmeth)
+        opts.gpu_maxbatchsize = int(self.gpu_maxbatchsize)
+        opts.debug = int(self.gpu_debug)
+        return opts
 
 
 @dataclass(frozen=True)

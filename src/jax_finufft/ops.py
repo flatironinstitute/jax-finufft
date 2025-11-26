@@ -6,7 +6,8 @@ import numpy as np
 import jax
 from jax import jit
 from jax import numpy as jnp
-from jax.interpreters import ad, batching, xla, mlir
+from jax._src import dispatch
+from jax._src.interpreters import ad, batching, mlir
 from jax.extend.core import Primitive
 
 from jax_finufft import shapes, lowering, options
@@ -323,7 +324,7 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
 
 
 nufft1_p = Primitive("nufft1")
-nufft1_p.def_impl(partial(xla.apply_primitive, nufft1_p))
+nufft1_p.def_impl(partial(dispatch.apply_primitive, nufft1_p))
 nufft1_p.def_abstract_eval(shapes.abstract_eval)
 mlir.register_lowering(nufft1_p, lowering.lowering, platform="cpu")
 if lowering.jax_finufft_gpu is not None:
@@ -334,7 +335,7 @@ batching.primitive_batchers[nufft1_p] = batch
 
 
 nufft2_p = Primitive("nufft2")
-nufft2_p.def_impl(partial(xla.apply_primitive, nufft2_p))
+nufft2_p.def_impl(partial(dispatch.apply_primitive, nufft2_p))
 nufft2_p.def_abstract_eval(shapes.abstract_eval)
 mlir.register_lowering(nufft2_p, lowering.lowering, platform="cpu")
 if lowering.jax_finufft_gpu is not None:
@@ -345,7 +346,7 @@ batching.primitive_batchers[nufft2_p] = batch
 
 
 nufft3_p = Primitive("nufft3")
-nufft3_p.def_impl(partial(xla.apply_primitive, nufft3_p))
+nufft3_p.def_impl(partial(dispatch.apply_primitive, nufft3_p))
 nufft3_p.def_abstract_eval(shapes.abstract_eval)
 mlir.register_lowering(nufft3_p, lowering.lowering, platform="cpu")
 if lowering.jax_finufft_gpu is not None:
