@@ -195,9 +195,7 @@ def lowering(
             result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
             operands=operands,
             backend_config=backend_config,
-            operand_layouts=default_layouts(
-                *(op.type.shape for op in operands)
-            ),
+            operand_layouts=default_layouts(*(op.type.shape for op in operands)),
             result_layouts=default_layouts(ctx.avals_out[0].shape),
             api_version=4,
         ).results
@@ -255,9 +253,7 @@ def lowering(
             result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
             operands=operands,
             backend_config=backend_config,
-            operand_layouts=default_layouts(
-                *(op.type.shape for op in operands)
-            ),
+            operand_layouts=default_layouts(*(op.type.shape for op in operands)),
             result_layouts=default_layouts(ctx.avals_out[0].shape),
             api_version=4,
         ).results

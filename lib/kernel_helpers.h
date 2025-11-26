@@ -15,8 +15,7 @@ namespace jax_finufft {
 
 // https://en.cppreference.com/w/cpp/numeric/bit_cast
 template <class To, class From>
-typename std::enable_if<sizeof(To) == sizeof(From) &&
-                            std::is_trivially_copyable<From>::value &&
+typename std::enable_if<sizeof(To) == sizeof(From) && std::is_trivially_copyable<From>::value &&
                             std::is_trivially_copyable<To>::value,
                         To>::type
 bit_cast(const From& src) noexcept {

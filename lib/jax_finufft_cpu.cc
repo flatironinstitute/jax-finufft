@@ -27,9 +27,8 @@ namespace cpu {
 
 /// Execute NUFFT transform for a batch of inputs.
 template <int ndim, typename T, int type>
-ffi::Error run_nufft(finufft_opts opts, T eps, int iflag, int64_t n_tot,
-                     int n_transf, int64_t n_j, const int64_t* n_k, T* x, T* y,
-                     T* z, std::complex<T>* c, T* s, T* t, T* u,
+ffi::Error run_nufft(finufft_opts opts, T eps, int iflag, int64_t n_tot, int n_transf, int64_t n_j,
+                     const int64_t* n_k, T* x, T* y, T* z, std::complex<T>* c, T* s, T* t, T* u,
                      std::complex<T>* F) {
   int64_t n_k_total = 1;
   if constexpr (type != 3) {
@@ -42,12 +41,10 @@ ffi::Error run_nufft(finufft_opts opts, T eps, int iflag, int64_t n_tot,
 
   typename plan_type<T>::type plan;
   int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
-  int ret =
-      makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
+  int ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
   // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
   if (ret > 1) {
-    return ffi::Error::Internal("FINUFFT makeplan failed with code " +
-                                std::to_string(ret));
+    return ffi::Error::Internal("FINUFFT makeplan failed with code " + std::to_string(ret));
   }
 
   for (int64_t index = 0; index < n_tot; ++index) {
@@ -56,26 +53,22 @@ ffi::Error run_nufft(finufft_opts opts, T eps, int iflag, int64_t n_tot,
     int64_t k = index * n_k_total * n_transf;
 
     if constexpr (type != 3) {
-      ret = setpts<T>(plan, n_j, &x[i], y_index<ndim, T>(y, i),
-                      z_index<ndim, T>(z, i), 0, nullptr, nullptr, nullptr);
+      ret = setpts<T>(plan, n_j, &x[i], y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0, nullptr,
+                      nullptr, nullptr);
     } else {
       int64_t i_target = index * n_k_total;
-      ret = setpts<T>(plan, n_j, &x[i], y_index<ndim, T>(y, i),
-                      z_index<ndim, T>(z, i), n_k_total, &s[i_target],
-                      y_index<ndim, T>(t, i_target),
-                      z_index<ndim, T>(u, i_target));
+      ret = setpts<T>(plan, n_j, &x[i], y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), n_k_total,
+                      &s[i_target], y_index<ndim, T>(t, i_target), z_index<ndim, T>(u, i_target));
     }
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("FINUFFT setpts failed with code " +
-                                  std::to_string(ret));
+      return ffi::Error::Internal("FINUFFT setpts failed with code " + std::to_string(ret));
     }
 
     ret = execute<T>(plan, &c[j], &F[k]);
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("FINUFFT execute failed with code " +
-                                  std::to_string(ret));
+      return ffi::Error::Internal("FINUFFT execute failed with code " + std::to_string(ret));
     }
   }
 
@@ -88,15 +81,14 @@ ffi::Error run_nufft(finufft_opts opts, T eps, int iflag, int64_t n_tot,
 // =============================================================================
 
 template <int ndim, typename T>
-ffi::Error nufft1_impl(
-    T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
-    int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord, int64_t debug,
-    int64_t spread_debug, int64_t showwarn, int64_t nthreads, int64_t fftw,
-    int64_t spread_sort, int64_t spread_kerevalmeth, int64_t spread_kerpad,
-    double upsampfac, int64_t spread_thread, int64_t maxbatchsize,
-    int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
-    ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-    ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+ffi::Error nufft1_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                       int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord, int64_t debug,
+                       int64_t spread_debug, int64_t showwarn, int64_t nthreads, int64_t fftw,
+                       int64_t spread_sort, int64_t spread_kerevalmeth, int64_t spread_kerpad,
+                       double upsampfac, int64_t spread_thread, int64_t maxbatchsize,
+                       int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                       ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                       ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   finufft_opts opts;
   default_opts<T>(&opts);
   opts.modeord = static_cast<int>(modeord);
@@ -129,8 +121,8 @@ ffi::Error nufft1_impl(
   auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
 
   return run_nufft<ndim, T, 1>(opts, eps, static_cast<int>(iflag), n_tot,
-                               static_cast<int>(n_transf), n_j, n_k, x, y, z, c,
-                               nullptr, nullptr, nullptr, F);
+                               static_cast<int>(n_transf), n_j, n_k, x, y, z, c, nullptr, nullptr,
+                               nullptr, F);
 }
 
 // =============================================================================
@@ -138,15 +130,14 @@ ffi::Error nufft1_impl(
 // =============================================================================
 
 template <int ndim, typename T>
-ffi::Error nufft2_impl(
-    T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
-    int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord, int64_t debug,
-    int64_t spread_debug, int64_t showwarn, int64_t nthreads, int64_t fftw,
-    int64_t spread_sort, int64_t spread_kerevalmeth, int64_t spread_kerpad,
-    double upsampfac, int64_t spread_thread, int64_t maxbatchsize,
-    int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
-    ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-    ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+ffi::Error nufft2_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                       int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord, int64_t debug,
+                       int64_t spread_debug, int64_t showwarn, int64_t nthreads, int64_t fftw,
+                       int64_t spread_sort, int64_t spread_kerevalmeth, int64_t spread_kerpad,
+                       double upsampfac, int64_t spread_thread, int64_t maxbatchsize,
+                       int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                       ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                       ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   finufft_opts opts;
   default_opts<T>(&opts);
   opts.modeord = static_cast<int>(modeord);
@@ -179,8 +170,8 @@ ffi::Error nufft2_impl(
   auto* c = reinterpret_cast<std::complex<T>*>(output->untyped_data());
 
   return run_nufft<ndim, T, 2>(opts, eps, static_cast<int>(iflag), n_tot,
-                               static_cast<int>(n_transf), n_j, n_k, x, y, z, c,
-                               nullptr, nullptr, nullptr, F);
+                               static_cast<int>(n_transf), n_j, n_k, x, y, z, c, nullptr, nullptr,
+                               nullptr, F);
 }
 
 // =============================================================================
@@ -188,16 +179,15 @@ ffi::Error nufft2_impl(
 // =============================================================================
 
 template <int ndim, typename T>
-ffi::Error nufft3_impl(
-    T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
-    int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord, int64_t debug,
-    int64_t spread_debug, int64_t showwarn, int64_t nthreads, int64_t fftw,
-    int64_t spread_sort, int64_t spread_kerevalmeth, int64_t spread_kerpad,
-    double upsampfac, int64_t spread_thread, int64_t maxbatchsize,
-    int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
-    ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-    ffi::AnyBuffer points_z, ffi::AnyBuffer targets_s, ffi::AnyBuffer targets_t,
-    ffi::AnyBuffer targets_u, ffi::Result<ffi::AnyBuffer> output) {
+ffi::Error nufft3_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                       int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord, int64_t debug,
+                       int64_t spread_debug, int64_t showwarn, int64_t nthreads, int64_t fftw,
+                       int64_t spread_sort, int64_t spread_kerevalmeth, int64_t spread_kerpad,
+                       double upsampfac, int64_t spread_thread, int64_t maxbatchsize,
+                       int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                       ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                       ffi::AnyBuffer points_z, ffi::AnyBuffer targets_s, ffi::AnyBuffer targets_t,
+                       ffi::AnyBuffer targets_u, ffi::Result<ffi::AnyBuffer> output) {
   finufft_opts opts;
   default_opts<T>(&opts);
   opts.modeord = static_cast<int>(modeord);
@@ -235,8 +225,7 @@ ffi::Error nufft3_impl(
   auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
 
   return run_nufft<ndim, T, 3>(opts, eps, static_cast<int>(iflag), n_tot,
-                               static_cast<int>(n_transf), n_j, n_k, x, y, z, c,
-                               s, t, u, F);
+                               static_cast<int>(n_transf), n_j, n_k, x, y, z, c, s, t, u, F);
 }
 
 // =============================================================================
@@ -480,9 +469,8 @@ static constexpr XLA_FFI_Handler* nufft3d3 = +[](XLA_FFI_CallFrame* call_frame) 
 
 template <typename T>
 nb::capsule EncapsulateFfiHandler(T* fn) {
-  static_assert(
-      std::is_invocable_r_v<XLA_FFI_Error*, T, XLA_FFI_CallFrame*>,
-      "FFI handler must have signature: XLA_FFI_Error*(XLA_FFI_CallFrame*)");
+  static_assert(std::is_invocable_r_v<XLA_FFI_Error*, T, XLA_FFI_CallFrame*>,
+                "FFI handler must have signature: XLA_FFI_Error*(XLA_FFI_CallFrame*)");
   return nb::capsule(reinterpret_cast<void*>(fn));
 }
 
