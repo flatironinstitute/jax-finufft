@@ -5,11 +5,10 @@ to XLA custom calls targeting the FINUFFT library using the typed FFI API.
 """
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import jax
-from jax._src.interpreters import mlir
-from jax._src.lib.mlir import ir
 
 from jax_finufft import options
 
@@ -41,15 +40,15 @@ def default_layouts(*shapes: Sequence[int]) -> list[tuple[int, ...]]:
 
 
 def lowering(
-    ctx: mlir.LoweringRuleContext,
-    source: ir.Value,
-    *points: ir.Value,
+    ctx: Any,
+    source: Any,
+    *points: Any,
     output_shape: tuple[int, ...] | None,
     iflag: int,
     eps: float,
     opts: options.Opts | options.NestedOpts | None,
     nufft_type: int,
-) -> Sequence[ir.Value]:
+) -> Sequence[Any]:
     """MLIR lowering rule for NUFFT primitives.
 
     Lowers JAX NUFFT primitives to XLA custom calls targeting the FINUFFT
@@ -128,35 +127,8 @@ def lowering(
     eps_value = float(eps) if not single else np.float32(eps)
 
     if platform == "cpu":
-        # Build FFI attributes dictionary for typed FFI
         # Convert options to native finufft_opts for extracting values
         opts_native = opts.to_finufft_opts()
-
-        ffi_kwargs = {
-            "eps": eps_value,
-            "iflag": np.int64(iflag),
-            "n_tot": np.int64(n_tot),
-            "n_transf": np.int64(n_transf),
-            "n_j": np.int64(n_j),
-            "n_k_1": np.int64(n_k_full[0]),
-            "n_k_2": np.int64(n_k_full[1]),
-            "n_k_3": np.int64(n_k_full[2]),
-            # FINUFFT options as individual attributes
-            "modeord": np.int64(opts_native.modeord),
-            "debug": np.int64(opts_native.debug),
-            "spread_debug": np.int64(opts_native.spread_debug),
-            "showwarn": np.int64(opts_native.showwarn),
-            "nthreads": np.int64(opts_native.nthreads),
-            "fftw": np.int64(opts_native.fftw),
-            "spread_sort": np.int64(opts_native.spread_sort),
-            "spread_kerevalmeth": np.int64(opts_native.spread_kerevalmeth),
-            "spread_kerpad": np.int64(opts_native.spread_kerpad),
-            "upsampfac": float(opts_native.upsampfac),
-            "spread_thread": np.int64(opts_native.spread_thread),
-            "maxbatchsize": np.int64(opts_native.maxbatchsize),
-            "spread_nthr_atomic": np.int64(opts_native.spread_nthr_atomic),
-            "spread_max_sp_size": np.int64(opts_native.spread_max_sp_size),
-        }
 
         # Build operands list based on NUFFT type
         # For type 1 and 2: source + points (x, y, z) - pad with placeholders
@@ -186,25 +158,8 @@ def lowering(
             for i in range(ndim, 3):
                 operands.append(points_fortran[0])  # placeholder
 
-        # Use mlir.custom_call with api_version=4 for typed FFI
-        # Convert FFI kwargs to backend_config dict with IR attributes
-        backend_config = {k: mlir.ir_attribute(v) for k, v in ffi_kwargs.items()}
-
-        return mlir.custom_call(
-            op_name,
-            result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
-            operands=operands,
-            backend_config=backend_config,
-            operand_layouts=default_layouts(*(op.type.shape for op in operands)),
-            result_layouts=default_layouts(ctx.avals_out[0].shape),
-            api_version=4,
-        ).results
-
-    else:
-        # GPU path - using typed FFI (api_version=4)
-        opts_native = opts.to_cufinufft_opts()
-
-        ffi_kwargs = {
+        # Build FFI attributes dictionary
+        ffi_attrs = {
             "eps": eps_value,
             "iflag": np.int64(iflag),
             "n_tot": np.int64(n_tot),
@@ -213,15 +168,36 @@ def lowering(
             "n_k_1": np.int64(n_k_full[0]),
             "n_k_2": np.int64(n_k_full[1]),
             "n_k_3": np.int64(n_k_full[2]),
-            # cuFINUFFT options as individual attributes
+            # FINUFFT options as individual attributes
             "modeord": np.int64(opts_native.modeord),
-            "upsampfac": float(opts_native.upsampfac),
-            "gpu_method": np.int64(opts_native.gpu_method),
-            "gpu_sort": np.int64(opts_native.gpu_sort),
-            "gpu_kerevalmeth": np.int64(opts_native.gpu_kerevalmeth),
-            "gpu_maxbatchsize": np.int64(opts_native.gpu_maxbatchsize),
             "debug": np.int64(opts_native.debug),
+            "spread_debug": np.int64(opts_native.spread_debug),
+            "showwarn": np.int64(opts_native.showwarn),
+            "nthreads": np.int64(opts_native.nthreads),
+            "fftw": np.int64(opts_native.fftw),
+            "spread_sort": np.int64(opts_native.spread_sort),
+            "spread_kerevalmeth": np.int64(opts_native.spread_kerevalmeth),
+            "spread_kerpad": np.int64(opts_native.spread_kerpad),
+            "upsampfac": float(opts_native.upsampfac),
+            "spread_thread": np.int64(opts_native.spread_thread),
+            "maxbatchsize": np.int64(opts_native.maxbatchsize),
+            "spread_nthr_atomic": np.int64(opts_native.spread_nthr_atomic),
+            "spread_max_sp_size": np.int64(opts_native.spread_max_sp_size),
         }
+
+        # Use jax.ffi.ffi_lowering for typed FFI (api_version=4)
+        # Pass FFI attributes as kwargs when calling the lowering function
+        # skip_ffi_layout_processing=True to use our explicit layouts
+        return jax.ffi.ffi_lowering(
+            op_name,
+            operand_layouts=default_layouts(*(op.type.shape for op in operands)),
+            result_layouts=default_layouts(ctx.avals_out[0].shape),
+            skip_ffi_layout_processing=True,
+        )(ctx, *operands, **ffi_attrs)
+
+    else:
+        # GPU path - using typed FFI (api_version=4)
+        opts_native = opts.to_cufinufft_opts()
 
         # Build operands list based on NUFFT type
         if nufft_type == 3:
@@ -245,15 +221,32 @@ def lowering(
             for i in range(ndim, 3):
                 operands.append(points_fortran[0])  # placeholder
 
-        # Convert FFI kwargs to backend_config dict with IR attributes
-        backend_config = {k: mlir.ir_attribute(v) for k, v in ffi_kwargs.items()}
+        # Build FFI attributes dictionary
+        ffi_attrs = {
+            "eps": eps_value,
+            "iflag": np.int64(iflag),
+            "n_tot": np.int64(n_tot),
+            "n_transf": np.int64(n_transf),
+            "n_j": np.int64(n_j),
+            "n_k_1": np.int64(n_k_full[0]),
+            "n_k_2": np.int64(n_k_full[1]),
+            "n_k_3": np.int64(n_k_full[2]),
+            # cuFINUFFT options as individual attributes
+            "modeord": np.int64(opts_native.modeord),
+            "upsampfac": float(opts_native.upsampfac),
+            "gpu_method": np.int64(opts_native.gpu_method),
+            "gpu_sort": np.int64(opts_native.gpu_sort),
+            "gpu_kerevalmeth": np.int64(opts_native.gpu_kerevalmeth),
+            "gpu_maxbatchsize": np.int64(opts_native.gpu_maxbatchsize),
+            "debug": np.int64(opts_native.debug),
+        }
 
-        return mlir.custom_call(
+        # Use jax.ffi.ffi_lowering for typed FFI (api_version=4)
+        # Pass FFI attributes as kwargs when calling the lowering function
+        # skip_ffi_layout_processing=True to use our explicit layouts
+        return jax.ffi.ffi_lowering(
             op_name,
-            result_types=[mlir.aval_to_ir_type(aval) for aval in ctx.avals_out],
-            operands=operands,
-            backend_config=backend_config,
             operand_layouts=default_layouts(*(op.type.shape for op in operands)),
             result_layouts=default_layouts(ctx.avals_out[0].shape),
-            api_version=4,
-        ).results
+            skip_ffi_layout_processing=True,
+        )(ctx, *operands, **ffi_attrs)

@@ -367,101 +367,56 @@ inline auto MakeNufftBinding3Double() {
 }
 
 // =============================================================================
-// Explicit handler definitions without macros to avoid comma issues
+// FFI Handler Definitions using Macros
 // =============================================================================
 
-// Type 1 handlers
-static constexpr XLA_FFI_Handler* nufft1d1f = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Float().To(nufft1_impl<1, float>).release();
-  return handler->Call(call_frame);
-};
+// Macro for Type 1/2 handlers (takes dim and type separately to avoid comma issues)
+#define DEFINE_NUFFT12_HANDLER(name, dim, T, binding)                            \
+  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) {  \
+    static auto* handler = binding().To((nufft1_impl<dim, T>)).release();        \
+    return handler->Call(call_frame);                                            \
+  }
 
-static constexpr XLA_FFI_Handler* nufft1d1 = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Double().To(nufft1_impl<1, double>).release();
-  return handler->Call(call_frame);
-};
+#define DEFINE_NUFFT12_HANDLER_T2(name, dim, T, binding)                         \
+  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) {  \
+    static auto* handler = binding().To((nufft2_impl<dim, T>)).release();        \
+    return handler->Call(call_frame);                                            \
+  }
 
-static constexpr XLA_FFI_Handler* nufft2d1f = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Float().To(nufft1_impl<2, float>).release();
-  return handler->Call(call_frame);
-};
+// Macro for Type 3 handlers
+#define DEFINE_NUFFT3_HANDLER(name, dim, T, binding)                             \
+  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) {  \
+    static auto* handler = binding().To((nufft3_impl<dim, T>)).release();        \
+    return handler->Call(call_frame);                                            \
+  }
 
-static constexpr XLA_FFI_Handler* nufft2d1 = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Double().To(nufft1_impl<2, double>).release();
-  return handler->Call(call_frame);
-};
+// Type 1 handlers: non-uniform to uniform
+DEFINE_NUFFT12_HANDLER(nufft1d1f, 1, float, MakeNufftBinding12Float);
+DEFINE_NUFFT12_HANDLER(nufft1d1, 1, double, MakeNufftBinding12Double);
+DEFINE_NUFFT12_HANDLER(nufft2d1f, 2, float, MakeNufftBinding12Float);
+DEFINE_NUFFT12_HANDLER(nufft2d1, 2, double, MakeNufftBinding12Double);
+DEFINE_NUFFT12_HANDLER(nufft3d1f, 3, float, MakeNufftBinding12Float);
+DEFINE_NUFFT12_HANDLER(nufft3d1, 3, double, MakeNufftBinding12Double);
 
-static constexpr XLA_FFI_Handler* nufft3d1f = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Float().To(nufft1_impl<3, float>).release();
-  return handler->Call(call_frame);
-};
+// Type 2 handlers: uniform to non-uniform
+DEFINE_NUFFT12_HANDLER_T2(nufft1d2f, 1, float, MakeNufftBinding12Float);
+DEFINE_NUFFT12_HANDLER_T2(nufft1d2, 1, double, MakeNufftBinding12Double);
+DEFINE_NUFFT12_HANDLER_T2(nufft2d2f, 2, float, MakeNufftBinding12Float);
+DEFINE_NUFFT12_HANDLER_T2(nufft2d2, 2, double, MakeNufftBinding12Double);
+DEFINE_NUFFT12_HANDLER_T2(nufft3d2f, 3, float, MakeNufftBinding12Float);
+DEFINE_NUFFT12_HANDLER_T2(nufft3d2, 3, double, MakeNufftBinding12Double);
 
-static constexpr XLA_FFI_Handler* nufft3d1 = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Double().To(nufft1_impl<3, double>).release();
-  return handler->Call(call_frame);
-};
+// Type 3 handlers: non-uniform to non-uniform
+DEFINE_NUFFT3_HANDLER(nufft1d3f, 1, float, MakeNufftBinding3Float);
+DEFINE_NUFFT3_HANDLER(nufft1d3, 1, double, MakeNufftBinding3Double);
+DEFINE_NUFFT3_HANDLER(nufft2d3f, 2, float, MakeNufftBinding3Float);
+DEFINE_NUFFT3_HANDLER(nufft2d3, 2, double, MakeNufftBinding3Double);
+DEFINE_NUFFT3_HANDLER(nufft3d3f, 3, float, MakeNufftBinding3Float);
+DEFINE_NUFFT3_HANDLER(nufft3d3, 3, double, MakeNufftBinding3Double);
 
-// Type 2 handlers
-static constexpr XLA_FFI_Handler* nufft1d2f = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Float().To(nufft2_impl<1, float>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft1d2 = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Double().To(nufft2_impl<1, double>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft2d2f = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Float().To(nufft2_impl<2, float>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft2d2 = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Double().To(nufft2_impl<2, double>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft3d2f = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Float().To(nufft2_impl<3, float>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft3d2 = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding12Double().To(nufft2_impl<3, double>).release();
-  return handler->Call(call_frame);
-};
-
-// Type 3 handlers
-static constexpr XLA_FFI_Handler* nufft1d3f = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding3Float().To(nufft3_impl<1, float>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft1d3 = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding3Double().To(nufft3_impl<1, double>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft2d3f = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding3Float().To(nufft3_impl<2, float>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft2d3 = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding3Double().To(nufft3_impl<2, double>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft3d3f = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding3Float().To(nufft3_impl<3, float>).release();
-  return handler->Call(call_frame);
-};
-
-static constexpr XLA_FFI_Handler* nufft3d3 = +[](XLA_FFI_CallFrame* call_frame) {
-  static auto* handler = MakeNufftBinding3Double().To(nufft3_impl<3, double>).release();
-  return handler->Call(call_frame);
-};
+#undef DEFINE_NUFFT12_HANDLER
+#undef DEFINE_NUFFT12_HANDLER_T2
+#undef DEFINE_NUFFT3_HANDLER
 
 // =============================================================================
 // Python Module Registration
