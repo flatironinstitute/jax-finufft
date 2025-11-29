@@ -139,17 +139,17 @@ inline auto MakeNufftBinding3Double() {
 // =============================================================================
 
 // Macro for Type 1/2 handlers
-#define DEFINE_NUFFT12_HANDLER(name, binding, impl)                              \
-  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) {  \
-    static auto* handler = binding().To(impl).release();                         \
-    return handler->Call(call_frame);                                            \
+#define DEFINE_NUFFT12_HANDLER(name, binding, impl)                             \
+  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) { \
+    static auto* handler = binding().To(impl).release();                        \
+    return handler->Call(call_frame);                                           \
   }
 
 // Macro for Type 3 handlers
-#define DEFINE_NUFFT3_HANDLER(name, binding, impl)                               \
-  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) {  \
-    static auto* handler = binding().To(impl).release();                         \
-    return handler->Call(call_frame);                                            \
+#define DEFINE_NUFFT3_HANDLER(name, binding, impl)                              \
+  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) { \
+    static auto* handler = binding().To(impl).release();                        \
+    return handler->Call(call_frame);                                           \
   }
 
 // Type 1 handlers: non-uniform to uniform

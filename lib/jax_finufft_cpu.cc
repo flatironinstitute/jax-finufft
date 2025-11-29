@@ -371,23 +371,23 @@ inline auto MakeNufftBinding3Double() {
 // =============================================================================
 
 // Macro for Type 1/2 handlers (takes dim and type separately to avoid comma issues)
-#define DEFINE_NUFFT12_HANDLER(name, dim, T, binding)                            \
-  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) {  \
-    static auto* handler = binding().To((nufft1_impl<dim, T>)).release();        \
-    return handler->Call(call_frame);                                            \
+#define DEFINE_NUFFT12_HANDLER(name, dim, T, binding)                           \
+  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) { \
+    static auto* handler = binding().To((nufft1_impl<dim, T>)).release();       \
+    return handler->Call(call_frame);                                           \
   }
 
-#define DEFINE_NUFFT12_HANDLER_T2(name, dim, T, binding)                         \
-  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) {  \
-    static auto* handler = binding().To((nufft2_impl<dim, T>)).release();        \
-    return handler->Call(call_frame);                                            \
+#define DEFINE_NUFFT12_HANDLER_T2(name, dim, T, binding)                        \
+  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) { \
+    static auto* handler = binding().To((nufft2_impl<dim, T>)).release();       \
+    return handler->Call(call_frame);                                           \
   }
 
 // Macro for Type 3 handlers
-#define DEFINE_NUFFT3_HANDLER(name, dim, T, binding)                             \
-  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) {  \
-    static auto* handler = binding().To((nufft3_impl<dim, T>)).release();        \
-    return handler->Call(call_frame);                                            \
+#define DEFINE_NUFFT3_HANDLER(name, dim, T, binding)                            \
+  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) { \
+    static auto* handler = binding().To((nufft3_impl<dim, T>)).release();       \
+    return handler->Call(call_frame);                                           \
   }
 
 // Type 1 handlers: non-uniform to uniform
