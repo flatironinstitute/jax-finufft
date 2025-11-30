@@ -316,13 +316,12 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
     if bsource is batching.not_mapped:
         source = jnp.broadcast_to(source, (batch_size,) + source.shape)
 
-    # Define function to process single batch element using public API
-    def process_single(inputs):
-        src, *pts = inputs
-        if nufft_type == 1:
-            return nufft1(
-                tuple(output_shape), src, *pts, iflag=iflag, eps=eps, opts=opts
-            )
+    # Define the function to apply to each batch element
+    def process_single(carry, inputs):
+        del carry
+        s, *pts = inputs
+        if nufft_type == 3:
+            result = nufft3(s[None], *(p[None] for p in pts), **kwargs)
         elif nufft_type == 2:
             result = nufft2(s[None], *(p[None] for p in pts), **kwargs)
         elif nufft_type == 1:
