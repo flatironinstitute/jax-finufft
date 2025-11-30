@@ -76,10 +76,12 @@ ffi::Error run_nufft(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag,
       destroy<T>(plan);
       return ffi::Error::Internal("cuFINUFFT execute failed with code " + std::to_string(ret));
     }
+
+    // Synchronize after each execute to ensure completion before next setpts
+    // (setpts modifies plan state that execute reads asynchronously)
+    cudaStreamSynchronize(stream);
   }
 
-  // Synchronize before destroying the plan
-  cudaStreamSynchronize(stream);
   destroy<T>(plan);
 
   cuda_err = cudaGetLastError();

@@ -200,6 +200,8 @@ def lowering(
         opts_native = opts.to_cufinufft_opts()
 
         # Build operands list based on NUFFT type
+        # For type 1 and 2: source + points (x, y, z) - pad with placeholders
+        # For type 3: source + source_points + target_points
         if nufft_type == 3:
             # Type 3 has both source points and target points
             operands = [source]
@@ -242,7 +244,6 @@ def lowering(
         }
 
         # Use jax.ffi.ffi_lowering for typed FFI (api_version=4)
-        # Pass FFI attributes as kwargs when calling the lowering function
         # skip_ffi_layout_processing=True to use our explicit layouts
         return jax.ffi.ffi_lowering(
             op_name,
