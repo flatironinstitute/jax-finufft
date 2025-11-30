@@ -263,12 +263,13 @@ finufft_opts setup_opts(int64_t modeord, int64_t debug, int64_t spread_debug, in
 template <typename T>
 ffi::Error nufft1d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                             int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
-                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
-                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
-                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
-                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
-                            ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+                            int64_t debug, int64_t spread_debug, int64_t showwarn,
+                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                            int64_t spread_thread, int64_t maxbatchsize,
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                            ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -284,13 +285,13 @@ ffi::Error nufft1d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 template <typename T>
 ffi::Error nufft2d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                             int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
-                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
-                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
-                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
-                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
-                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                            ffi::Result<ffi::AnyBuffer> output) {
+                            int64_t debug, int64_t spread_debug, int64_t showwarn,
+                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                            int64_t spread_thread, int64_t maxbatchsize,
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                            ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -307,13 +308,14 @@ ffi::Error nufft2d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 template <typename T>
 ffi::Error nufft3d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                             int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
-                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
-                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
-                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
-                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
-                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                            ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+                            int64_t debug, int64_t spread_debug, int64_t showwarn,
+                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                            int64_t spread_thread, int64_t maxbatchsize,
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                            ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                            ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -331,12 +333,13 @@ ffi::Error nufft3d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 template <typename T>
 ffi::Error nufft1d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                             int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
-                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
-                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
-                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
-                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
-                            ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+                            int64_t debug, int64_t spread_debug, int64_t showwarn,
+                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                            int64_t spread_thread, int64_t maxbatchsize,
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                            ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -352,13 +355,13 @@ ffi::Error nufft1d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 template <typename T>
 ffi::Error nufft2d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                             int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
-                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
-                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
-                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
-                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
-                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                            ffi::Result<ffi::AnyBuffer> output) {
+                            int64_t debug, int64_t spread_debug, int64_t showwarn,
+                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                            int64_t spread_thread, int64_t maxbatchsize,
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                            ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -375,13 +378,14 @@ ffi::Error nufft2d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 template <typename T>
 ffi::Error nufft3d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                             int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
-                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
-                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
-                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
-                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
-                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                            ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+                            int64_t debug, int64_t spread_debug, int64_t showwarn,
+                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                            int64_t spread_thread, int64_t maxbatchsize,
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                            ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                            ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -403,13 +407,13 @@ ffi::Error nufft3d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 template <typename T>
 ffi::Error nufft1d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                             int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
-                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
-                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
-                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
-                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
-                            ffi::AnyBuffer points_x, ffi::AnyBuffer targets_s,
-                            ffi::Result<ffi::AnyBuffer> output) {
+                            int64_t debug, int64_t spread_debug, int64_t showwarn,
+                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                            int64_t spread_thread, int64_t maxbatchsize,
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                            ffi::AnyBuffer targets_s, ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -426,14 +430,14 @@ ffi::Error nufft1d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 template <typename T>
 ffi::Error nufft2d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                             int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
-                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
-                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
-                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
-                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
-                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                            ffi::AnyBuffer targets_s, ffi::AnyBuffer targets_t,
-                            ffi::Result<ffi::AnyBuffer> output) {
+                            int64_t debug, int64_t spread_debug, int64_t showwarn,
+                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                            int64_t spread_thread, int64_t maxbatchsize,
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                            ffi::AnyBuffer points_y, ffi::AnyBuffer targets_s,
+                            ffi::AnyBuffer targets_t, ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -452,15 +456,15 @@ ffi::Error nufft2d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 template <typename T>
 ffi::Error nufft3d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                             int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
-                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
-                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
-                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
-                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
-                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                            ffi::AnyBuffer points_z, ffi::AnyBuffer targets_s,
-                            ffi::AnyBuffer targets_t, ffi::AnyBuffer targets_u,
-                            ffi::Result<ffi::AnyBuffer> output) {
+                            int64_t debug, int64_t spread_debug, int64_t showwarn,
+                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                            int64_t spread_thread, int64_t maxbatchsize,
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                            ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                            ffi::AnyBuffer targets_s, ffi::AnyBuffer targets_t,
+                            ffi::AnyBuffer targets_u, ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -482,27 +486,53 @@ ffi::Error nufft3d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 // =============================================================================
 
 // Common attributes macro for all bindings
-#define NUFFT_COMMON_ATTRS_FLOAT                                                \
-  .Attr<float>("eps").Attr<int64_t>("iflag").Attr<int64_t>("n_tot")             \
-      .Attr<int64_t>("n_transf").Attr<int64_t>("n_j").Attr<int64_t>("n_k_1")    \
-      .Attr<int64_t>("n_k_2").Attr<int64_t>("n_k_3").Attr<int64_t>("modeord")   \
-      .Attr<int64_t>("debug").Attr<int64_t>("spread_debug")                     \
-      .Attr<int64_t>("showwarn").Attr<int64_t>("nthreads").Attr<int64_t>("fftw")\
-      .Attr<int64_t>("spread_sort").Attr<int64_t>("spread_kerevalmeth")         \
-      .Attr<int64_t>("spread_kerpad").Attr<double>("upsampfac")                 \
-      .Attr<int64_t>("spread_thread").Attr<int64_t>("maxbatchsize")             \
-      .Attr<int64_t>("spread_nthr_atomic").Attr<int64_t>("spread_max_sp_size")
+#define NUFFT_COMMON_ATTRS_FLOAT           \
+  .Attr<float>("eps")                      \
+      .Attr<int64_t>("iflag")              \
+      .Attr<int64_t>("n_tot")              \
+      .Attr<int64_t>("n_transf")           \
+      .Attr<int64_t>("n_j")                \
+      .Attr<int64_t>("n_k_1")              \
+      .Attr<int64_t>("n_k_2")              \
+      .Attr<int64_t>("n_k_3")              \
+      .Attr<int64_t>("modeord")            \
+      .Attr<int64_t>("debug")              \
+      .Attr<int64_t>("spread_debug")       \
+      .Attr<int64_t>("showwarn")           \
+      .Attr<int64_t>("nthreads")           \
+      .Attr<int64_t>("fftw")               \
+      .Attr<int64_t>("spread_sort")        \
+      .Attr<int64_t>("spread_kerevalmeth") \
+      .Attr<int64_t>("spread_kerpad")      \
+      .Attr<double>("upsampfac")           \
+      .Attr<int64_t>("spread_thread")      \
+      .Attr<int64_t>("maxbatchsize")       \
+      .Attr<int64_t>("spread_nthr_atomic") \
+      .Attr<int64_t>("spread_max_sp_size")
 
-#define NUFFT_COMMON_ATTRS_DOUBLE                                               \
-  .Attr<double>("eps").Attr<int64_t>("iflag").Attr<int64_t>("n_tot")            \
-      .Attr<int64_t>("n_transf").Attr<int64_t>("n_j").Attr<int64_t>("n_k_1")    \
-      .Attr<int64_t>("n_k_2").Attr<int64_t>("n_k_3").Attr<int64_t>("modeord")   \
-      .Attr<int64_t>("debug").Attr<int64_t>("spread_debug")                     \
-      .Attr<int64_t>("showwarn").Attr<int64_t>("nthreads").Attr<int64_t>("fftw")\
-      .Attr<int64_t>("spread_sort").Attr<int64_t>("spread_kerevalmeth")         \
-      .Attr<int64_t>("spread_kerpad").Attr<double>("upsampfac")                 \
-      .Attr<int64_t>("spread_thread").Attr<int64_t>("maxbatchsize")             \
-      .Attr<int64_t>("spread_nthr_atomic").Attr<int64_t>("spread_max_sp_size")
+#define NUFFT_COMMON_ATTRS_DOUBLE          \
+  .Attr<double>("eps")                     \
+      .Attr<int64_t>("iflag")              \
+      .Attr<int64_t>("n_tot")              \
+      .Attr<int64_t>("n_transf")           \
+      .Attr<int64_t>("n_j")                \
+      .Attr<int64_t>("n_k_1")              \
+      .Attr<int64_t>("n_k_2")              \
+      .Attr<int64_t>("n_k_3")              \
+      .Attr<int64_t>("modeord")            \
+      .Attr<int64_t>("debug")              \
+      .Attr<int64_t>("spread_debug")       \
+      .Attr<int64_t>("showwarn")           \
+      .Attr<int64_t>("nthreads")           \
+      .Attr<int64_t>("fftw")               \
+      .Attr<int64_t>("spread_sort")        \
+      .Attr<int64_t>("spread_kerevalmeth") \
+      .Attr<int64_t>("spread_kerpad")      \
+      .Attr<double>("upsampfac")           \
+      .Attr<int64_t>("spread_thread")      \
+      .Attr<int64_t>("maxbatchsize")       \
+      .Attr<int64_t>("spread_nthr_atomic") \
+      .Attr<int64_t>("spread_max_sp_size")
 
 // -----------------------------------------------------------------------------
 // Dimension-specific bindings for Type 1/2 (1D: 1 point, 2D: 2 points, 3D: 3)
@@ -510,47 +540,53 @@ ffi::Error nufft3d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 
 // 1D bindings (source + x)
 inline auto MakeNufft1dBinding12Float() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 inline auto MakeNufft1dBinding12Double() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 // 2D bindings (source + x + y)
 inline auto MakeNufft2dBinding12Float() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // points_y
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // points_y
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 inline auto MakeNufft2dBinding12Double() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // points_y
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // points_y
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 // 3D bindings (source + x + y + z)
 inline auto MakeNufft3dBinding12Float() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // points_y
-      .Arg<ffi::AnyBuffer>()                                                // points_z
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // points_y
+      .Arg<ffi::AnyBuffer>()   // points_z
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 inline auto MakeNufft3dBinding12Double() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // points_y
-      .Arg<ffi::AnyBuffer>()                                                // points_z
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // points_y
+      .Arg<ffi::AnyBuffer>()   // points_z
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 // -----------------------------------------------------------------------------
@@ -559,59 +595,65 @@ inline auto MakeNufft3dBinding12Double() {
 
 // 1D type 3 bindings (source + x + s)
 inline auto MakeNufft1dBinding3Float() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // targets_s
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // targets_s
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 inline auto MakeNufft1dBinding3Double() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // targets_s
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // targets_s
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 // 2D type 3 bindings (source + x + y + s + t)
 inline auto MakeNufft2dBinding3Float() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // points_y
-      .Arg<ffi::AnyBuffer>()                                                // targets_s
-      .Arg<ffi::AnyBuffer>()                                                // targets_t
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // points_y
+      .Arg<ffi::AnyBuffer>()   // targets_s
+      .Arg<ffi::AnyBuffer>()   // targets_t
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 inline auto MakeNufft2dBinding3Double() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // points_y
-      .Arg<ffi::AnyBuffer>()                                                // targets_s
-      .Arg<ffi::AnyBuffer>()                                                // targets_t
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // points_y
+      .Arg<ffi::AnyBuffer>()   // targets_s
+      .Arg<ffi::AnyBuffer>()   // targets_t
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 // 3D type 3 bindings (source + x + y + z + s + t + u)
 inline auto MakeNufft3dBinding3Float() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // points_y
-      .Arg<ffi::AnyBuffer>()                                                // points_z
-      .Arg<ffi::AnyBuffer>()                                                // targets_s
-      .Arg<ffi::AnyBuffer>()                                                // targets_t
-      .Arg<ffi::AnyBuffer>()                                                // targets_u
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // points_y
+      .Arg<ffi::AnyBuffer>()   // points_z
+      .Arg<ffi::AnyBuffer>()   // targets_s
+      .Arg<ffi::AnyBuffer>()   // targets_t
+      .Arg<ffi::AnyBuffer>()   // targets_u
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 inline auto MakeNufft3dBinding3Double() {
-  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
-      .Arg<ffi::AnyBuffer>()                                                // points_x
-      .Arg<ffi::AnyBuffer>()                                                // points_y
-      .Arg<ffi::AnyBuffer>()                                                // points_z
-      .Arg<ffi::AnyBuffer>()                                                // targets_s
-      .Arg<ffi::AnyBuffer>()                                                // targets_t
-      .Arg<ffi::AnyBuffer>()                                                // targets_u
-      .Ret<ffi::AnyBuffer>();                                               // output
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE
+      .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_x
+      .Arg<ffi::AnyBuffer>()   // points_y
+      .Arg<ffi::AnyBuffer>()   // points_z
+      .Arg<ffi::AnyBuffer>()   // targets_s
+      .Arg<ffi::AnyBuffer>()   // targets_t
+      .Arg<ffi::AnyBuffer>()   // targets_u
+      .Ret<ffi::AnyBuffer>();  // output
 }
 
 // =============================================================================
