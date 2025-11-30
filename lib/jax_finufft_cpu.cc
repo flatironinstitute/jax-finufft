@@ -229,194 +229,427 @@ ffi::Error nufft3_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, in
 }
 
 // =============================================================================
+// Dimension-specific wrapper functions for Type 1/2
+// These call the core run_nufft with the correct number of point arrays
+// =============================================================================
+
+// Helper to setup finufft_opts from FFI attributes
+template <typename T>
+finufft_opts setup_opts(int64_t modeord, int64_t debug, int64_t spread_debug, int64_t showwarn,
+                        int64_t nthreads, int64_t fftw, int64_t spread_sort,
+                        int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
+                        int64_t spread_thread, int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                        int64_t spread_max_sp_size) {
+  finufft_opts opts;
+  default_opts<T>(&opts);
+  opts.modeord = static_cast<int>(modeord);
+  opts.debug = static_cast<int>(debug);
+  opts.spread_debug = static_cast<int>(spread_debug);
+  opts.showwarn = static_cast<int>(showwarn);
+  opts.nthreads = static_cast<int>(nthreads);
+  opts.fftw = static_cast<int>(fftw);
+  opts.spread_sort = static_cast<int>(spread_sort);
+  opts.spread_kerevalmeth = static_cast<int>(spread_kerevalmeth);
+  opts.spread_kerpad = static_cast<int>(spread_kerpad);
+  opts.upsampfac = upsampfac;
+  opts.spread_thread = static_cast<int>(spread_thread);
+  opts.maxbatchsize = static_cast<int>(maxbatchsize);
+  opts.spread_nthr_atomic = static_cast<int>(spread_nthr_atomic);
+  opts.spread_max_sp_size = static_cast<int>(spread_max_sp_size);
+  return opts;
+}
+
+// 1D Type 1 wrapper (only points_x)
+template <typename T>
+ffi::Error nufft1d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
+                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
+                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
+                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
+                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
+  int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
+  auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* x = reinterpret_cast<T*>(points_x.untyped_data());
+  auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
+  return run_nufft<1, T, 1>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
+                            n_j, n_k, x, nullptr, nullptr, c, nullptr, nullptr, nullptr, F);
+}
+
+// 2D Type 1 wrapper (points_x, points_y)
+template <typename T>
+ffi::Error nufft2d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
+                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
+                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
+                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::Result<ffi::AnyBuffer> output) {
+  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
+                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
+  int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
+  auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* x = reinterpret_cast<T*>(points_x.untyped_data());
+  auto* y = reinterpret_cast<T*>(points_y.untyped_data());
+  auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
+  return run_nufft<2, T, 1>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
+                            n_j, n_k, x, y, nullptr, c, nullptr, nullptr, nullptr, F);
+}
+
+// 3D Type 1 wrapper (points_x, points_y, points_z) - same as original nufft1_impl<3, T>
+template <typename T>
+ffi::Error nufft3d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
+                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
+                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
+                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
+                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
+  int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
+  auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* x = reinterpret_cast<T*>(points_x.untyped_data());
+  auto* y = reinterpret_cast<T*>(points_y.untyped_data());
+  auto* z = reinterpret_cast<T*>(points_z.untyped_data());
+  auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
+  return run_nufft<3, T, 1>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
+                            n_j, n_k, x, y, z, c, nullptr, nullptr, nullptr, F);
+}
+
+// 1D Type 2 wrapper (only points_x)
+template <typename T>
+ffi::Error nufft1d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
+                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
+                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
+                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
+                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
+  int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
+  auto* F = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* x = reinterpret_cast<T*>(points_x.untyped_data());
+  auto* c = reinterpret_cast<std::complex<T>*>(output->untyped_data());
+  return run_nufft<1, T, 2>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
+                            n_j, n_k, x, nullptr, nullptr, c, nullptr, nullptr, nullptr, F);
+}
+
+// 2D Type 2 wrapper (points_x, points_y)
+template <typename T>
+ffi::Error nufft2d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
+                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
+                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
+                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::Result<ffi::AnyBuffer> output) {
+  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
+                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
+  int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
+  auto* F = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* x = reinterpret_cast<T*>(points_x.untyped_data());
+  auto* y = reinterpret_cast<T*>(points_y.untyped_data());
+  auto* c = reinterpret_cast<std::complex<T>*>(output->untyped_data());
+  return run_nufft<2, T, 2>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
+                            n_j, n_k, x, y, nullptr, c, nullptr, nullptr, nullptr, F);
+}
+
+// 3D Type 2 wrapper (points_x, points_y, points_z)
+template <typename T>
+ffi::Error nufft3d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
+                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
+                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
+                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
+                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
+  int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
+  auto* F = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* x = reinterpret_cast<T*>(points_x.untyped_data());
+  auto* y = reinterpret_cast<T*>(points_y.untyped_data());
+  auto* z = reinterpret_cast<T*>(points_z.untyped_data());
+  auto* c = reinterpret_cast<std::complex<T>*>(output->untyped_data());
+  return run_nufft<3, T, 2>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
+                            n_j, n_k, x, y, z, c, nullptr, nullptr, nullptr, F);
+}
+
+// =============================================================================
+// Dimension-specific wrapper functions for Type 3
+// =============================================================================
+
+// 1D Type 3 wrapper (points_x + targets_s)
+template <typename T>
+ffi::Error nufft1d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
+                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
+                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
+                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer targets_s,
+                            ffi::Result<ffi::AnyBuffer> output) {
+  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
+                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
+  int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
+  auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* x = reinterpret_cast<T*>(points_x.untyped_data());
+  auto* s = reinterpret_cast<T*>(targets_s.untyped_data());
+  auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
+  return run_nufft<1, T, 3>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
+                            n_j, n_k, x, nullptr, nullptr, c, s, nullptr, nullptr, F);
+}
+
+// 2D Type 3 wrapper (points_x, points_y + targets_s, targets_t)
+template <typename T>
+ffi::Error nufft2d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
+                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
+                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
+                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::AnyBuffer targets_s, ffi::AnyBuffer targets_t,
+                            ffi::Result<ffi::AnyBuffer> output) {
+  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
+                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
+  int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
+  auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* x = reinterpret_cast<T*>(points_x.untyped_data());
+  auto* y = reinterpret_cast<T*>(points_y.untyped_data());
+  auto* s = reinterpret_cast<T*>(targets_s.untyped_data());
+  auto* t = reinterpret_cast<T*>(targets_t.untyped_data());
+  auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
+  return run_nufft<2, T, 3>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
+                            n_j, n_k, x, y, nullptr, c, s, t, nullptr, F);
+}
+
+// 3D Type 3 wrapper (all point arrays)
+template <typename T>
+ffi::Error nufft3d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
+                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
+                            int64_t debug, int64_t spread_debug, int64_t showwarn, int64_t nthreads,
+                            int64_t fftw, int64_t spread_sort, int64_t spread_kerevalmeth,
+                            int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+                            int64_t maxbatchsize, int64_t spread_nthr_atomic,
+                            int64_t spread_max_sp_size, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::AnyBuffer points_z, ffi::AnyBuffer targets_s,
+                            ffi::AnyBuffer targets_t, ffi::AnyBuffer targets_u,
+                            ffi::Result<ffi::AnyBuffer> output) {
+  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
+                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
+  int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
+  auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* x = reinterpret_cast<T*>(points_x.untyped_data());
+  auto* y = reinterpret_cast<T*>(points_y.untyped_data());
+  auto* z = reinterpret_cast<T*>(points_z.untyped_data());
+  auto* s = reinterpret_cast<T*>(targets_s.untyped_data());
+  auto* t = reinterpret_cast<T*>(targets_t.untyped_data());
+  auto* u = reinterpret_cast<T*>(targets_u.untyped_data());
+  auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
+  return run_nufft<3, T, 3>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
+                            n_j, n_k, x, y, z, c, s, t, u, F);
+}
+
+// =============================================================================
 // FFI Handler Binding Definitions
 // =============================================================================
 
-// Build FFI binding for Type 1/2 operations with float eps
-inline auto MakeNufftBinding12Float() {
-  return ffi::Ffi::Bind()
-      .Attr<float>("eps")
-      .Attr<int64_t>("iflag")
-      .Attr<int64_t>("n_tot")
-      .Attr<int64_t>("n_transf")
-      .Attr<int64_t>("n_j")
-      .Attr<int64_t>("n_k_1")
-      .Attr<int64_t>("n_k_2")
-      .Attr<int64_t>("n_k_3")
-      .Attr<int64_t>("modeord")
-      .Attr<int64_t>("debug")
-      .Attr<int64_t>("spread_debug")
-      .Attr<int64_t>("showwarn")
-      .Attr<int64_t>("nthreads")
-      .Attr<int64_t>("fftw")
-      .Attr<int64_t>("spread_sort")
-      .Attr<int64_t>("spread_kerevalmeth")
-      .Attr<int64_t>("spread_kerpad")
-      .Attr<double>("upsampfac")
-      .Attr<int64_t>("spread_thread")
-      .Attr<int64_t>("maxbatchsize")
-      .Attr<int64_t>("spread_nthr_atomic")
-      .Attr<int64_t>("spread_max_sp_size")
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Ret<ffi::AnyBuffer>();
+// Common attributes macro for all bindings
+#define NUFFT_COMMON_ATTRS_FLOAT                                                \
+  .Attr<float>("eps").Attr<int64_t>("iflag").Attr<int64_t>("n_tot")             \
+      .Attr<int64_t>("n_transf").Attr<int64_t>("n_j").Attr<int64_t>("n_k_1")    \
+      .Attr<int64_t>("n_k_2").Attr<int64_t>("n_k_3").Attr<int64_t>("modeord")   \
+      .Attr<int64_t>("debug").Attr<int64_t>("spread_debug")                     \
+      .Attr<int64_t>("showwarn").Attr<int64_t>("nthreads").Attr<int64_t>("fftw")\
+      .Attr<int64_t>("spread_sort").Attr<int64_t>("spread_kerevalmeth")         \
+      .Attr<int64_t>("spread_kerpad").Attr<double>("upsampfac")                 \
+      .Attr<int64_t>("spread_thread").Attr<int64_t>("maxbatchsize")             \
+      .Attr<int64_t>("spread_nthr_atomic").Attr<int64_t>("spread_max_sp_size")
+
+#define NUFFT_COMMON_ATTRS_DOUBLE                                               \
+  .Attr<double>("eps").Attr<int64_t>("iflag").Attr<int64_t>("n_tot")            \
+      .Attr<int64_t>("n_transf").Attr<int64_t>("n_j").Attr<int64_t>("n_k_1")    \
+      .Attr<int64_t>("n_k_2").Attr<int64_t>("n_k_3").Attr<int64_t>("modeord")   \
+      .Attr<int64_t>("debug").Attr<int64_t>("spread_debug")                     \
+      .Attr<int64_t>("showwarn").Attr<int64_t>("nthreads").Attr<int64_t>("fftw")\
+      .Attr<int64_t>("spread_sort").Attr<int64_t>("spread_kerevalmeth")         \
+      .Attr<int64_t>("spread_kerpad").Attr<double>("upsampfac")                 \
+      .Attr<int64_t>("spread_thread").Attr<int64_t>("maxbatchsize")             \
+      .Attr<int64_t>("spread_nthr_atomic").Attr<int64_t>("spread_max_sp_size")
+
+// -----------------------------------------------------------------------------
+// Dimension-specific bindings for Type 1/2 (1D: 1 point, 2D: 2 points, 3D: 3)
+// -----------------------------------------------------------------------------
+
+// 1D bindings (source + x)
+inline auto MakeNufft1dBinding12Float() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Ret<ffi::AnyBuffer>();                                               // output
 }
 
-// Build FFI binding for Type 1/2 operations with double eps
-inline auto MakeNufftBinding12Double() {
-  return ffi::Ffi::Bind()
-      .Attr<double>("eps")
-      .Attr<int64_t>("iflag")
-      .Attr<int64_t>("n_tot")
-      .Attr<int64_t>("n_transf")
-      .Attr<int64_t>("n_j")
-      .Attr<int64_t>("n_k_1")
-      .Attr<int64_t>("n_k_2")
-      .Attr<int64_t>("n_k_3")
-      .Attr<int64_t>("modeord")
-      .Attr<int64_t>("debug")
-      .Attr<int64_t>("spread_debug")
-      .Attr<int64_t>("showwarn")
-      .Attr<int64_t>("nthreads")
-      .Attr<int64_t>("fftw")
-      .Attr<int64_t>("spread_sort")
-      .Attr<int64_t>("spread_kerevalmeth")
-      .Attr<int64_t>("spread_kerpad")
-      .Attr<double>("upsampfac")
-      .Attr<int64_t>("spread_thread")
-      .Attr<int64_t>("maxbatchsize")
-      .Attr<int64_t>("spread_nthr_atomic")
-      .Attr<int64_t>("spread_max_sp_size")
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Ret<ffi::AnyBuffer>();
+inline auto MakeNufft1dBinding12Double() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Ret<ffi::AnyBuffer>();                                               // output
 }
 
-// Build FFI binding for Type 3 operations with float eps
-inline auto MakeNufftBinding3Float() {
-  return ffi::Ffi::Bind()
-      .Attr<float>("eps")
-      .Attr<int64_t>("iflag")
-      .Attr<int64_t>("n_tot")
-      .Attr<int64_t>("n_transf")
-      .Attr<int64_t>("n_j")
-      .Attr<int64_t>("n_k_1")
-      .Attr<int64_t>("n_k_2")
-      .Attr<int64_t>("n_k_3")
-      .Attr<int64_t>("modeord")
-      .Attr<int64_t>("debug")
-      .Attr<int64_t>("spread_debug")
-      .Attr<int64_t>("showwarn")
-      .Attr<int64_t>("nthreads")
-      .Attr<int64_t>("fftw")
-      .Attr<int64_t>("spread_sort")
-      .Attr<int64_t>("spread_kerevalmeth")
-      .Attr<int64_t>("spread_kerpad")
-      .Attr<double>("upsampfac")
-      .Attr<int64_t>("spread_thread")
-      .Attr<int64_t>("maxbatchsize")
-      .Attr<int64_t>("spread_nthr_atomic")
-      .Attr<int64_t>("spread_max_sp_size")
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Ret<ffi::AnyBuffer>();
+// 2D bindings (source + x + y)
+inline auto MakeNufft2dBinding12Float() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // points_y
+      .Ret<ffi::AnyBuffer>();                                               // output
 }
 
-// Build FFI binding for Type 3 operations with double eps
-inline auto MakeNufftBinding3Double() {
-  return ffi::Ffi::Bind()
-      .Attr<double>("eps")
-      .Attr<int64_t>("iflag")
-      .Attr<int64_t>("n_tot")
-      .Attr<int64_t>("n_transf")
-      .Attr<int64_t>("n_j")
-      .Attr<int64_t>("n_k_1")
-      .Attr<int64_t>("n_k_2")
-      .Attr<int64_t>("n_k_3")
-      .Attr<int64_t>("modeord")
-      .Attr<int64_t>("debug")
-      .Attr<int64_t>("spread_debug")
-      .Attr<int64_t>("showwarn")
-      .Attr<int64_t>("nthreads")
-      .Attr<int64_t>("fftw")
-      .Attr<int64_t>("spread_sort")
-      .Attr<int64_t>("spread_kerevalmeth")
-      .Attr<int64_t>("spread_kerpad")
-      .Attr<double>("upsampfac")
-      .Attr<int64_t>("spread_thread")
-      .Attr<int64_t>("maxbatchsize")
-      .Attr<int64_t>("spread_nthr_atomic")
-      .Attr<int64_t>("spread_max_sp_size")
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Arg<ffi::AnyBuffer>()
-      .Ret<ffi::AnyBuffer>();
+inline auto MakeNufft2dBinding12Double() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // points_y
+      .Ret<ffi::AnyBuffer>();                                               // output
+}
+
+// 3D bindings (source + x + y + z)
+inline auto MakeNufft3dBinding12Float() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // points_y
+      .Arg<ffi::AnyBuffer>()                                                // points_z
+      .Ret<ffi::AnyBuffer>();                                               // output
+}
+
+inline auto MakeNufft3dBinding12Double() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // points_y
+      .Arg<ffi::AnyBuffer>()                                                // points_z
+      .Ret<ffi::AnyBuffer>();                                               // output
+}
+
+// -----------------------------------------------------------------------------
+// Dimension-specific bindings for Type 3 (1D: x+s, 2D: x+y+s+t, 3D: x+y+z+s+t+u)
+// -----------------------------------------------------------------------------
+
+// 1D type 3 bindings (source + x + s)
+inline auto MakeNufft1dBinding3Float() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // targets_s
+      .Ret<ffi::AnyBuffer>();                                               // output
+}
+
+inline auto MakeNufft1dBinding3Double() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // targets_s
+      .Ret<ffi::AnyBuffer>();                                               // output
+}
+
+// 2D type 3 bindings (source + x + y + s + t)
+inline auto MakeNufft2dBinding3Float() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // points_y
+      .Arg<ffi::AnyBuffer>()                                                // targets_s
+      .Arg<ffi::AnyBuffer>()                                                // targets_t
+      .Ret<ffi::AnyBuffer>();                                               // output
+}
+
+inline auto MakeNufft2dBinding3Double() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // points_y
+      .Arg<ffi::AnyBuffer>()                                                // targets_s
+      .Arg<ffi::AnyBuffer>()                                                // targets_t
+      .Ret<ffi::AnyBuffer>();                                               // output
+}
+
+// 3D type 3 bindings (source + x + y + z + s + t + u)
+inline auto MakeNufft3dBinding3Float() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()    // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // points_y
+      .Arg<ffi::AnyBuffer>()                                                // points_z
+      .Arg<ffi::AnyBuffer>()                                                // targets_s
+      .Arg<ffi::AnyBuffer>()                                                // targets_t
+      .Arg<ffi::AnyBuffer>()                                                // targets_u
+      .Ret<ffi::AnyBuffer>();                                               // output
+}
+
+inline auto MakeNufft3dBinding3Double() {
+  return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE.Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()                                                // points_x
+      .Arg<ffi::AnyBuffer>()                                                // points_y
+      .Arg<ffi::AnyBuffer>()                                                // points_z
+      .Arg<ffi::AnyBuffer>()                                                // targets_s
+      .Arg<ffi::AnyBuffer>()                                                // targets_t
+      .Arg<ffi::AnyBuffer>()                                                // targets_u
+      .Ret<ffi::AnyBuffer>();                                               // output
 }
 
 // =============================================================================
 // FFI Handler Definitions using Macros
 // =============================================================================
 
-// Macro for Type 1/2 handlers (takes dim and type separately to avoid comma issues)
-#define DEFINE_NUFFT12_HANDLER(name, dim, T, binding)                           \
+// Generic macro for defining FFI handlers
+#define DEFINE_FFI_HANDLER(name, binding, impl)                                 \
   static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) { \
-    static auto* handler = binding().To((nufft1_impl<dim, T>)).release();       \
+    static auto* handler = binding().To(impl).release();                        \
     return handler->Call(call_frame);                                           \
   }
 
-#define DEFINE_NUFFT12_HANDLER_T2(name, dim, T, binding)                        \
-  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) { \
-    static auto* handler = binding().To((nufft2_impl<dim, T>)).release();       \
-    return handler->Call(call_frame);                                           \
-  }
+// Type 1 handlers: non-uniform to uniform (dimension-specific bindings)
+DEFINE_FFI_HANDLER(nufft1d1f, MakeNufft1dBinding12Float, (nufft1d1_wrapper<float>));
+DEFINE_FFI_HANDLER(nufft1d1, MakeNufft1dBinding12Double, (nufft1d1_wrapper<double>));
+DEFINE_FFI_HANDLER(nufft2d1f, MakeNufft2dBinding12Float, (nufft2d1_wrapper<float>));
+DEFINE_FFI_HANDLER(nufft2d1, MakeNufft2dBinding12Double, (nufft2d1_wrapper<double>));
+DEFINE_FFI_HANDLER(nufft3d1f, MakeNufft3dBinding12Float, (nufft3d1_wrapper<float>));
+DEFINE_FFI_HANDLER(nufft3d1, MakeNufft3dBinding12Double, (nufft3d1_wrapper<double>));
 
-// Macro for Type 3 handlers
-#define DEFINE_NUFFT3_HANDLER(name, dim, T, binding)                            \
-  static constexpr XLA_FFI_Handler* name = +[](XLA_FFI_CallFrame* call_frame) { \
-    static auto* handler = binding().To((nufft3_impl<dim, T>)).release();       \
-    return handler->Call(call_frame);                                           \
-  }
+// Type 2 handlers: uniform to non-uniform (dimension-specific bindings)
+DEFINE_FFI_HANDLER(nufft1d2f, MakeNufft1dBinding12Float, (nufft1d2_wrapper<float>));
+DEFINE_FFI_HANDLER(nufft1d2, MakeNufft1dBinding12Double, (nufft1d2_wrapper<double>));
+DEFINE_FFI_HANDLER(nufft2d2f, MakeNufft2dBinding12Float, (nufft2d2_wrapper<float>));
+DEFINE_FFI_HANDLER(nufft2d2, MakeNufft2dBinding12Double, (nufft2d2_wrapper<double>));
+DEFINE_FFI_HANDLER(nufft3d2f, MakeNufft3dBinding12Float, (nufft3d2_wrapper<float>));
+DEFINE_FFI_HANDLER(nufft3d2, MakeNufft3dBinding12Double, (nufft3d2_wrapper<double>));
 
-// Type 1 handlers: non-uniform to uniform
-DEFINE_NUFFT12_HANDLER(nufft1d1f, 1, float, MakeNufftBinding12Float);
-DEFINE_NUFFT12_HANDLER(nufft1d1, 1, double, MakeNufftBinding12Double);
-DEFINE_NUFFT12_HANDLER(nufft2d1f, 2, float, MakeNufftBinding12Float);
-DEFINE_NUFFT12_HANDLER(nufft2d1, 2, double, MakeNufftBinding12Double);
-DEFINE_NUFFT12_HANDLER(nufft3d1f, 3, float, MakeNufftBinding12Float);
-DEFINE_NUFFT12_HANDLER(nufft3d1, 3, double, MakeNufftBinding12Double);
+// Type 3 handlers: non-uniform to non-uniform (dimension-specific bindings)
+DEFINE_FFI_HANDLER(nufft1d3f, MakeNufft1dBinding3Float, (nufft1d3_wrapper<float>));
+DEFINE_FFI_HANDLER(nufft1d3, MakeNufft1dBinding3Double, (nufft1d3_wrapper<double>));
+DEFINE_FFI_HANDLER(nufft2d3f, MakeNufft2dBinding3Float, (nufft2d3_wrapper<float>));
+DEFINE_FFI_HANDLER(nufft2d3, MakeNufft2dBinding3Double, (nufft2d3_wrapper<double>));
+DEFINE_FFI_HANDLER(nufft3d3f, MakeNufft3dBinding3Float, (nufft3d3_wrapper<float>));
+DEFINE_FFI_HANDLER(nufft3d3, MakeNufft3dBinding3Double, (nufft3d3_wrapper<double>));
 
-// Type 2 handlers: uniform to non-uniform
-DEFINE_NUFFT12_HANDLER_T2(nufft1d2f, 1, float, MakeNufftBinding12Float);
-DEFINE_NUFFT12_HANDLER_T2(nufft1d2, 1, double, MakeNufftBinding12Double);
-DEFINE_NUFFT12_HANDLER_T2(nufft2d2f, 2, float, MakeNufftBinding12Float);
-DEFINE_NUFFT12_HANDLER_T2(nufft2d2, 2, double, MakeNufftBinding12Double);
-DEFINE_NUFFT12_HANDLER_T2(nufft3d2f, 3, float, MakeNufftBinding12Float);
-DEFINE_NUFFT12_HANDLER_T2(nufft3d2, 3, double, MakeNufftBinding12Double);
-
-// Type 3 handlers: non-uniform to non-uniform
-DEFINE_NUFFT3_HANDLER(nufft1d3f, 1, float, MakeNufftBinding3Float);
-DEFINE_NUFFT3_HANDLER(nufft1d3, 1, double, MakeNufftBinding3Double);
-DEFINE_NUFFT3_HANDLER(nufft2d3f, 2, float, MakeNufftBinding3Float);
-DEFINE_NUFFT3_HANDLER(nufft2d3, 2, double, MakeNufftBinding3Double);
-DEFINE_NUFFT3_HANDLER(nufft3d3f, 3, float, MakeNufftBinding3Float);
-DEFINE_NUFFT3_HANDLER(nufft3d3, 3, double, MakeNufftBinding3Double);
-
-#undef DEFINE_NUFFT12_HANDLER
-#undef DEFINE_NUFFT12_HANDLER_T2
-#undef DEFINE_NUFFT3_HANDLER
+#undef DEFINE_FFI_HANDLER
 
 // =============================================================================
 // Python Module Registration

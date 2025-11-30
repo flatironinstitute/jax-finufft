@@ -73,6 +73,7 @@ def lowering(
     single = source_aval.dtype == np.complex64
     suffix = "f" if single else ""
 
+    # Use aval shapes for computing dimensions - these should match MLIR value shapes
     source_shape = source_aval.shape
     points_shape = tuple(x.shape for x in ctx.avals_in[1:])
     n_tot = source_shape[0]
@@ -112,47 +113,13 @@ def lowering(
     eps_value = float(eps) if not single else np.float32(eps)
 
     # Build operands list based on NUFFT type
-    # For type 1 and 2: source + points (x, y, z) - pad with placeholders
-    # For type 3: source + source_points + target_points
+    # Both CPU and GPU use dimension-specific bindings (no placeholders)
     if nufft_type == 3:
         # Type 3 has both source points and target points
-        operands = [source]
-        # Add source points (padded to 3D)
-        for i in range(ndim):
-            operands.append(points_fortran[i])
-        for i in range(ndim, 3):
-            operands.append(points_fortran[0])  # placeholder
-        # Add target points (padded to 3D)
-        for i in range(ndim):
-            operands.append(points_fortran[ndim + i])
-        for i in range(ndim, 3):
-            operands.append(points_fortran[ndim])  # placeholder
+        operands = [source] + list(points_fortran[:ndim]) + list(points_fortran[ndim:])
     else:
-        # Type 1 and 2: source + points (padded to 3D)
-        operands = [source]
-        for i in range(ndim):
-            operands.append(points_fortran[i])
-        # Pad with placeholder arrays for unused dimensions
-        for i in range(ndim, 3):
-            operands.append(points_fortran[0])  # placeholder
-
-    # Compute explicit operand layouts for all operands (including placeholders)
-    # Layouts are in minor-to-major order (XLA convention): row-major = (ndim-1, ..., 0)
-    def row_major_layout(ndim):
-        return tuple(range(ndim - 1, -1, -1))
-
-    operand_layouts = [row_major_layout(source_aval.ndim)]  # source
-    points_aval = ctx.avals_in[1]
-    point_layout = row_major_layout(points_aval.ndim)
-    if nufft_type == 3:
-        # 3 source point arrays + 3 target point arrays (padded to 3D)
-        operand_layouts.extend([point_layout] * 6)
-    else:
-        # 3 point arrays (padded to 3D)
-        operand_layouts.extend([point_layout] * 3)
-
-    # Compute result layout
-    result_layout = [row_major_layout(ctx.avals_out[0].ndim)]
+        # Type 1 and 2: source + points
+        operands = [source] + list(points_fortran)
 
     if platform == "cpu":
         # Build FFI attributes dictionary for typed FFI
@@ -207,14 +174,5 @@ def lowering(
         }
 
     # Use jax.ffi.ffi_lowering to create and call the lowering rule
-    # This avoids needing private MLIR imports
-    # The FFI attributes are passed as kwargs when calling the lowering rule
-    # We use skip_ffi_layout_processing=True because we have more operands than avals
-    # (due to placeholder padding), and we need explicit layouts for all operands
-    lowering_rule = jax.ffi.ffi_lowering(
-        op_name,
-        operand_layouts=operand_layouts,
-        result_layouts=result_layout,
-        skip_ffi_layout_processing=True,
-    )
+    lowering_rule = jax.ffi.ffi_lowering(op_name)
     return lowering_rule(ctx, *operands, **ffi_kwargs)
