@@ -325,7 +325,9 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
         elif nufft_type == 2:
             result = nufft2(s[None], *(p[None] for p in pts), **kwargs)
         elif nufft_type == 1:
-            result = nufft1(tuple(output_shape), s[None], *(p[None] for p in pts), **kwargs)
+            result = nufft1(
+                tuple(output_shape), s[None], *(p[None] for p in pts), **kwargs
+            )
         # Remove the leading dimension added by the nufft functions
         return (), result[0]
 
