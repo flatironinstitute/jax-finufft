@@ -323,7 +323,9 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
     def process_single(inputs):
         src, *pts = inputs
         if nufft_type == 1:
-            return nufft1(tuple(output_shape), src, *pts, iflag=iflag, eps=eps, opts=opts)
+            return nufft1(
+                tuple(output_shape), src, *pts, iflag=iflag, eps=eps, opts=opts
+            )
         elif nufft_type == 2:
             return nufft2(src, *pts, iflag=iflag, eps=eps, opts=opts)
         elif nufft_type == 3:
