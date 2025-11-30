@@ -283,41 +283,38 @@ def transpose(doutput, source, *points, output_shape, eps, iflag, opts, nufft_ty
 
 
 def batch(args, axes, *, output_shape, nufft_type, **kwargs):
-    """Batching rule for NUFFT primitives using jax.lax.map.
+    """Batching rule for NUFFT primitives.
 
-    Uses jax.lax.map to process each vmap batch element independently,
-    ensuring correct memory layout for the GPU kernel.
+    Uses jax.lax.scan to process each vmap batch element independently,
+    ensuring correct memory layout for both CPU and GPU kernels.
+    This follows JAX's FFI "sequential" vmap_method approach.
     """
     source, *points = args
     bsource, *bpoints = axes
 
-    # Determine batch size from any batched input
+    # Determine batch size and move batch axes to position 0
     if bsource is not batching.not_mapped:
         batch_size = source.shape[bsource]
-    else:
-        # Find batch size from points
-        for x, bx in zip(points, bpoints):
-            if bx is not batching.not_mapped:
-                batch_size = x.shape[bx]
-                break
-
-    # Move batch axes to position 0 or broadcast
-    if bsource is not batching.not_mapped:
         source = batching.moveaxis(source, bsource, 0)
     else:
-        source = jnp.repeat(source[jnp.newaxis], batch_size, axis=0)
+        batch_size = next(
+            x.shape[bx]
+            for x, bx in zip(points, bpoints)
+            if bx is not batching.not_mapped
+        )
 
+    # Move batch axis to position 0 for batched points, broadcast unbatched ones
     mapped_points = []
     for x, bx in zip(points, bpoints):
         if bx is batching.not_mapped:
-            mapped_points.append(jnp.repeat(x[jnp.newaxis], batch_size, axis=0))
+            # Broadcast unbatched arrays to match batch size
+            mapped_points.append(jnp.broadcast_to(x, (batch_size,) + x.shape))
         else:
             mapped_points.append(batching.moveaxis(x, bx, 0))
 
-    # Extract kwargs for public API
-    iflag = kwargs.get("iflag")
-    eps = kwargs.get("eps")
-    opts = kwargs.get("opts")
+    # If source is unbatched, broadcast it
+    if bsource is batching.not_mapped:
+        source = jnp.broadcast_to(source, (batch_size,) + source.shape)
 
     # Define function to process single batch element using public API
     def process_single(inputs):
@@ -327,14 +324,16 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
                 tuple(output_shape), src, *pts, iflag=iflag, eps=eps, opts=opts
             )
         elif nufft_type == 2:
-            return nufft2(src, *pts, iflag=iflag, eps=eps, opts=opts)
-        elif nufft_type == 3:
-            return nufft3(src, *pts, iflag=iflag, eps=eps, opts=opts)
+            result = nufft2(s[None], *(p[None] for p in pts), **kwargs)
+        elif nufft_type == 1:
+            result = nufft1(tuple(output_shape), s[None], *(p[None] for p in pts), **kwargs)
+        # Remove the leading dimension added by the nufft functions
+        return (), result[0]
 
-    # Use jax.lax.map to process each batch element
-    result = jax.lax.map(process_single, (source, *mapped_points))
-
-    return result, 0
+    # Use jax.lax.scan to process each batch element sequentially
+    # This ensures proper memory layout for GPU kernels
+    _, results = jax.lax.scan(process_single, (), (source, *mapped_points))
+    return results, 0
 
 
 nufft1_p = Primitive("nufft1")
