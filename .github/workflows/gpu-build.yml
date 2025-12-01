@@ -28,7 +28,7 @@ jobs:
       - name: Get the version info for NVCC
         run: nvcc --version
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
           fetch-depth: 0
