@@ -6,12 +6,12 @@
 
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/tuple.h>
+#include <xla/ffi/api/ffi.h>
 
 #include <cstdint>
 
 #include "cufinufft_wrapper.h"
 #include "kernels.h"
-#include "xla/ffi/api/ffi.h"
 
 namespace ffi = xla::ffi;
 namespace nb = nanobind;
