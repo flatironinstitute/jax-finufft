@@ -12,7 +12,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
-urls = { Homepage = "https://github.com/dfm/jax-finufft" }
+urls = { Homepage = "https://github.com/flatironinstitute/jax-finufft" }
 dependencies = ["jax>=0.5.0", "numpy", "pydantic>=2"]
 dynamic = ["version"]
 
