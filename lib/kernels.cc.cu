@@ -3,12 +3,13 @@
 // This module implements FINUFFT GPU operations as XLA FFI custom calls
 // with typed buffer interfaces for CUDA execution.
 
+#include <xla/ffi/api/ffi.h>
+
 #include <complex>
 #include <cstdint>
 
 #include "cufinufft_wrapper.h"
 #include "kernels.h"
-#include "xla/ffi/api/ffi.h"
 
 namespace ffi = xla::ffi;
 using namespace jax_finufft::gpu;
