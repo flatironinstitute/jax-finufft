@@ -16,6 +16,12 @@ def check_close(a, b, **kwargs):
     return jtu.check_close(a, b, **kwargs)
 
 
+if jax.version.__version_info__ < (0, 8, 0):
+    enable_x64 = jax.experimental.enable_x64
+else:
+    enable_x64 = jax.enable_x64
+
+
 @pytest.mark.parametrize(
     "ndim, x64, num_nonnuniform, num_uniform, iflag",
     product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
@@ -38,7 +44,7 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
         k_vec = np.array([k[n] for (n, k) in zip(coords, ks)])
         f_expect[coords] = np.sum(c * np.exp(iflag * 1j * np.dot(k_vec, x)))
 
-    with jax.enable_x64(x64):
+    with enable_x64(x64):
         f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag)
         check_close(f_calc, f_expect)
 
@@ -77,7 +83,7 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
             arg *= np.exp(iflag * 1j * k * x[i][n])[tuple(coords)]
         c_expect[n] = np.sum(arg)
 
-    with jax.enable_x64(x64):
+    with enable_x64(x64):
         c_calc = nufft2(f, *x, eps=eps, iflag=iflag)
         check_close(c_calc, c_expect)
 
@@ -109,7 +115,7 @@ def test_nufft3_forward(ndim, x64, num_sources, num_targets, iflag):
         x_mat = np.array([x_dim for x_dim in x])
         f_expect[k] = np.sum(c * np.exp(iflag * 1j * np.dot(s_vec, x_mat)))
 
-    with jax.enable_x64(x64):
+    with enable_x64(x64):
         f_calc = nufft3(c, *x, *s, eps=eps, iflag=iflag)
         check_close(f_calc, f_expect, rtol={"complex128": 1e-7, "complex64": 1e-3})
 
@@ -139,7 +145,7 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
     c = random.normal(size=num_nonnuniform) + 1j * random.normal(size=num_nonnuniform)
     c = c.astype(cdtype)
 
-    with jax.enable_x64():
+    with enable_x64():
         func = partial(nufft1, num_uniform, eps=eps, iflag=iflag)
         jtu.check_grads(func, (c, *x), 1, modes=("fwd", "rev"))
 
@@ -171,7 +177,7 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
     f = random.normal(size=num_uniform) + 1j * random.normal(size=num_uniform)
     f = f.astype(cdtype)
 
-    with jax.enable_x64():
+    with enable_x64():
         func = partial(nufft2, eps=eps, iflag=iflag)
         jtu.check_grads(func, (f, *x), 1, modes=("fwd", "rev"))
 
@@ -199,7 +205,7 @@ def test_nufft3_grad(ndim, num_source, num_target, iflag):
     c = random.normal(size=num_source) + 1j * random.normal(size=num_source)
     c = c.astype(cdtype)
 
-    with jax.enable_x64():
+    with enable_x64():
         func = partial(nufft3, eps=eps, iflag=iflag)
         jtu.check_grads(func, (c, *x, *s), 1, modes=("fwd", "rev"))
 
@@ -236,7 +242,7 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     c = c.astype(cdtype)
     func = partial(nufft1, num_uniform, iflag=iflag)
 
-    with jax.enable_x64():
+    with enable_x64():
         # Start by checking the full basic vmap
         calc = jax.vmap(func)(c, *x)
         for n in range(num_repeat):
@@ -284,7 +290,7 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     f = f.astype(cdtype)
     func = partial(nufft2, iflag=iflag)
 
-    with jax.enable_x64():
+    with enable_x64():
         # Start by checking the full basic vmap
         calc = jax.vmap(func)(f, *x)
         for n in range(num_repeat):
@@ -335,7 +341,7 @@ def test_nufft3_vmap(ndim, num_source, num_target, iflag):
     c = c.astype(cdtype)
     func = partial(nufft3, iflag=iflag)
 
-    with jax.enable_x64():
+    with enable_x64():
         # Start by checking the full basic vmap
         calc = jax.vmap(func)(c, *x, *s)
         for n in range(num_repeat):
@@ -531,7 +537,7 @@ def test_modeord(modeord, Nf, ndim, nufft_type):
 
         opts = Opts(modeord=modeord)
 
-        with jax.enable_x64():
+        with enable_x64():
             f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag, opts=opts)
             check_close(f_calc, f_expect)
 
@@ -553,7 +559,7 @@ def test_modeord(modeord, Nf, ndim, nufft_type):
 
         opts = Opts(modeord=modeord)
 
-        with jax.enable_x64():
+        with enable_x64():
             c_calc = nufft2(f, *x, eps=eps, iflag=iflag, opts=opts)
             check_close(c_calc, c_expect)
 
