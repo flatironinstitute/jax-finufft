@@ -1,12 +1,12 @@
-// This header is not specific to our application and you'll probably want something like this
-// for any extension you're building. This includes the infrastructure needed to serialize
-// descriptors that are used with the "opaque" parameter of the GPU custom call. In our example
-// we'll use this parameter to pass the size of our problem.
+// Helper utilities for serializing descriptors used with XLA custom calls.
+// This provides the infrastructure for the "opaque" parameter used by the GPU
+// backend which still uses the legacy API.
 
 #ifndef _JAX_FINUFFT_KERNEL_HELPERS_H_
 #define _JAX_FINUFFT_KERNEL_HELPERS_H_
 
 #include <cstdint>
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -19,12 +19,12 @@ typename std::enable_if<sizeof(To) == sizeof(From) && std::is_trivially_copyable
                             std::is_trivially_copyable<To>::value,
                         To>::type
 bit_cast(const From& src) noexcept {
-  static_assert(
-      std::is_trivially_constructible<To>::value,
-      "This implementation additionally requires destination type to be trivially constructible");
+  static_assert(std::is_trivially_constructible<To>::value,
+                "This implementation additionally requires destination type "
+                "to be trivially constructible");
 
   To dst;
-  memcpy(&dst, &src, sizeof(To));
+  std::memcpy(&dst, &src, sizeof(To));
   return dst;
 }
 
