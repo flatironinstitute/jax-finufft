@@ -2,15 +2,14 @@ __all__ = ["nufft1", "nufft2", "nufft3"]
 
 from functools import partial, reduce
 
-import numpy as np
 import jax
-from jax import jit
-from jax import numpy as jnp
+import numpy as np
+from jax import jit, numpy as jnp
 from jax._src import dispatch
 from jax._src.interpreters import ad, batching, mlir
 from jax.extend.core import Primitive
 
-from jax_finufft import shapes, lowering, options
+from jax_finufft import lowering, options, shapes
 
 
 @partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps", "opts"))
@@ -181,8 +180,7 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
 
         if nufft_type == 3:
             s = points[ndim + dim]
-            s = s.reshape(-1)
-            factor = 1j * iflag * s
+            factor = (1j * iflag * s)[:, None, :]
         else:
             shape = np.ones(ndim, dtype=int)
             shape[dim] = -1
@@ -209,10 +207,9 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
                 continue
 
             x = points[dim]
-            x = x.reshape(-1)
-            factor = 1j * iflag * x
+            factor = (1j * iflag * x)[:, None, :]
 
-            scales_s.append(dx)
+            scales_s.append(dx[:, None, :])
             arguments_s.append(factor * source)
 
         if len(scales_s):

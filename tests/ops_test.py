@@ -565,3 +565,31 @@ def test_modeord(modeord, Nf, ndim, nufft_type):
 
             func = partial(nufft2, eps=eps, iflag=iflag, opts=opts)
             jtu.check_grads(func, (f, *x), 1, modes=("fwd", "rev"))
+
+
+def test_batched_points_grad():
+    M = 100
+    N = 200
+    D = 3
+    B = 4
+
+    random = np.random.default_rng(123)
+    xyz = 2 * np.pi * random.uniform(size=(B, D, M))
+    stu = random.uniform(-1.0, 1.0, size=(B, D, N))
+    c = random.normal(size=(B, M)) + 1j * random.normal(size=(B, M))
+
+    def norm_nufft3(c, xyz, stu):
+        f = nufft3(
+            c,
+            xyz[:, 0, :],
+            xyz[:, 1, :],
+            xyz[:, 2, :],
+            stu[:, 0, :],
+            stu[:, 1, :],
+            stu[:, 2, :],
+        )
+        return jnp.linalg.norm(f)
+
+    jax.grad(norm_nufft3, argnums=0)(c, xyz, stu)
+    jax.grad(norm_nufft3, argnums=1)(c, xyz, stu)
+    jax.grad(norm_nufft3, argnums=2)(c, xyz, stu)
