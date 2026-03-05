@@ -19,7 +19,7 @@ pipeline {
                 }
 
                 environment {
-                    PY_EXTRA = "cuda${CUDA.split('\\.')[0]}-local"
+                    PY_CUDA_EXTRA = "cuda${CUDA.split('\\.')[0]}-local"
                 }
 
                 agent {
@@ -32,6 +32,13 @@ pipeline {
                 }
 
                 stages {
+                    stage('Build') {
+                        steps {
+                            sh '''
+                                uv sync
+                            '''
+                        }
+                    }
                     stage('CPU Tests') {
                         environment {
                             JAX_PLATFORMS = "cpu"
@@ -43,23 +50,30 @@ pipeline {
                         }
                     }
                     stage('GPU Tests') {
+                        when {
+                            // Until Jenkins has CUDA-13 capable GPUs
+                            expression { env.CUDA.startsWith('12.') }
+                        }
                         environment {
                             JAX_PLATFORMS = "cuda"
                         }
                         steps {
                             // TODO: add "-n 8", but GPU kernels don't seem to be thread-safe
                             sh '''
-                                uv run --extra test --extra ${PY_EXTRA} pytest -vs
+                                uv run --extra test --extra ${PY_CUDA_EXTRA} pytest -vs
                             '''
                         }
                     }
                     stage('Free-threaded GPU Tests') {
+                        when {
+                            expression { env.CUDA.startsWith('12.') }
+                        }
                         environment {
                             JAX_PLATFORMS = "cuda"
                         }
                         steps {
                             sh '''
-                                uv run -p 3.13t --extra test --extra ${PY_EXTRA} pytest -vs
+                                uv run -p 3.13t --extra test --extra ${PY_CUDA_EXTRA} pytest -vs
                             '''
                         }
                     }
