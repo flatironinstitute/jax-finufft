@@ -20,6 +20,7 @@ pipeline {
 
                 environment {
                     PY_CUDA_EXTRA = "cuda${CUDA.split('\\.')[0]}-local"
+                    CMAKE_CUDA_ARCHITECTURES = "${CUDA.startsWith('13.') ? '80' : 'native'}"
                 }
 
                 agent {
