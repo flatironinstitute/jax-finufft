@@ -444,7 +444,7 @@ To see all of the stacking behavior in action, take a look at [Inspecting the fi
 This package, developed by Dan Foreman-Mackey is licensed under the Apache
 License, Version 2.0, with the following copyright:
 
-Copyright 2021-2025 The Simons Foundation, Inc.
+Copyright 2021-2026 The Simons Foundation, Inc.
 
 If you use this software, please cite the primary references listed on the
 [FINUFFT docs](https://finufft.readthedocs.io/en/latest/refs.html).
