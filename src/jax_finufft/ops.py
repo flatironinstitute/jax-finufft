@@ -11,6 +11,13 @@ from jax.extend.core import Primitive
 
 from jax_finufft import lowering, options, shapes
 
+if jax.version.__version_info__ >= (0, 9, 1):
+    from jax._src.ad_util import p2tz
+elif jax.version.__version_info__ >= (0, 4, 34):
+    p2tz = ad.Zero.from_primal_value
+else:
+    p2tz = ad.Zero.from_value
+
 
 @partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps", "opts"))
 def nufft1(output_shape, source, *points, iflag=1, eps=1e-6, opts=None):
@@ -234,10 +241,7 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
         )
         output_tangents += [s * output_tangent[:, :, n] for n, s in enumerate(scales)]
 
-    if jax.version.__version_info__ < (0, 4, 34):
-        zero = ad.Zero.from_value(output)
-    else:
-        zero = ad.Zero.from_primal_value(output)
+    zero = p2tz(source)  # primal to tangent zero
 
     return output, reduce(ad.add_tangents, output_tangents, zero)
 
