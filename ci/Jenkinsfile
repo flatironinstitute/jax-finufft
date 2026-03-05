@@ -1,53 +1,69 @@
 pipeline {
-    agent {
-        dockerfile {
-            filename 'ci/Dockerfile'
-            args '--gpus 1'
-            label 'docker && v100'
-        }
-    }
+    agent none
     options {
         timeout(time: 1, unit: 'HOURS')
     }
     environment {
         HOME = "$WORKSPACE"
+        OMP_NUM_THREADS = "${env.PARALLEL}"
+        CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON"
     }
     stages {
-        stage('CPU Tests') {
-            environment {
-                JAX_PLATFORMS = "cpu"
-                OMP_NUM_THREADS = "${env.PARALLEL}"
-                CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON"
-            }
-            steps {
-                sh '''
-                    uv run --extra test pytest -n 8
-                '''
-            }
-        }
-        stage('GPU Tests') {
-            environment {
-                JAX_PLATFORMS = "cuda"
-                OMP_NUM_THREADS = "${env.PARALLEL}"
-                CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON"
-            }
-            steps {
-                // TODO: add "-n 8", but GPU kernels don't seem to be thread-safe
-                sh '''
-                    uv run --extra test --extra cuda12-local pytest -vs
-                '''
-            }
-        }
-        stage('Free-threaded GPU Tests') {
-            environment {
-                JAX_PLATFORMS = "cuda"
-                OMP_NUM_THREADS = "${env.PARALLEL}"
-                CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON"
-            }
-            steps {
-                sh '''
-                    uv run -p 3.13t --extra test --extra cuda12-local pytest -vs
-                '''
+        stage('Test Matrix') {
+            matrix {
+                axes {
+                    axis {
+                        name 'CUDA'
+                        values '12.9.1', '13.1.1'
+                    }
+                }
+
+                environment {
+                    PY_EXTRA = "cuda${CUDA.split('\\.')[0]}-local"
+                }
+
+                agent {
+                    dockerfile {
+                        filename 'ci/Dockerfile'
+                        additionalBuildArgs "--build-arg CUDA=${CUDA}"
+                        args '--gpus 1'
+                        label 'docker && v100'
+                    }
+                }
+
+                stages {
+                    stage('CPU Tests') {
+                        environment {
+                            JAX_PLATFORMS = "cpu"
+                        }
+                        steps {
+                            sh '''
+                                uv run --extra test pytest -n 8
+                            '''
+                        }
+                    }
+                    stage('GPU Tests') {
+                        environment {
+                            JAX_PLATFORMS = "cuda"
+                        }
+                        steps {
+                            // TODO: add "-n 8", but GPU kernels don't seem to be thread-safe
+                            sh '''
+                                uv run --extra test --extra ${PY_EXTRA} pytest -vs
+                            '''
+                        }
+                    }
+                    stage('Free-threaded GPU Tests') {
+                        environment {
+                            JAX_PLATFORMS = "cuda"
+                        }
+                        steps {
+                            sh '''
+                                uv run -p 3.13t --extra test --extra ${PY_EXTRA} pytest -vs
+                            '''
+                        }
+                    }
+                }
             }
         }
     }
