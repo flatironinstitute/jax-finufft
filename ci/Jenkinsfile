@@ -5,8 +5,6 @@ pipeline {
     }
     environment {
         HOME = "$WORKSPACE"
-        OMP_NUM_THREADS = "${env.PARALLEL}"
-        CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON"
     }
     stages {
         stage('Test Matrix') {
@@ -20,7 +18,8 @@ pipeline {
 
                 environment {
                     PY_CUDA_EXTRA = "cuda${CUDA.split('\\.')[0]}-local"
-                    CMAKE_CUDA_ARCHITECTURES = "${CUDA.startsWith('13.') ? '80' : 'native'}"
+                    CMAKE_ARGS = "-DJAX_FINUFFT_USE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=${CUDA.startsWith('13.') ? '80' : 'native'}"
+                    OMP_NUM_THREADS = "${env.PARALLEL}"
                 }
 
                 agent {
