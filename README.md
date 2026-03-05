@@ -36,8 +36,6 @@ conda-forge has both CPU and GPU binaries. If you want GPU support without using
 conda, you can install jax-finufft from source as detailed below. This is also
 useful when you want to build finufft optimized for your hardware.
 
-Currently only `jax<0.8` is supported.
-
 ### Install binary from PyPI
 
 > [!NOTE]
@@ -87,7 +85,7 @@ The non-Python dependencies that you'll need are:
 
 - [FFTW](https://www.fftw.org),
 - [OpenMP](https://www.openmp.org) (for CPU, optional),
-- CUDA (for GPU, >= 11.8)
+- CUDA (for GPU, optional. We build against CUDA 12 and 13; 11.8 may work, too.)
 
 Below we provide some example workflows for installing the required dependencies:
 
@@ -145,7 +143,7 @@ odd runtime errors, like failed cuDNN or cuBLAS initialization). For the greates
 chance of success, we recommend building with the same version as JAX was built with.
 To discover that, one can look at the requirements in [JAX's `build` directory](https://github.com/jax-ml/jax/tree/main/build)
 (be sure to select the git tag for your version of JAX). Similarly, when installing from PyPI, we encourage using
-`jax[cuda12-local]` so JAX and jax-finufft use the same CUDA libraries.
+`jax[cuda12-local]` or ``jax[cuda13-local]` so JAX and jax-finufft use the same CUDA libraries. jax-finufft has optional dependencies of the same name for convenience.
 
 Depending on how challenging the installation is, users might want to run jax-finufft in a container. The [`.devcontainer`](./.devcontainer) directory is a good starting point for this.
 
