@@ -47,7 +47,11 @@ __global__ void unpack_kernel(const int8_t* mask, const int64_t* prefix, int64_t
       int64_t p = prefix[i];
       for (int t = 0; t < n_transf; t++) c[i * n_transf + t] = Q_c[p * n_transf + t];
     } else {
-      for (int t = 0; t < n_transf; t++) c[i * n_transf + t] = {0, 0};
+      for (int t = 0; t < n_transf; t++) {
+        T* c_ptr = reinterpret_cast<T*>(&c[i * n_transf + t]);
+        c_ptr[0] = 0;
+        c_ptr[1] = 0;
+      }
     }
   }
 }
