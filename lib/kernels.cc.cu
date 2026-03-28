@@ -128,7 +128,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
     if (ret == 0) {
       failed_stage = "execute";
       ret = execute<T>(plan, Q_c, &F[k_start]);
-      
+
       if (ret == 0 && type == 2) {
         unpack_kernel<<<blocks, threads, 0, stream>>>(mask + i_start, d_prefix, n_j, Q_c,
                                                       &c[c_start], n_transf);
@@ -143,7 +143,8 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
 
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("cuFINUFFT " + std::string(failed_stage) + " failed with code " + std::to_string(ret));
+      return ffi::Error::Internal("cuFINUFFT " + std::string(failed_stage) + " failed with code " +
+                                  std::to_string(ret));
     }
   }
 
@@ -193,7 +194,8 @@ ffi::Error run_nufft_unmasked(cudaStream_t stream, cufinufft_opts opts, T eps, i
 
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("cuFINUFFT setpts or execute failed with code " + std::to_string(ret));
+      return ffi::Error::Internal("cuFINUFFT setpts or execute failed with code " +
+                                  std::to_string(ret));
     }
   }
 

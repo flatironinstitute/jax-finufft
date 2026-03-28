@@ -794,7 +794,7 @@ nb::dict Registrations() {
   dict["nufft2d3"] = EncapsulateFfiHandler(nufft2d3);
   dict["nufft3d3f"] = EncapsulateFfiHandler(nufft3d3f);
   dict["nufft3d3"] = EncapsulateFfiHandler(nufft3d3);
-  
+
   return dict;
 }
 
