@@ -550,5 +550,5 @@ ffi::Error nufft3d3_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t
                                 target_x, target_y, target_z, output);
 }
 
-}
-}
+}  // namespace gpu
+}  // namespace jax_finufft
