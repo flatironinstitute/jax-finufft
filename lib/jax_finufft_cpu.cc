@@ -1,3 +1,9 @@
+// CPU FFI bindings for jax-finufft using XLA typed FFI (api_version=4).
+//
+// This module exposes FINUFFT operations as XLA FFI custom calls with typed
+// buffer interfaces, enabling seamless integration with JAX's compilation
+// pipeline.
+
 #include "jax_finufft_cpu.h"
 
 #include <nanobind/nanobind.h>
@@ -15,6 +21,10 @@ namespace nb = nanobind;
 namespace jax_finufft {
 namespace cpu {
 
+// =============================================================================
+// Core NUFFT execution logic
+// =============================================================================
+
 template <int ndim, typename T, int type>
 ffi::Error run_nufft_masked(finufft_opts opts, T eps, int iflag, int64_t n_tot, int n_transf,
                             int64_t n_j, const int64_t* n_k, T* x, T* y, T* z, const int8_t* mask,
@@ -27,6 +37,7 @@ ffi::Error run_nufft_masked(finufft_opts opts, T eps, int iflag, int64_t n_tot, 
   typename plan_type<T>::type plan;
   int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
   int ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
+  // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
   if (ret > 1) {
     return ffi::Error::Internal("FINUFFT makeplan failed");
   }
@@ -154,6 +165,10 @@ finufft_opts build_opts(int64_t modeord, int64_t debug, int64_t spread_debug, in
   return opts;
 }
 
+// =============================================================================
+// Type 1 NUFFT: Non-uniform to uniform (adjoint)
+// =============================================================================
+
 template <int ndim, typename T>
 ffi::Error nufft1_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                        int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord, int64_t debug,
@@ -187,6 +202,10 @@ ffi::Error nufft1_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, in
                                       static_cast<int>(n_transf), n_j, n_k, x, y, z, mask, c, F);
 }
 
+// =============================================================================
+// Type 2 NUFFT: Uniform to non-uniform (forward)
+// =============================================================================
+
 template <int ndim, typename T>
 ffi::Error nufft2_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
                        int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord, int64_t debug,
@@ -219,6 +238,10 @@ ffi::Error nufft2_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, in
   return run_nufft_masked<ndim, T, 2>(opts, eps, static_cast<int>(iflag), n_tot,
                                       static_cast<int>(n_transf), n_j, n_k, x, y, z, mask, c, F);
 }
+
+// =============================================================================
+// Type 3 NUFFT: Non-uniform to non-uniform
+// =============================================================================
 
 template <int ndim, typename T>
 ffi::Error nufft3_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
@@ -257,6 +280,11 @@ ffi::Error nufft3_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, in
                                      static_cast<int>(n_transf), n_j, n_k, x, y, z, c, s, t, u, F);
 }
 
+// =============================================================================
+// FFI Handler Binding Definitions
+// =============================================================================
+
+// Common attributes macro for all bindings
 #define NUFFT_COMMON_ATTRS_FLOAT           \
   .Attr<float>("eps")                      \
       .Attr<int64_t>("iflag")              \
@@ -305,6 +333,7 @@ ffi::Error nufft3_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, in
       .Attr<int64_t>("spread_nthr_atomic") \
       .Attr<int64_t>("spread_max_sp_size")
 
+// 1D bindings (source + x)
 inline auto MakeNufft1dBinding12Float() {
   return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT.Arg<ffi::AnyBuffer>()
       .Arg<ffi::AnyBuffer>()

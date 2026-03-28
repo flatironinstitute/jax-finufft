@@ -1,3 +1,9 @@
+// GPU FFI bindings for jax-finufft using XLA typed FFI (api_version=4).
+//
+// This module exposes cuFINUFFT operations as XLA FFI custom calls with typed
+// buffer interfaces, enabling seamless integration with JAX's compilation
+// pipeline for CUDA execution.
+
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/tuple.h>
 #include <xla/ffi/api/ffi.h>
@@ -14,6 +20,11 @@ using namespace jax_finufft::gpu;
 
 namespace {
 
+// =============================================================================
+// FFI Binding helpers - common attributes builder
+// =============================================================================
+
+// Common attributes for all NUFFT types
 #define NUFFT_COMMON_ATTRS_FLOAT         \
   .Attr<float>("eps")                    \
       .Attr<int64_t>("iflag")            \
@@ -420,8 +431,15 @@ DEFINE_FFI_HANDLER(nufft3d3, MakeNufft3dBinding3Double, nufft3d3_3d_wrapper);
 
 #undef DEFINE_FFI_HANDLER
 
+
+// =============================================================================
+// Python module registration
+// =============================================================================
+
 nb::dict Registrations() {
   nb::dict dict;
+
+  // Type 1 (non-uniform to uniform)
   dict["nufft1d1f"] = nb::capsule(reinterpret_cast<void*>(nufft1d1f));
   dict["nufft1d1"] = nb::capsule(reinterpret_cast<void*>(nufft1d1));
   dict["nufft2d1f"] = nb::capsule(reinterpret_cast<void*>(nufft2d1f));
@@ -429,6 +447,7 @@ nb::dict Registrations() {
   dict["nufft3d1f"] = nb::capsule(reinterpret_cast<void*>(nufft3d1f));
   dict["nufft3d1"] = nb::capsule(reinterpret_cast<void*>(nufft3d1));
 
+  // Type 2 (uniform to non-uniform)
   dict["nufft1d2f"] = nb::capsule(reinterpret_cast<void*>(nufft1d2f));
   dict["nufft1d2"] = nb::capsule(reinterpret_cast<void*>(nufft1d2));
   dict["nufft2d2f"] = nb::capsule(reinterpret_cast<void*>(nufft2d2f));
@@ -436,12 +455,14 @@ nb::dict Registrations() {
   dict["nufft3d2f"] = nb::capsule(reinterpret_cast<void*>(nufft3d2f));
   dict["nufft3d2"] = nb::capsule(reinterpret_cast<void*>(nufft3d2));
 
+  // Type 3 (non-uniform to non-uniform)
   dict["nufft1d3f"] = nb::capsule(reinterpret_cast<void*>(nufft1d3f));
   dict["nufft1d3"] = nb::capsule(reinterpret_cast<void*>(nufft1d3));
   dict["nufft2d3f"] = nb::capsule(reinterpret_cast<void*>(nufft2d3f));
   dict["nufft2d3"] = nb::capsule(reinterpret_cast<void*>(nufft2d3));
   dict["nufft3d3f"] = nb::capsule(reinterpret_cast<void*>(nufft3d3f));
   dict["nufft3d3"] = nb::capsule(reinterpret_cast<void*>(nufft3d3));
+
   return dict;
 }
 

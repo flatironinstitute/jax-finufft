@@ -56,6 +56,10 @@ def broadcast_and_flatten_inputs(
     """
     Broadcasts and flattens inputs for FINUFFT primitives.
 
+    This function searches for ``points`` dimensions that are broadcast over
+    ``source`` dimensions. These dimensions are packed together so they can use
+    finufft batch mode.
+
     Parameters
     ----------
     nufft_type : int
@@ -76,12 +80,13 @@ def broadcast_and_flatten_inputs(
     """
     if nufft_type == 3:
         num_dim = len(points) // 2
-        points3 = points[num_dim:]
+        points3 = points[num_dim:]  # type-3 target points
         points = points[:num_dim]
     else:
         num_dim = len(points)
     assert num_dim
 
+    # Coerce the points into the appropriate shape
     points = jnp.broadcast_arrays(*points)
 
     has_mask = points_mask is not None and nufft_type != 3
@@ -90,6 +95,8 @@ def broadcast_and_flatten_inputs(
 
     *input_shape, num_points = points[0].shape
 
+    # Broadcast source points and target points, except the number of points
+    # is allowed to be different
     if nufft_type == 3:
         points3 = jnp.broadcast_arrays(*points3)
         *input_shape3, num_points3 = points3[0].shape
@@ -100,6 +107,7 @@ def broadcast_and_flatten_inputs(
     else:
         points3 = []
 
+    # Handle unpadded points
     if (
         nufft_type == 2
         and source.ndim == len(input_shape) + num_dim + 1
@@ -110,8 +118,10 @@ def broadcast_and_flatten_inputs(
         if has_mask:
             points_mask = points_mask[..., None, :]
 
+    # Work out a consistent shape for the broadcastable dimensions
     target_shape = jnp.broadcast_shapes(source.shape[: len(input_shape)], input_shape)
 
+    # Find the broadcasted dimensions
     broadcast_from = tuple(
         n
         for n, (input_dim, target_dim) in enumerate(zip(input_shape, target_shape))
@@ -121,8 +131,13 @@ def broadcast_and_flatten_inputs(
         len(target_shape) - len(broadcast_from) + n for n in range(len(broadcast_from))
     )
 
+    # We expect all the broadcasted dimensions to have size 1; do we need to check?
+    assert all(input_shape[n] == 1 for n in broadcast_from)
+
+    # Broadcast the source term appropriately
     source = jnp.broadcast_to(source, target_shape + source.shape[len(target_shape) :])
 
+    # Move the broadcasted dimensions to the middle
     if len(broadcast_to):
         source = jnp.moveaxis(source, broadcast_from, broadcast_to)
         points = tuple(jnp.moveaxis(p, broadcast_from, broadcast_to) for p in points)
@@ -130,6 +145,7 @@ def broadcast_and_flatten_inputs(
             points_mask = jnp.moveaxis(points_mask, broadcast_from, broadcast_to)
         points3 = tuple(jnp.moveaxis(p, broadcast_from, broadcast_to) for p in points3)
 
+    # Compute some dimensions of the flattened problem
     num_in = len(target_shape)
     num_axes = num_in - len(broadcast_from)
     size_in = np.prod(source.shape[:num_axes], dtype=int)
@@ -151,6 +167,7 @@ def broadcast_and_flatten_inputs(
         expected_output_shape = source.shape[:num_in] + tuple(output_shape)
         source_extra_shape = (num_points,)
 
+    # Flatten all the inputs
     source = jnp.reshape(source, (size_in, size_bcast) + source_extra_shape)
     points = tuple(jnp.reshape(p, (size_in, num_points)) for p in points)
     if has_mask:
@@ -213,10 +230,12 @@ def abstract_eval(*args, output_shape, nufft_type, **_):
     source_dtype = dtypes.canonicalize_dtype(source.dtype)
     points_dtype = [dtypes.canonicalize_dtype(x.dtype) for x in points]
 
+    # Check supported and consistent dtypes
     single = source_dtype == np.csingle and all(x == np.single for x in points_dtype)
     double = source_dtype == np.cdouble and all(x == np.double for x in points_dtype)
     assert single or double
 
+    # Check that the inputs have the right shapes
     assert all(p.ndim == 2 for p in points)
     assert all(p.shape == points[0].shape for p in points[1:ndim])
     assert source.shape[0] == points[0].shape[0]

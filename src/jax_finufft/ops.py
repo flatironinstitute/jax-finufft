@@ -241,6 +241,19 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
     tuple
         A pair containing the primal output and the tangent output.
     """
+    # Type 1:
+    # f_k = sum_j c_j * exp(iflag * i * k * x_j)
+    # df_k/dx_j = iflag * i * k * c_j * exp(iflag * i * k * x_j)
+
+    # Type 2:
+    # c_j = sum_k f_k * exp(iflag * i * k * x_j)
+    # dc_j/dx_j = sum_k iflag * i * k * f_k * exp(iflag * i * k * x_j)
+
+    # Type 3:
+    # f_k = sum_j c_j * exp(iflag * i * s_k * x_j)
+    # df_k/dx_j = iflag * i * s_k * c_j * exp(iflag * i * s_k * x_j)
+    # df_k/ds_k = sum_j iflag * i * x_j * c_j * exp(iflag * i * s_k * x_j)
+
     if nufft_type == 3:
         source, *points = args
         dsource, *dpoints = tangents
@@ -269,6 +282,8 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
     arguments = []
     if type(dsource) is not ad.Zero:
         if nufft_type == 2:
+            # It might look like we could combine this with the single transform at
+            # the end, but then we'd be mixing tangents and concrete values
             output_tangents.append(
                 prim.bind(
                     dsource,
@@ -322,6 +337,7 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
             arguments.append(dx * source)
 
     if nufft_type == 3:
+        # target point derivatives
         scales_s = []
         arguments_s = []
         for dim in range(ndim):
@@ -480,11 +496,15 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
         source, *points = args
         bsource, *bpoints = axes
 
+        # If none of the points are being mapped, we can get a faster computation using
+        # a single transform with num_transforms * num_repeats
         if all(bx is batching.not_mapped for bx in bpoints):
             assert bsource is not batching.not_mapped
             source = batching.moveaxis(source, bsource, 0)
             mapped_points = tuple(p[None] for p in points)
         else:
+            # Otherwise move the batching dimension to the front and repeat the arrays
+            # to the right shape
             if bsource is None:
                 assert any(bx is not batching.not_mapped for bx in bpoints)
                 num_repeats = next(
@@ -510,6 +530,8 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
         source, points_mask, *points = args
         bsource, bpoints_mask, *bpoints = axes
 
+        # If none of the points are being mapped, we can get a faster computation using
+        # a single transform with num_transforms * num_repeats
         if all(bx is batching.not_mapped for bx in bpoints):
             assert bsource is not batching.not_mapped
             source = batching.moveaxis(source, bsource, 0)
@@ -520,6 +542,8 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
             mapped_points = tuple(p[None] for p in points)
 
         else:
+            # Otherwise move the batching dimension to the front and repeat the arrays
+            # to the right shape
             if bsource is None:
                 assert any(bx is not batching.not_mapped for bx in bpoints)
                 num_repeats = next(

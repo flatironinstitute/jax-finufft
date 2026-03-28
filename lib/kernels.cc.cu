@@ -1,3 +1,8 @@
+// GPU kernel implementations for jax-finufft using XLA typed FFI.
+//
+// This module implements FINUFFT GPU operations as XLA FFI custom calls
+// with typed buffer interfaces for CUDA execution.
+
 #include <xla/ffi/api/ffi.h>
 
 #include <complex>
@@ -12,6 +17,10 @@ using namespace jax_finufft::gpu;
 
 namespace jax_finufft {
 namespace gpu {
+
+// =============================================================================
+// Core NUFFT execution logic
+// =============================================================================
 
 template <typename T>
 __global__ void pack_kernel(const int8_t* mask, const int64_t* prefix, int64_t n_j, const T* x,
@@ -43,6 +52,7 @@ __global__ void unpack_kernel(const int8_t* mask, const int64_t* prefix, int64_t
   }
 }
 
+// Execute NUFFT transform for a batch of inputs on GPU.
 template <int ndim, typename T, int type>
 ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag,
                             int64_t n_tot, int n_transf, int64_t n_j, const int64_t* n_k, T* x,
@@ -53,6 +63,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
     n_k_total *= n_k[d];
   }
 
+  // Set stream and device in options
   update_opts<T>(&opts, ndim, stream);
   int device_ordinal;
   cudaError_t cuda_err = cudaGetDevice(&device_ordinal);
@@ -64,6 +75,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
   typename plan_type<T>::type plan;
   int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
   int ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
+  // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
   if (ret > 1) return ffi::Error::Internal("cuFINUFFT makeplan failed");
 
   for (int64_t index = 0; index < n_tot; ++index) {
@@ -122,6 +134,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
     }
   }
 
+  // Synchronize before destroying the plan
   cudaStreamSynchronize(stream);
   destroy<T>(plan);
   return ffi::Error::Success();
@@ -170,6 +183,10 @@ ffi::Error run_nufft_unmasked(cudaStream_t stream, cufinufft_opts opts, T eps, i
   return ffi::Error::Success();
 }
 
+// =============================================================================
+// Helper to build cufinufft_opts from attributes
+// =============================================================================
+
 template <typename T>
 cufinufft_opts build_opts(int64_t modeord, double upsampfac, int64_t gpu_method, int64_t gpu_sort,
                           int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize, int64_t debug) {
@@ -185,6 +202,10 @@ cufinufft_opts build_opts(int64_t modeord, double upsampfac, int64_t gpu_method,
   return opts;
 }
 
+// =============================================================================
+// Type 1 NUFFT implementations (non-uniform to uniform)
+// =============================================================================
+
 template <int ndim, typename T>
 ffi::Error nufft1_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot, int64_t n_transf,
                        int64_t n_j, int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
@@ -195,6 +216,7 @@ ffi::Error nufft1_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot,
                        ffi::Result<ffi::AnyBuffer> output) {
   cufinufft_opts opts = build_opts<T>(modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
                                       gpu_maxbatchsize, debug);
+
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
 
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
@@ -209,6 +231,10 @@ ffi::Error nufft1_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot,
   return run_nufft_masked<ndim, T, 1>(stream, opts, eps, static_cast<int>(iflag), n_tot,
                                       static_cast<int>(n_transf), n_j, n_k, x, y, z, mask, c, F);
 }
+
+// =============================================================================
+// Type 2 NUFFT implementations (uniform to non-uniform)
+// =============================================================================
 
 template <int ndim, typename T>
 ffi::Error nufft2_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot, int64_t n_transf,
@@ -234,6 +260,10 @@ ffi::Error nufft2_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot,
   return run_nufft_masked<ndim, T, 2>(stream, opts, eps, static_cast<int>(iflag), n_tot,
                                       static_cast<int>(n_transf), n_j, n_k, x, y, z, mask, c, F);
 }
+
+// =============================================================================
+// Type 3 NUFFT implementations (non-uniform to non-uniform)
+// =============================================================================
 
 template <int ndim, typename T>
 ffi::Error nufft3_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot, int64_t n_transf,
@@ -267,6 +297,10 @@ ffi::Error nufft3_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot,
   return run_nufft_unmasked<ndim, T>(stream, opts, eps, static_cast<int>(iflag), n_tot,
                                      static_cast<int>(n_transf), n_j, n_k, x, y, z, c, s, t, u, F);
 }
+
+// =============================================================================
+// Explicit template instantiations - Type 1
+// =============================================================================
 
 ffi::Error nufft1d1f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t n_tot,
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
@@ -346,6 +380,10 @@ ffi::Error nufft3d1_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t
                                 points_z, output);
 }
 
+// =============================================================================
+// Explicit template instantiations - Type 2
+// =============================================================================
+
 ffi::Error nufft1d2f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t n_tot,
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                           int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
@@ -423,6 +461,10 @@ ffi::Error nufft3d2_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t
                                 gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
                                 points_z, output);
 }
+
+// =============================================================================
+// Explicit template instantiations - Type 3
+// =============================================================================
 
 ffi::Error nufft1d3f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t n_tot,
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,

@@ -1,3 +1,10 @@
+"""Lowering rules for jax-finufft primitives.
+
+This module provides the MLIR lowering rules that compile JAX primitives
+to XLA custom calls targeting the FINUFFT library using the typed FFI API.
+Uses jax.ffi.ffi_lowering to avoid private MLIR imports.
+"""
+
 import numpy as np
 import jax
 
@@ -13,6 +20,7 @@ try:
 except ImportError:
     jax_finufft_gpu = None
 
+# Register CPU FFI targets with api_version=4 (typed FFI)
 for _name, _value in jax_finufft_cpu.registrations().items():
     jax.ffi.register_ffi_target(_name, _value, platform="cpu")
 
@@ -68,16 +76,21 @@ def lowering(
     single = source_aval.dtype == np.complex64
     suffix = "f" if single else ""
 
+    # Use aval shapes for computing dimensions - these should match MLIR value shapes
     source_shape = source_aval.shape
     n_tot = source_shape[0]
     n_transf = source_shape[1]
 
+    # Dispatch to the correct custom call target depending on the dimension,
+    # dtype, and NUFFT type.
     if nufft_type == 3:
         source = args[0]
         points = args[1:]
         ndim = len(points) // 2
         points_shape = tuple(x.shape for x in ctx.avals_in[1:])
         op_name = f"nufft{ndim}d3{suffix}"
+
+        # Reverse points because backend uses Fortran order
         n_k = np.zeros(3, dtype=np.int64)
         n_k_full = np.zeros(3, dtype=np.int64)
         n_k_full[0] = points_shape[ndim][1]
@@ -97,6 +110,8 @@ def lowering(
         else:
             op_name = f"nufft{ndim}d2{suffix}"
             n_k = np.array(source_shape[2:], dtype=np.int64)
+
+        # Reverse points because backend uses Fortran order
         n_k_full = np.zeros(3, dtype=np.int64)
         n_k_full[:ndim] = n_k[::-1]
         points_fortran = points[:ndim][::-1] + points[ndim:][::-1]
