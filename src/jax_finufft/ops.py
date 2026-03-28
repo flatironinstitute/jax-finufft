@@ -20,27 +20,59 @@ else:
 
 
 @partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps", "opts"))
-def nufft1(output_shape, source, *points, iflag=1, eps=1e-6, opts=None):
+def nufft1(
+    output_shape, source, *points, points_mask=None, iflag=1, eps=1e-6, opts=None
+):
+    """
+    Computes the type 1 NUFFT.
+
+    Parameters
+    ----------
+    output_shape : tuple
+        Shape of the output uniform grid.
+    source : jax.Array
+        The source array containing complex values.
+    *points : tuple of jax.Array
+        Non-uniform point coordinates.
+    points_mask : jax.Array, optional
+        Boolean mask denoting valid points. Defaults to None.
+    iflag : int, optional
+        Sign of the imaginary unit in the exponential. Defaults to 1.
+    eps : float, optional
+        Requested precision tolerance. Defaults to 1e-6.
+    opts : Opts, optional
+        FINUFFT options. Defaults to None.
+
+    Returns
+    -------
+    jax.Array
+        The computed NUFFT values scattered to the uniform grid.
+    """
     iflag = int(iflag)
     eps = float(eps)
     ndim = len(points)
     if not 1 <= ndim <= 3:
         raise ValueError("Only 1-, 2-, and 3-dimensions are supported")
 
-    # Support passing a scalar output_shape
     output_shape = np.atleast_1d(output_shape).astype(np.int64)
     if output_shape.shape != (ndim,):
         raise ValueError(f"output_shape must have shape: ({ndim},)")
     output_shape = tuple(output_shape)
 
-    # Handle broadcasting and reshaping of inputs
-    index, source, *points = shapes.broadcast_and_flatten_inputs(
-        1, output_shape, source, *points
-    )
+    if points_mask is None:
+        points_mask = jnp.ones_like(points[0], dtype=jnp.int8)
+    else:
+        points_mask = points_mask.astype(jnp.int8)
 
-    # Execute the transform primitive
+    res = shapes.broadcast_and_flatten_inputs(
+        1, output_shape, source, *points, points_mask=points_mask
+    )
+    index, source, points_mask = res[0], res[1], res[2]
+    points = res[3:]
+
     result = nufft1_p.bind(
         source,
+        points_mask,
         *points,
         output_shape=output_shape,
         iflag=iflag,
@@ -49,26 +81,54 @@ def nufft1(output_shape, source, *points, iflag=1, eps=1e-6, opts=None):
         nufft_type=1,
     )
 
-    # Move the axes back to their expected location
     return index.unflatten(result)
 
 
 @partial(jit, static_argnames=("iflag", "eps", "opts"))
-def nufft2(source, *points, iflag=-1, eps=1e-6, opts=None):
+def nufft2(source, *points, points_mask=None, iflag=-1, eps=1e-6, opts=None):
+    """
+    Computes the type 2 NUFFT.
+
+    Parameters
+    ----------
+    source : jax.Array
+        The source array containing Fourier coefficients.
+    *points : tuple of jax.Array
+        Non-uniform point coordinates.
+    points_mask : jax.Array, optional
+        Boolean mask denoting valid points. Defaults to None.
+    iflag : int, optional
+        Sign of the imaginary unit in the exponential. Defaults to -1.
+    eps : float, optional
+        Requested precision tolerance. Defaults to 1e-6.
+    opts : Opts, optional
+        FINUFFT options. Defaults to None.
+
+    Returns
+    -------
+    jax.Array
+        The computed NUFFT values scattered to the padded shape.
+    """
     iflag = int(iflag)
     eps = float(eps)
     ndim = len(points)
     if not 1 <= ndim <= 3:
         raise ValueError("Only 1-, 2-, and 3-dimensions are supported")
 
-    # Handle broadcasting and reshaping of inputs
-    index, source, *points = shapes.broadcast_and_flatten_inputs(
-        2, None, source, *points
-    )
+    if points_mask is None:
+        points_mask = jnp.ones_like(points[0], dtype=jnp.int8)
+    else:
+        points_mask = points_mask.astype(jnp.int8)
 
-    # Execute the transform primitive
+    res = shapes.broadcast_and_flatten_inputs(
+        2, None, source, *points, points_mask=points_mask
+    )
+    index, source, points_mask = res[0], res[1], res[2]
+    points = res[3:]
+
     result = nufft2_p.bind(
         source,
+        points_mask,
         *points,
         output_shape=None,
         iflag=iflag,
@@ -77,24 +137,56 @@ def nufft2(source, *points, iflag=-1, eps=1e-6, opts=None):
         nufft_type=2,
     )
 
-    # Move the axes back to their expected location
     return index.unflatten(result)
 
 
 def get_frequency_array(n, modeord):
+    """Gets the frequency array according to the mode ordering.
+
+    Parameters
+    ----------
+    n : int
+        The grid dimension size.
+    modeord : int
+        The mode ordering flag.
+
+    Returns
+    -------
+    np.ndarray
+        The ordered frequencies.
+    """
+    f = np.fft.fftfreq(n, 1 / n)
     if modeord == 0:
-        return np.arange(-(n // 2), (n + 1) // 2)
-    elif modeord == 1:
-        f = np.empty(n, dtype=np.int64)
-        f[: (n + 1) // 2] = np.arange(0, (n + 1) // 2)
-        f[(n + 1) // 2 :] = np.arange(-(n // 2), 0)
-        return f
-    else:
+        f = np.fft.fftshift(f)
+    elif modeord != 1:
         raise ValueError(f"Unsupported modeord: {modeord}")
+    f = np.rint(f).astype(int)
+    return f
 
 
 @partial(jit, static_argnames=("iflag", "eps", "opts"))
 def nufft3(source, *points, iflag=-1, eps=1e-6, opts=None):
+    """
+    Computes the type 3 NUFFT.
+
+    Parameters
+    ----------
+    source : jax.Array
+        The source array containing complex values.
+    *points : tuple of jax.Array
+        Non-uniform source and target point coordinates.
+    iflag : int, optional
+        Sign of the imaginary unit in the exponential. Defaults to -1.
+    eps : float, optional
+        Requested precision tolerance. Defaults to 1e-6.
+    opts : Opts, optional
+        FINUFFT options. Defaults to None.
+
+    Returns
+    -------
+    jax.Array
+        The computed type 3 NUFFT output.
+    """
     iflag = int(iflag)
     eps = float(eps)
     twice_ndim = len(points)
@@ -104,12 +196,10 @@ def nufft3(source, *points, iflag=-1, eps=1e-6, opts=None):
     if not 1 <= ndim <= 3:
         raise ValueError("Only 1-, 2-, and 3-dimensions are supported")
 
-    # Handle broadcasting and reshaping of inputs
-    index, source, *points = shapes.broadcast_and_flatten_inputs(
-        3, None, source, *points
-    )
+    res = shapes.broadcast_and_flatten_inputs(3, None, source, *points)
+    index, source = res[0], res[1]
+    points = res[2:]
 
-    # Execute the transform primitive
     result = nufft3_p.bind(
         source,
         *points,
@@ -120,29 +210,47 @@ def nufft3(source, *points, iflag=-1, eps=1e-6, opts=None):
         nufft_type=3,
     )
 
-    # Move the axes back to their expected location
     return index.unflatten(result)
 
 
 def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
-    # Type 1:
-    # f_k = sum_j c_j * exp(iflag * i * k * x_j)
-    # df_k/dx_j = iflag * i * k * c_j * exp(iflag * i * k * x_j)
+    """
+    Computes the Jacobian-vector product.
 
-    # Type 2:
-    # c_j = sum_k f_k * exp(iflag * i * k * x_j)
-    # dc_j/dx_j = sum_k iflag * i * k * f_k * exp(iflag * i * k * x_j)
+    Parameters
+    ----------
+    prim : jax.core.Primitive
+        The primitive.
+    args : tuple
+        Primal arguments.
+    tangents : tuple
+        Tangent arguments.
+    output_shape : tuple
+        Shape of the output array.
+    iflag : int
+        Sign of the imaginary unit in the exponential.
+    eps : float
+        Requested precision tolerance.
+    opts : Opts
+        FINUFFT options.
+    nufft_type : int
+        Type of NUFFT.
 
-    # Type 3:
-    # f_k = sum_j c_j * exp(iflag * i * s_k * x_j)
-    # df_k/dx_j = iflag * i * s_k * c_j * exp(iflag * i * s_k * x_j)
-    # df_k/ds_k = sum_j iflag * i * x_j * c_j * exp(iflag * i * s_k * x_j)
+    Returns
+    -------
+    tuple
+        A pair containing the primal output and the tangent output.
+    """
+    if nufft_type == 3:
+        source, *points = args
+        dsource, *dpoints = tangents
+        points_mask = None
+    else:
+        source, points_mask, *points = args
+        dsource, dpoints_mask, *dpoints = tangents
 
-    source, *points = args
-    dsource, *dpoints = tangents
     output = prim.bind(
-        source,
-        *points,
+        *args,
         output_shape=output_shape,
         iflag=iflag,
         eps=eps,
@@ -150,10 +258,8 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
         nufft_type=nufft_type,
     )
 
-    # Extract modeord from opts
     modeord = opts.modeord if hasattr(opts, "modeord") else 0
 
-    # The JVP op can be written as a single transform of the same type with
     output_tangents = []
     if nufft_type == 3:
         ndim = len(points) // 2
@@ -163,8 +269,19 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
     arguments = []
     if type(dsource) is not ad.Zero:
         if nufft_type == 2:
-            # It might look like we could combine this with the single transform at
-            # the end, but then we'd be mixing tangents and concrete values
+            output_tangents.append(
+                prim.bind(
+                    dsource,
+                    points_mask,
+                    *points,
+                    output_shape=output_shape,
+                    iflag=iflag,
+                    eps=eps,
+                    opts=opts,
+                    nufft_type=nufft_type,
+                )
+            )
+        elif nufft_type == 3:
             output_tangents.append(
                 prim.bind(
                     dsource,
@@ -205,7 +322,6 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
             arguments.append(dx * source)
 
     if nufft_type == 3:
-        # target point derivatives
         scales_s = []
         arguments_s = []
         for dim in range(ndim):
@@ -231,27 +347,71 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
     if len(scales):
         if nufft_type == 3:
             func = nufft3
+            argument = jnp.stack(arguments, axis=2)
+            output_tangent = func(
+                argument, *(p[:, None] for p in points), iflag=iflag, eps=eps, opts=opts
+            )
         elif nufft_type == 2:
             func = nufft2
+            argument = jnp.stack(arguments, axis=2)
+            output_tangent = func(
+                argument,
+                *(p[:, None] for p in points),
+                points_mask=points_mask[:, None],
+                iflag=iflag,
+                eps=eps,
+                opts=opts,
+            )
         else:
             func = partial(nufft1, tuple(output_shape))
-        argument = jnp.stack(arguments, axis=2)
-        output_tangent = func(
-            argument, *(p[:, None] for p in points), iflag=iflag, eps=eps, opts=opts
-        )
+            argument = jnp.stack(arguments, axis=2)
+            output_tangent = func(
+                argument,
+                *(p[:, None] for p in points),
+                points_mask=points_mask[:, None],
+                iflag=iflag,
+                eps=eps,
+                opts=opts,
+            )
         output_tangents += [s * output_tangent[:, :, n] for n, s in enumerate(scales)]
 
-    zero = p2tz(source)  # primal to tangent zero
+    zero = p2tz(source)
 
     return output, reduce(ad.add_tangents, output_tangents, zero)
 
 
-def transpose(doutput, source, *points, output_shape, eps, iflag, opts, nufft_type):
-    assert ad.is_undefined_primal(source)
-    assert not any(map(ad.is_undefined_primal, points))
-    assert type(doutput) is not ad.Zero
+def transpose(doutput, *args, output_shape, eps, iflag, opts, nufft_type):
+    """
+    Computes the reverse-mode transposition required for autodiff.
 
+    Parameters
+    ----------
+    doutput : jnp.ndarray
+        The output cotangent array.
+    *args : tuple
+        The primal arguments.
+    output_shape : tuple
+        The output shape.
+    eps : float
+        Requested precision tolerance.
+    iflag : int
+        Sign of the imaginary unit in the exponential.
+    opts : Opts
+        FINUFFT options.
+    nufft_type : int
+        The NUFFT type.
+
+    Returns
+    -------
+    tuple
+        A tuple of corresponding input cotangents.
+    """
     if nufft_type == 3:
+        source, *points = args
+        assert ad.is_undefined_primal(source)
+        assert not any(map(ad.is_undefined_primal, points))
+        assert type(doutput) is not ad.Zero
+
         ndim = len(points) // 2
         result = nufft3(
             doutput,
@@ -261,67 +421,142 @@ def transpose(doutput, source, *points, output_shape, eps, iflag, opts, nufft_ty
             iflag=iflag,
             opts=options.unpack_opts(opts, 3, False),
         )
-    elif nufft_type == 2:
-        ndim = len(points)
-        result = nufft1(
-            source.aval.shape[-ndim:],
-            doutput,
-            *points,
-            eps=eps,
-            iflag=iflag,
-            opts=options.unpack_opts(opts, 1, False),
-        )
-    elif nufft_type == 1:
-        result = nufft2(
-            doutput,
-            *points,
-            eps=eps,
-            iflag=iflag,
-            opts=options.unpack_opts(opts, 2, False),
-        )
+        return (result,) + tuple(None for _ in range(len(points)))
 
-    return (result,) + tuple(None for _ in range(len(points)))
+    else:
+        source, points_mask, *points = args
+        assert ad.is_undefined_primal(source)
+        assert not ad.is_undefined_primal(points_mask)
+        assert not any(map(ad.is_undefined_primal, points))
+        assert type(doutput) is not ad.Zero
+
+        if nufft_type == 2:
+            ndim = len(points)
+            result = nufft1(
+                source.aval.shape[-ndim:],
+                doutput,
+                *points,
+                points_mask=points_mask,
+                eps=eps,
+                iflag=iflag,
+                opts=options.unpack_opts(opts, 1, False),
+            )
+        elif nufft_type == 1:
+            result = nufft2(
+                doutput,
+                *points,
+                points_mask=points_mask,
+                eps=eps,
+                iflag=iflag,
+                opts=options.unpack_opts(opts, 2, False),
+            )
+
+        return (result, None) + tuple(None for _ in range(len(points)))
 
 
 def batch(args, axes, *, output_shape, nufft_type, **kwargs):
-    source, *points = args
-    bsource, *bpoints = axes
+    """
+    Batching rule for vmap operations.
 
-    # If none of the points are being mapped, we can get a faster computation using
-    # a single transform with num_transforms * num_repeats
-    if all(bx is batching.not_mapped for bx in bpoints):
-        assert bsource is not batching.not_mapped
-        source = batching.moveaxis(source, bsource, 0)
-        mapped_points = tuple(p[None] for p in points)
+    Parameters
+    ----------
+    args : tuple
+        Arguments to the primitive.
+    axes : tuple
+        Batch axes for the arguments.
+    output_shape : tuple
+        Shape of the output array.
+    nufft_type : int
+        Type of NUFFT.
+    **kwargs : dict
+        Additional keyword arguments.
+
+    Returns
+    -------
+    tuple
+        Batched output and the output batch axis.
+    """
+    if nufft_type == 3:
+        source, *points = args
+        bsource, *bpoints = axes
+
+        if all(bx is batching.not_mapped for bx in bpoints):
+            assert bsource is not batching.not_mapped
+            source = batching.moveaxis(source, bsource, 0)
+            mapped_points = tuple(p[None] for p in points)
+        else:
+            if bsource is None:
+                assert any(bx is not batching.not_mapped for bx in bpoints)
+                num_repeats = next(
+                    x.shape[bx]
+                    for x, bx in zip(points, bpoints)
+                    if bx is not batching.not_mapped
+                )
+                source = jnp.repeat(source[jnp.newaxis], num_repeats, axis=0)
+            else:
+                num_repeats = source.shape[bsource]
+                source = batching.moveaxis(source, bsource, 0)
+
+            mapped_points = []
+            for x, bx in zip(points, bpoints):
+                if bx is batching.not_mapped:
+                    mapped_points.append(jnp.repeat(x[None], num_repeats, axis=0))
+                else:
+                    mapped_points.append(batching.moveaxis(x, bx, 0))
+
+        return nufft3(source, *mapped_points, **kwargs), 0
 
     else:
-        # Otherwise move the batching dimension to the front and repeat the arrays
-        # to the right shape
-        if bsource is None:
-            assert any(bx is not batching.not_mapped for bx in bpoints)
-            num_repeats = next(
-                x.shape[bx]
-                for x, bx in zip(points, bpoints)
-                if bx is not batching.not_mapped
-            )
-            source = jnp.repeat(source[jnp.newaxis], num_repeats, axis=0)
-        else:
-            num_repeats = source.shape[bsource]
+        source, points_mask, *points = args
+        bsource, bpoints_mask, *bpoints = axes
+
+        if all(bx is batching.not_mapped for bx in bpoints):
+            assert bsource is not batching.not_mapped
             source = batching.moveaxis(source, bsource, 0)
-
-        mapped_points = []
-        for x, bx in zip(points, bpoints):
-            if bx is batching.not_mapped:
-                mapped_points.append(jnp.repeat(x[None], num_repeats, axis=0))
+            if bpoints_mask is batching.not_mapped:
+                points_mask = points_mask[None]
             else:
-                mapped_points.append(batching.moveaxis(x, bx, 0))
+                points_mask = batching.moveaxis(points_mask, bpoints_mask, 0)
+            mapped_points = tuple(p[None] for p in points)
 
-    if nufft_type == 3:
-        return nufft3(source, *mapped_points, **kwargs), 0
-    elif nufft_type == 2:
-        return nufft2(source, *mapped_points, **kwargs), 0
-    elif nufft_type == 1:
-        return nufft1(tuple(output_shape), source, *mapped_points, **kwargs), 0
+        else:
+            if bsource is None:
+                assert any(bx is not batching.not_mapped for bx in bpoints)
+                num_repeats = next(
+                    x.shape[bx]
+                    for x, bx in zip(points, bpoints)
+                    if bx is not batching.not_mapped
+                )
+                source = jnp.repeat(source[jnp.newaxis], num_repeats, axis=0)
+            else:
+                num_repeats = source.shape[bsource]
+                source = batching.moveaxis(source, bsource, 0)
+
+            if bpoints_mask is batching.not_mapped:
+                points_mask = jnp.repeat(points_mask[None], num_repeats, axis=0)
+            else:
+                points_mask = batching.moveaxis(points_mask, bpoints_mask, 0)
+
+            mapped_points = []
+            for x, bx in zip(points, bpoints):
+                if bx is batching.not_mapped:
+                    mapped_points.append(jnp.repeat(x[None], num_repeats, axis=0))
+                else:
+                    mapped_points.append(batching.moveaxis(x, bx, 0))
+
+        if nufft_type == 2:
+            return nufft2(source, *mapped_points, points_mask=points_mask, **kwargs), 0
+        elif nufft_type == 1:
+            return (
+                nufft1(
+                    tuple(output_shape),
+                    source,
+                    *mapped_points,
+                    points_mask=points_mask,
+                    **kwargs,
+                ),
+                0,
+            )
 
 
 nufft1_p = Primitive("nufft1")
