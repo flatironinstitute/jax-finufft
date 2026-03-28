@@ -39,7 +39,7 @@ ffi::Error run_nufft_masked(finufft_opts opts, T eps, int iflag, int64_t n_tot, 
   int ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
   // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
   if (ret > 1) {
-    return ffi::Error::Internal("FINUFFT makeplan failed");
+    return ffi::Error::Internal("FINUFFT makeplan with code " + std::to_string(ret)));
   }
 
   std::vector<T> Q_x(n_j);
@@ -72,14 +72,14 @@ ffi::Error run_nufft_masked(finufft_opts opts, T eps, int iflag, int64_t n_tot, 
 
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("FINUFFT setpts failed");
+      return ffi::Error::Internal(("FINUFFT setpts with code " + std::to_string(ret))));
     }
 
     ret = execute<T>(plan, Q_c.data(), &F[k_start]);
 
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("FINUFFT execute failed");
+      return ffi::Error::Internal("FINUFFT execute failed with code " + std::to_string(ret));
     }
 
     if constexpr (type == 2) {
@@ -112,7 +112,7 @@ ffi::Error run_nufft_unmasked(finufft_opts opts, T eps, int iflag, int64_t n_tot
   int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
   int ret = makeplan<T>(3, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
   if (ret > 1) {
-    return ffi::Error::Internal("FINUFFT makeplan failed");
+    return ffi::Error::Internal("FINUFFT makeplan failed with code " + std::to_string(ret));
   }
 
   for (int64_t index = 0; index < n_tot; ++index) {
@@ -126,13 +126,13 @@ ffi::Error run_nufft_unmasked(finufft_opts opts, T eps, int iflag, int64_t n_tot
                     y_index<ndim, T>(t, i_target), z_index<ndim, T>(u, i_target));
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("FINUFFT setpts failed");
+      return ffi::Error::Internal("FINUFFT setpts failed with code " + std::to_string(ret));
     }
 
     ret = execute<T>(plan, &c[c_start], &F[k_start]);
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("FINUFFT execute failed");
+      return ffi::Error::Internal("FINUFFT execute failed with code " + std::to_string(ret));
     }
   }
 
