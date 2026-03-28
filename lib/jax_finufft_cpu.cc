@@ -757,28 +757,44 @@ DEFINE_FFI_HANDLER(nufft3d3, MakeNufft3dBinding3Double, nufft3d3_3d_wrapper);
 
 #undef DEFINE_FFI_HANDLER
 
+// =============================================================================
+// Python Module Registration
+// =============================================================================
+
+template <typename T>
+nb::capsule EncapsulateFfiHandler(T* fn) {
+  static_assert(std::is_invocable_r_v<XLA_FFI_Error*, T, XLA_FFI_CallFrame*>,
+                "FFI handler must have signature: XLA_FFI_Error*(XLA_FFI_CallFrame*)");
+  return nb::capsule(reinterpret_cast<void*>(fn));
+}
+
 nb::dict Registrations() {
   nb::dict dict;
-  dict["nufft1d1f"] = nb::capsule(reinterpret_cast<void*>(nufft1d1f));
-  dict["nufft1d1"] = nb::capsule(reinterpret_cast<void*>(nufft1d1));
-  dict["nufft2d1f"] = nb::capsule(reinterpret_cast<void*>(nufft2d1f));
-  dict["nufft2d1"] = nb::capsule(reinterpret_cast<void*>(nufft2d1));
-  dict["nufft3d1f"] = nb::capsule(reinterpret_cast<void*>(nufft3d1f));
-  dict["nufft3d1"] = nb::capsule(reinterpret_cast<void*>(nufft3d1));
 
-  dict["nufft1d2f"] = nb::capsule(reinterpret_cast<void*>(nufft1d2f));
-  dict["nufft1d2"] = nb::capsule(reinterpret_cast<void*>(nufft1d2));
-  dict["nufft2d2f"] = nb::capsule(reinterpret_cast<void*>(nufft2d2f));
-  dict["nufft2d2"] = nb::capsule(reinterpret_cast<void*>(nufft2d2));
-  dict["nufft3d2f"] = nb::capsule(reinterpret_cast<void*>(nufft3d2f));
-  dict["nufft3d2"] = nb::capsule(reinterpret_cast<void*>(nufft3d2));
+  // Type 1: non-uniform to uniform
+  dict["nufft1d1f"] = EncapsulateFfiHandler(nufft1d1f);
+  dict["nufft1d1"] = EncapsulateFfiHandler(nufft1d1);
+  dict["nufft2d1f"] = EncapsulateFfiHandler(nufft2d1f);
+  dict["nufft2d1"] = EncapsulateFfiHandler(nufft2d1);
+  dict["nufft3d1f"] = EncapsulateFfiHandler(nufft3d1f);
+  dict["nufft3d1"] = EncapsulateFfiHandler(nufft3d1);
 
-  dict["nufft1d3f"] = nb::capsule(reinterpret_cast<void*>(nufft1d3f));
-  dict["nufft1d3"] = nb::capsule(reinterpret_cast<void*>(nufft1d3));
-  dict["nufft2d3f"] = nb::capsule(reinterpret_cast<void*>(nufft2d3f));
-  dict["nufft2d3"] = nb::capsule(reinterpret_cast<void*>(nufft2d3));
-  dict["nufft3d3f"] = nb::capsule(reinterpret_cast<void*>(nufft3d3f));
-  dict["nufft3d3"] = nb::capsule(reinterpret_cast<void*>(nufft3d3));
+  // Type 2: uniform to non-uniform
+  dict["nufft1d2f"] = EncapsulateFfiHandler(nufft1d2f);
+  dict["nufft1d2"] = EncapsulateFfiHandler(nufft1d2);
+  dict["nufft2d2f"] = EncapsulateFfiHandler(nufft2d2f);
+  dict["nufft2d2"] = EncapsulateFfiHandler(nufft2d2);
+  dict["nufft3d2f"] = EncapsulateFfiHandler(nufft3d2f);
+  dict["nufft3d2"] = EncapsulateFfiHandler(nufft3d2);
+
+  // Type 3: non-uniform to non-uniform
+  dict["nufft1d3f"] = EncapsulateFfiHandler(nufft1d3f);
+  dict["nufft1d3"] = EncapsulateFfiHandler(nufft1d3);
+  dict["nufft2d3f"] = EncapsulateFfiHandler(nufft2d3f);
+  dict["nufft2d3"] = EncapsulateFfiHandler(nufft2d3);
+  dict["nufft3d3f"] = EncapsulateFfiHandler(nufft3d3f);
+  dict["nufft3d3"] = EncapsulateFfiHandler(nufft3d3);
+  
   return dict;
 }
 

@@ -71,7 +71,10 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
   update_opts<T>(&opts, ndim, stream);
   int device_ordinal;
   cudaError_t cuda_err = cudaGetDevice(&device_ordinal);
-  if (cuda_err != cudaSuccess) return ffi::Error::Internal("cudaGetDevice failed");
+  if (cuda_err != cudaSuccess) {
+    return ffi::Error::Internal("cudaGetDevice failed: " +
+                                std::string(cudaGetErrorString(cuda_err)));
+  }
 
   device_type device{device_ordinal};
   update_opts<T>(&opts, ndim, device);
@@ -80,7 +83,9 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
   int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
   int ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
   // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
-  if (ret > 1) return ffi::Error::Internal("cuFINUFFT makeplan failed");
+  if (ret > 1) {
+    return ffi::Error::Internal("cuFINUFFT makeplan failed with code " + std::to_string(ret));
+  }
 
   for (int64_t index = 0; index < n_tot; ++index) {
     int64_t i_start = index * n_j;
@@ -118,12 +123,16 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
         ndim > 2 ? &z[i_start] : nullptr, &c[c_start], Q_x, Q_y, Q_z, Q_c, n_transf, type);
 
     ret = setpts<T>(plan, Q_size, Q_x, Q_y, Q_z, 0, nullptr, nullptr, nullptr);
+    const char* failed_stage = "setpts";
 
-    if (ret == 0) ret = execute<T>(plan, Q_c, &F[k_start]);
-
-    if constexpr (type == 2) {
-      unpack_kernel<<<blocks, threads, 0, stream>>>(mask + i_start, d_prefix, n_j, Q_c,
-                                                    &c[c_start], n_transf);
+    if (ret == 0) {
+      failed_stage = "execute";
+      ret = execute<T>(plan, Q_c, &F[k_start]);
+      
+      if (ret == 0 && type == 2) {
+        unpack_kernel<<<blocks, threads, 0, stream>>>(mask + i_start, d_prefix, n_j, Q_c,
+                                                      &c[c_start], n_transf);
+      }
     }
 
     cudaFreeAsync(Q_x, stream);
@@ -134,7 +143,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
 
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("cuFINUFFT failed");
+      return ffi::Error::Internal("cuFINUFFT " + std::string(failed_stage) + " failed with code " + std::to_string(ret));
     }
   }
 
@@ -154,7 +163,10 @@ ffi::Error run_nufft_unmasked(cudaStream_t stream, cufinufft_opts opts, T eps, i
   update_opts<T>(&opts, ndim, stream);
   int device_ordinal;
   cudaError_t cuda_err = cudaGetDevice(&device_ordinal);
-  if (cuda_err != cudaSuccess) return ffi::Error::Internal("cudaGetDevice failed");
+  if (cuda_err != cudaSuccess) {
+    return ffi::Error::Internal("cudaGetDevice failed: " +
+                                std::string(cudaGetErrorString(cuda_err)));
+  }
 
   device_type device{device_ordinal};
   update_opts<T>(&opts, ndim, device);
@@ -162,7 +174,10 @@ ffi::Error run_nufft_unmasked(cudaStream_t stream, cufinufft_opts opts, T eps, i
   typename plan_type<T>::type plan;
   int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
   int ret = makeplan<T>(3, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
-  if (ret > 1) return ffi::Error::Internal("cuFINUFFT makeplan failed");
+  // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
+  if (ret > 1) {
+    return ffi::Error::Internal("cuFINUFFT makeplan failed with code " + std::to_string(ret));
+  }
 
   for (int64_t index = 0; index < n_tot; ++index) {
     int64_t i_start = index * n_j;
@@ -178,7 +193,7 @@ ffi::Error run_nufft_unmasked(cudaStream_t stream, cufinufft_opts opts, T eps, i
 
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("cuFINUFFT failed");
+      return ffi::Error::Internal("cuFINUFFT setpts or execute failed with code " + std::to_string(ret));
     }
   }
 
