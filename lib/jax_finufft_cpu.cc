@@ -783,7 +783,7 @@ nb::dict Registrations() {
 }
 
 NB_MODULE(jax_finufft_cpu, m) {
-  m.def("registrations", &Registrations);
+  m.def("registrations", &Registrations, "Get FFI handler registrations for all NUFFT operations");
 
   m.def("_omp_compile_check", []() {
 #ifdef FINUFFT_USE_OPENMP
