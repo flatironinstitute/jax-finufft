@@ -431,7 +431,6 @@ DEFINE_FFI_HANDLER(nufft3d3, MakeNufft3dBinding3Double, nufft3d3_3d_wrapper);
 
 #undef DEFINE_FFI_HANDLER
 
-
 // =============================================================================
 // Python module registration
 // =============================================================================
