@@ -42,6 +42,12 @@ ffi::Error run_nufft_masked(finufft_opts opts, T eps, int iflag, int64_t n_tot, 
     return ffi::Error::Internal("FINUFFT makeplan failed with code " + std::to_string(ret));
   }
 
+  std::vector<T> Q_x(n_j);
+  std::vector<T> Q_y(ndim > 1 ? n_j : 0);
+  std::vector<T> Q_z(ndim > 2 ? n_j : 0);
+  std::vector<std::complex<T>> Q_c(n_j * n_transf);
+  std::vector<int64_t> active_indices(n_j);
+
   for (int64_t index = 0; index < n_tot; ++index) {
     int64_t i_start = index * n_j;
     int64_t c_start = index * n_j * n_transf;
@@ -49,26 +55,23 @@ ffi::Error run_nufft_masked(finufft_opts opts, T eps, int iflag, int64_t n_tot, 
 
     int64_t Q_size = 0;
     for (int64_t i = 0; i < n_j; ++i) {
-      if (mask[i_start + i]) Q_size++;
+      if (mask[i_start + i]) {
+        active_indices[Q_size++] = i;
+      }
     }
 
-    std::vector<T> Q_x(Q_size);
-    std::vector<T> Q_y(ndim > 1 ? Q_size : 0);
-    std::vector<T> Q_z(ndim > 2 ? Q_size : 0);
-    std::vector<std::complex<T>> Q_c(Q_size * n_transf);
+    for (int64_t p = 0; p < Q_size; ++p) {
+      int64_t i = active_indices[p];
+      Q_x[p] = x[i_start + i];
+      if constexpr (ndim > 1) Q_y[p] = y[i_start + i];
+      if constexpr (ndim > 2) Q_z[p] = z[i_start + i];
+    }
 
-    int64_t p = 0;
-    for (int64_t i = 0; i < n_j; ++i) {
-      if (mask[i_start + i]) {
-        Q_x[p] = x[i_start + i];
-        if constexpr (ndim > 1) Q_y[p] = y[i_start + i];
-        if constexpr (ndim > 2) Q_z[p] = z[i_start + i];
-        if constexpr (type != 2) {
-          for (int t = 0; t < n_transf; ++t) {
-            Q_c[t * Q_size + p] = c[c_start + t * n_j + i];
-          }
+    if constexpr (type != 2) {
+      for (int t = 0; t < n_transf; ++t) {
+        for (int64_t p = 0; p < Q_size; ++p) {
+          Q_c[t * Q_size + p] = c[c_start + t * n_j + active_indices[p]];
         }
-        p++;
       }
     }
 
@@ -86,18 +89,10 @@ ffi::Error run_nufft_masked(finufft_opts opts, T eps, int iflag, int64_t n_tot, 
     }
 
     if constexpr (type == 2) {
+      std::fill(c + c_start, c + c_start + n_transf * n_j, std::complex<T>(0.0, 0.0));
       for (int t = 0; t < n_transf; ++t) {
-        for (int64_t i = 0; i < n_j; ++i) {
-          c[c_start + t * n_j + i] = {0.0, 0.0};
-        }
-      }
-      p = 0;
-      for (int64_t i = 0; i < n_j; ++i) {
-        if (mask[i_start + i]) {
-          for (int t = 0; t < n_transf; ++t) {
-            c[c_start + t * n_j + i] = Q_c[t * Q_size + p];
-          }
-          p++;
+        for (int64_t p = 0; p < Q_size; ++p) {
+          c[c_start + t * n_j + active_indices[p]] = Q_c[t * Q_size + p];
         }
       }
     }

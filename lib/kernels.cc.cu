@@ -5,6 +5,7 @@
 
 #include <xla/ffi/api/ffi.h>
 
+#include <cub/cub.cuh>
 #include <complex>
 #include <cstdint>
 #include <vector>
@@ -22,17 +23,32 @@ namespace gpu {
 // Core NUFFT execution logic
 // =============================================================================
 
-template <typename T>
+struct CastInt8ToInt64 {
+  __device__ __forceinline__ int64_t operator()(const int8_t& a) const {
+    return static_cast<int64_t>(a);
+  }
+};
+
+__global__ void get_mask_total_kernel(const int8_t* mask, const int64_t* prefix, int64_t n_j,
+                                      int64_t* total) {
+  if (n_j > 0) {
+    *total = prefix[n_j - 1] + (mask[n_j - 1] ? 1 : 0);
+  } else {
+    *total = 0;
+  }
+}
+
+template <int ndim, typename T, int type>
 __global__ void pack_kernel(const int8_t* mask, const int64_t* prefix, int64_t n_j, const T* x,
                             const T* y, const T* z, const std::complex<T>* c, T* Q_x, T* Q_y,
-                            T* Q_z, std::complex<T>* Q_c, int n_transf, int type, int64_t Q_size) {
+                            T* Q_z, std::complex<T>* Q_c, int n_transf, int64_t Q_size) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < n_j && mask[i]) {
     int64_t p = prefix[i];
     Q_x[p] = x[i];
-    if (Q_y) Q_y[p] = y[i];
-    if (Q_z) Q_z[p] = z[i];
-    if (type != 2) {
+    if constexpr (ndim > 1) Q_y[p] = y[i];
+    if constexpr (ndim > 2) Q_z[p] = z[i];
+    if constexpr (type != 2) {
       for (int t = 0; t < n_transf; t++) Q_c[t * Q_size + p] = c[t * n_j + i];
     }
   }
@@ -49,9 +65,7 @@ __global__ void unpack_kernel(const int8_t* mask, const int64_t* prefix, int64_t
       for (int t = 0; t < n_transf; t++) c[t * n_j + i] = Q_c[t * Q_size + p];
     } else {
       for (int t = 0; t < n_transf; t++) {
-        T* c_ptr = reinterpret_cast<T*>(&c[t * n_j + i]);
-        c_ptr[0] = T(0.0);
-        c_ptr[1] = T(0.0);
+        c[t * n_j + i] = {T(0.0), T(0.0)};
       }
     }
   }
@@ -88,40 +102,51 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
     return ffi::Error::Internal("cuFINUFFT makeplan failed with code " + std::to_string(ret));
   }
 
+  T *Q_x = nullptr, *Q_y = nullptr, *Q_z = nullptr;
+  std::complex<T>* Q_c = nullptr;
+  int64_t* d_prefix = nullptr;
+  int64_t* d_Q_size = nullptr;
+  void* d_temp_storage = nullptr;
+  size_t temp_storage_bytes = 0;
+
+  cudaMallocAsync(&Q_x, n_j * sizeof(T), stream);
+  if constexpr (ndim > 1) cudaMallocAsync(&Q_y, n_j * sizeof(T), stream);
+  if constexpr (ndim > 2) cudaMallocAsync(&Q_z, n_j * sizeof(T), stream);
+  cudaMallocAsync(&Q_c, n_j * n_transf * sizeof(std::complex<T>), stream);
+  cudaMallocAsync(&d_prefix, n_j * sizeof(int64_t), stream);
+  cudaMallocAsync(&d_Q_size, sizeof(int64_t), stream);
+
+  // Get temp storage size for CUB scan
+  cub::TransformInputIterator<int64_t, CastInt8ToInt64, const int8_t*> dummy_mask_iter(
+      nullptr, CastInt8ToInt64());
+  cub::DeviceScan::ExclusiveSum(nullptr, temp_storage_bytes, dummy_mask_iter,
+                                static_cast<int64_t*>(nullptr), n_j, stream);
+  cudaMallocAsync(&d_temp_storage, temp_storage_bytes, stream);
+
   for (int64_t index = 0; index < n_tot; ++index) {
     int64_t i_start = index * n_j;
     int64_t c_start = index * n_j * n_transf;
     int64_t k_start = index * n_k_total * n_transf;
+    // Perform scan and get total on GPU
+    cub::TransformInputIterator<int64_t, CastInt8ToInt64, const int8_t*> mask_iter(
+        mask + i_start, CastInt8ToInt64());
+    cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, mask_iter, d_prefix, n_j,
+                                  stream);
+    get_mask_total_kernel<<<1, 1, 0, stream>>>(mask + i_start, d_prefix, n_j, d_Q_size);
 
-    std::vector<int8_t> host_mask(n_j);
-    cudaMemcpyAsync(host_mask.data(), mask + i_start, n_j * sizeof(int8_t), cudaMemcpyDeviceToHost,
-                    stream);
-    cudaStreamSynchronize(stream);
-
+    // Copy back only the total number of active points
     int64_t Q_size = 0;
-    std::vector<int64_t> host_prefix(n_j, -1);
-    for (int64_t i = 0; i < n_j; i++) {
-      if (host_mask[i]) host_prefix[i] = Q_size++;
-    }
-
-    T *Q_x, *Q_y = nullptr, *Q_z = nullptr;
-    std::complex<T>* Q_c;
-    int64_t* d_prefix;
-
-    cudaMallocAsync(&Q_x, Q_size * sizeof(T), stream);
-    if constexpr (ndim > 1) cudaMallocAsync(&Q_y, Q_size * sizeof(T), stream);
-    if constexpr (ndim > 2) cudaMallocAsync(&Q_z, Q_size * sizeof(T), stream);
-    cudaMallocAsync(&Q_c, Q_size * n_transf * sizeof(std::complex<T>), stream);
-    cudaMallocAsync(&d_prefix, n_j * sizeof(int64_t), stream);
-
-    cudaMemcpyAsync(d_prefix, host_prefix.data(), n_j * sizeof(int64_t), cudaMemcpyHostToDevice,
-                    stream);
+    cudaMemcpyAsync(&Q_size, d_Q_size, sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
+    // This sync is required because setpts is a host call that needs Q_size
+    cudaStreamSynchronize(stream);
 
     int threads = 256;
     int blocks = (n_j + threads - 1) / threads;
-    pack_kernel<<<blocks, threads, 0, stream>>>(
-        mask + i_start, d_prefix, n_j, &x[i_start], ndim > 1 ? &y[i_start] : nullptr,
-        ndim > 2 ? &z[i_start] : nullptr, &c[c_start], Q_x, Q_y, Q_z, Q_c, n_transf, type, Q_size);
+    if (blocks > 0) {
+      pack_kernel<ndim, T, type><<<blocks, threads, 0, stream>>>(
+          mask + i_start, d_prefix, n_j, &x[i_start], ndim > 1 ? &y[i_start] : nullptr,
+          ndim > 2 ? &z[i_start] : nullptr, &c[c_start], Q_x, Q_y, Q_z, Q_c, n_transf, Q_size);
+    }
 
     ret = setpts<T>(plan, Q_size, Q_x, Q_y, Q_z, 0, nullptr, nullptr, nullptr);
     const char* failed_stage = "setpts";
@@ -130,24 +155,33 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
       failed_stage = "execute";
       ret = execute<T>(plan, Q_c, &F[k_start]);
 
-      if (ret == 0 && type == 2) {
+      if (ret == 0 && type == 2 && blocks > 0) {
         unpack_kernel<<<blocks, threads, 0, stream>>>(mask + i_start, d_prefix, n_j, Q_c,
                                                       &c[c_start], n_transf, Q_size);
       }
     }
 
-    cudaFreeAsync(Q_x, stream);
-    if constexpr (ndim > 1) cudaFreeAsync(Q_y, stream);
-    if constexpr (ndim > 2) cudaFreeAsync(Q_z, stream);
-    cudaFreeAsync(Q_c, stream);
-    cudaFreeAsync(d_prefix, stream);
-
     if (ret != 0) {
+      cudaFreeAsync(Q_x, stream);
+      if constexpr (ndim > 1) cudaFreeAsync(Q_y, stream);
+      if constexpr (ndim > 2) cudaFreeAsync(Q_z, stream);
+      cudaFreeAsync(Q_c, stream);
+      cudaFreeAsync(d_prefix, stream);
+      cudaFreeAsync(d_Q_size, stream);
+      cudaFreeAsync(d_temp_storage, stream);
       destroy<T>(plan);
       return ffi::Error::Internal("cuFINUFFT " + std::string(failed_stage) + " failed with code " +
                                   std::to_string(ret));
     }
   }
+
+  cudaFreeAsync(Q_x, stream);
+  if constexpr (ndim > 1) cudaFreeAsync(Q_y, stream);
+  if constexpr (ndim > 2) cudaFreeAsync(Q_z, stream);
+  cudaFreeAsync(Q_c, stream);
+  cudaFreeAsync(d_prefix, stream);
+  cudaFreeAsync(d_Q_size, stream);
+  cudaFreeAsync(d_temp_storage, stream);
 
   // Synchronize before destroying the plan
   cudaStreamSynchronize(stream);
