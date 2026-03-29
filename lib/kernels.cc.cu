@@ -122,7 +122,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
     pack_kernel<<<blocks, threads, 0, stream>>>(
         mask + i_start, d_prefix, n_j, &x[i_start], ndim > 1 ? &y[i_start] : nullptr,
         ndim > 2 ? &z[i_start] : nullptr, &c[c_start], Q_x, Q_y, Q_z, Q_c, n_transf, type,
-        Q_size);  // <--- Added Q_size
+        Q_size);
 
     ret = setpts<T>(plan, Q_size, Q_x, Q_y, Q_z, 0, nullptr, nullptr, nullptr);
     const char* failed_stage = "setpts";
@@ -134,7 +134,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
       if (ret == 0 && type == 2) {
         unpack_kernel<<<blocks, threads, 0, stream>>>(mask + i_start, d_prefix, n_j, Q_c,
                                                       &c[c_start], n_transf,
-                                                      Q_size);  // <--- Added Q_size
+                                                      Q_size);
       }
     }
 
