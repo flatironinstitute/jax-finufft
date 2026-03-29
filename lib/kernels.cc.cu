@@ -25,7 +25,7 @@ namespace gpu {
 template <typename T>
 __global__ void pack_kernel(const int8_t* mask, const int64_t* prefix, int64_t n_j, const T* x,
                             const T* y, const T* z, const std::complex<T>* c, T* Q_x, T* Q_y,
-                            T* Q_z, std::complex<T>* Q_c, int n_transf, int type) {
+                            T* Q_z, std::complex<T>* Q_c, int n_transf, int type, int64_t Q_size) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < n_j && mask[i]) {
     int64_t p = prefix[i];
@@ -33,24 +33,25 @@ __global__ void pack_kernel(const int8_t* mask, const int64_t* prefix, int64_t n
     if (Q_y) Q_y[p] = y[i];
     if (Q_z) Q_z[p] = z[i];
     if (type != 2) {
-      for (int t = 0; t < n_transf; t++) Q_c[p * n_transf + t] = c[i * n_transf + t];
+      for (int t = 0; t < n_transf; t++) Q_c[t * Q_size + p] = c[t * n_j + i];
     }
   }
 }
 
 template <typename T>
 __global__ void unpack_kernel(const int8_t* mask, const int64_t* prefix, int64_t n_j,
-                              const std::complex<T>* Q_c, std::complex<T>* c, int n_transf) {
+                              const std::complex<T>* Q_c, std::complex<T>* c, int n_transf,
+                              int64_t Q_size) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < n_j) {
     if (mask[i]) {
       int64_t p = prefix[i];
-      for (int t = 0; t < n_transf; t++) c[i * n_transf + t] = Q_c[p * n_transf + t];
+      for (int t = 0; t < n_transf; t++) c[t * n_j + i] = Q_c[t * Q_size + p];
     } else {
       for (int t = 0; t < n_transf; t++) {
-        T* c_ptr = reinterpret_cast<T*>(&c[i * n_transf + t]);
-        c_ptr[0] = 0;
-        c_ptr[1] = 0;
+        T* c_ptr = reinterpret_cast<T*>(&c[t * n_j + i]);
+        c_ptr[0] = T(0.0);
+        c_ptr[1] = T(0.0);
       }
     }
   }
@@ -120,7 +121,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
     int blocks = (n_j + threads - 1) / threads;
     pack_kernel<<<blocks, threads, 0, stream>>>(
         mask + i_start, d_prefix, n_j, &x[i_start], ndim > 1 ? &y[i_start] : nullptr,
-        ndim > 2 ? &z[i_start] : nullptr, &c[c_start], Q_x, Q_y, Q_z, Q_c, n_transf, type);
+        ndim > 2 ? &z[i_start] : nullptr, &c[c_start], Q_x, Q_y, Q_z, Q_c, n_transf, type, Q_size); // <--- Added Q_size
 
     ret = setpts<T>(plan, Q_size, Q_x, Q_y, Q_z, 0, nullptr, nullptr, nullptr);
     const char* failed_stage = "setpts";
@@ -129,9 +130,9 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
       failed_stage = "execute";
       ret = execute<T>(plan, Q_c, &F[k_start]);
 
-      if (ret == 0 && type == 2) {
+    if (ret == 0 && type == 2) {
         unpack_kernel<<<blocks, threads, 0, stream>>>(mask + i_start, d_prefix, n_j, Q_c,
-                                                      &c[c_start], n_transf);
+                                                      &c[c_start], n_transf, Q_size); // <--- Added Q_size
       }
     }
 

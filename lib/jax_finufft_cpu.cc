@@ -37,62 +37,70 @@ ffi::Error run_nufft_masked(finufft_opts opts, T eps, int iflag, int64_t n_tot, 
   typename plan_type<T>::type plan;
   int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
   int ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
-  // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
   if (ret > 1) {
     return ffi::Error::Internal("FINUFFT makeplan failed with code " + std::to_string(ret));
   }
-
-  std::vector<T> Q_x(n_j);
-  std::vector<T> Q_y(ndim > 1 ? n_j : 0);
-  std::vector<T> Q_z(ndim > 2 ? n_j : 0);
-  std::vector<std::complex<T>> Q_c(n_j * n_transf);
 
   for (int64_t index = 0; index < n_tot; ++index) {
     int64_t i_start = index * n_j;
     int64_t c_start = index * n_j * n_transf;
     int64_t k_start = index * n_k_total * n_transf;
 
+    // 1. Determine Q_size first
     int64_t Q_size = 0;
     for (int64_t i = 0; i < n_j; ++i) {
+      if (mask[i_start + i]) Q_size++;
+    }
+
+    // 2. Allocate exactly Q_size
+    std::vector<T> Q_x(Q_size);
+    std::vector<T> Q_y(ndim > 1 ? Q_size : 0);
+    std::vector<T> Q_z(ndim > 2 ? Q_size : 0);
+    std::vector<std::complex<T>> Q_c(Q_size * n_transf);
+
+    // 3. Pack with correct PLANAR multi-transform indexing
+    int64_t p = 0;
+    for (int64_t i = 0; i < n_j; ++i) {
       if (mask[i_start + i]) {
-        Q_x[Q_size] = x[i_start + i];
-        if constexpr (ndim > 1) Q_y[Q_size] = y[i_start + i];
-        if constexpr (ndim > 2) Q_z[Q_size] = z[i_start + i];
+        Q_x[p] = x[i_start + i];
+        if constexpr (ndim > 1) Q_y[p] = y[i_start + i];
+        if constexpr (ndim > 2) Q_z[p] = z[i_start + i];
         if constexpr (type != 2) {
-          for (int t_idx = 0; t_idx < n_transf; ++t_idx) {
-            Q_c[Q_size * n_transf + t_idx] = c[c_start + i * n_transf + t_idx];
+          for (int t = 0; t < n_transf; ++t) {
+            Q_c[t * Q_size + p] = c[c_start + t * n_j + i];
           }
         }
-        Q_size++;
+        p++;
       }
     }
 
     ret = setpts<T>(plan, Q_size, Q_x.data(), ndim > 1 ? Q_y.data() : nullptr,
                     ndim > 2 ? Q_z.data() : nullptr, 0, nullptr, nullptr, nullptr);
-
     if (ret != 0) {
       destroy<T>(plan);
       return ffi::Error::Internal("FINUFFT setpts failed with code " + std::to_string(ret));
     }
 
     ret = execute<T>(plan, Q_c.data(), &F[k_start]);
-
     if (ret != 0) {
       destroy<T>(plan);
       return ffi::Error::Internal("FINUFFT execute failed with code " + std::to_string(ret));
     }
 
+    // 4. Unpack with correct PLANAR multi-transform indexing
     if constexpr (type == 2) {
-      for (int64_t i = 0; i < n_j * n_transf; ++i) {
-        c[c_start + i] = {0, 0};
+      for (int t = 0; t < n_transf; ++t) {
+        for (int64_t i = 0; i < n_j; ++i) {
+          c[c_start + t * n_j + i] = {0.0, 0.0};
+        }
       }
-      int64_t j_idx = 0;
+      p = 0;
       for (int64_t i = 0; i < n_j; ++i) {
         if (mask[i_start + i]) {
-          for (int t_idx = 0; t_idx < n_transf; ++t_idx) {
-            c[c_start + i * n_transf + t_idx] = Q_c[j_idx * n_transf + t_idx];
+          for (int t = 0; t < n_transf; ++t) {
+            c[c_start + t * n_j + i] = Q_c[t * Q_size + p];
           }
-          j_idx++;
+          p++;
         }
       }
     }
