@@ -22,7 +22,7 @@ namespace jax_finufft {
 namespace cpu {
 
 // =============================================================================
-// Core NUFFT execution logic
+// Core NUFFT execution logic for masked and unmasked
 // =============================================================================
 
 template <int ndim, typename T, int type>
