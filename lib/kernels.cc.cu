@@ -5,9 +5,9 @@
 
 #include <xla/ffi/api/ffi.h>
 
-#include <cub/cub.cuh>
 #include <complex>
 #include <cstdint>
+#include <cub/cub.cuh>
 #include <vector>
 
 #include "cufinufft_wrapper.h"
