@@ -23,11 +23,12 @@ namespace gpu {
 // Core NUFFT execution logic for masked and unmasked
 // =============================================================================
 
-struct CastInt8ToInt64 {
-  __device__ __forceinline__ int64_t operator()(const int8_t& a) const {
-    return static_cast<int64_t>(a);
+__global__ void cast_mask_kernel(const int8_t* mask, int64_t* mask_int64, int64_t n_j) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n_j) {
+    mask_int64[i] = mask[i];
   }
-};
+}
 
 __global__ void get_mask_total_kernel(const int8_t* mask, const int64_t* prefix, int64_t n_j,
                                       int64_t* total) {
@@ -106,6 +107,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
   std::complex<T>* Q_c = nullptr;
   int64_t* d_prefix = nullptr;
   int64_t* d_Q_size = nullptr;
+  int64_t* d_mask_int64 = nullptr;
   void* d_temp_storage = nullptr;
   size_t temp_storage_bytes = 0;
 
@@ -115,11 +117,10 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
   cudaMallocAsync(&Q_c, n_j * n_transf * sizeof(std::complex<T>), stream);
   cudaMallocAsync(&d_prefix, n_j * sizeof(int64_t), stream);
   cudaMallocAsync(&d_Q_size, sizeof(int64_t), stream);
+  cudaMallocAsync(&d_mask_int64, n_j * sizeof(int64_t), stream);
 
   // Get temp storage size for CUB scan
-  cub::TransformInputIterator<int64_t, CastInt8ToInt64, const int8_t*> dummy_mask_iter(
-      nullptr, CastInt8ToInt64());
-  cub::DeviceScan::ExclusiveSum(nullptr, temp_storage_bytes, dummy_mask_iter,
+  cub::DeviceScan::ExclusiveSum(nullptr, temp_storage_bytes, static_cast<int64_t*>(nullptr),
                                 static_cast<int64_t*>(nullptr), n_j, stream);
   cudaMallocAsync(&d_temp_storage, temp_storage_bytes, stream);
 
@@ -127,10 +128,16 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
     int64_t i_start = index * n_j;
     int64_t c_start = index * n_j * n_transf;
     int64_t k_start = index * n_k_total * n_transf;
+
+    int threads = 256;
+    int blocks = (n_j + threads - 1) / threads;
+
+    if (blocks > 0) {
+      cast_mask_kernel<<<blocks, threads, 0, stream>>>(mask + i_start, d_mask_int64, n_j);
+    }
+
     // Perform scan and get total on GPU
-    cub::TransformInputIterator<int64_t, CastInt8ToInt64, const int8_t*> mask_iter(
-        mask + i_start, CastInt8ToInt64());
-    cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, mask_iter, d_prefix, n_j,
+    cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, d_mask_int64, d_prefix, n_j,
                                   stream);
     get_mask_total_kernel<<<1, 1, 0, stream>>>(mask + i_start, d_prefix, n_j, d_Q_size);
 
@@ -140,8 +147,6 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
     // This sync is required because setpts is a host call that needs Q_size
     cudaStreamSynchronize(stream);
 
-    int threads = 256;
-    int blocks = (n_j + threads - 1) / threads;
     if (blocks > 0) {
       pack_kernel<ndim, T, type><<<blocks, threads, 0, stream>>>(
           mask + i_start, d_prefix, n_j, &x[i_start], ndim > 1 ? &y[i_start] : nullptr,
@@ -169,6 +174,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
       cudaFreeAsync(d_prefix, stream);
       cudaFreeAsync(d_Q_size, stream);
       cudaFreeAsync(d_temp_storage, stream);
+      cudaFreeAsync(d_mask_int64, stream);
       destroy<T>(plan);
       return ffi::Error::Internal("cuFINUFFT " + std::string(failed_stage) + " failed with code " +
                                   std::to_string(ret));
@@ -182,6 +188,7 @@ ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int
   cudaFreeAsync(d_prefix, stream);
   cudaFreeAsync(d_Q_size, stream);
   cudaFreeAsync(d_temp_storage, stream);
+  cudaFreeAsync(d_mask_int64, stream);
 
   // Synchronize before destroying the plan
   cudaStreamSynchronize(stream);
