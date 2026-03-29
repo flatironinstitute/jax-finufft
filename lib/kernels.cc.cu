@@ -20,7 +20,7 @@ namespace jax_finufft {
 namespace gpu {
 
 // =============================================================================
-// Core NUFFT execution logic
+// Core NUFFT execution logic for masked and unmasked
 // =============================================================================
 
 struct CastInt8ToInt64 {
