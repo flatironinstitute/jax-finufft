@@ -24,7 +24,7 @@ jobs:
     strategy:
       matrix:
         os: ["ubuntu-latest", "ubuntu-24.04-arm", "macos-14"]
-        python: ["cp311", "cp312", "cp313", "cp313t", "cp314", "cp314t"]
+        python: ["cp311", "cp312", "cp313", "cp314", "cp314t"]
 
     steps:
       - uses: actions/checkout@v6
@@ -32,7 +32,7 @@ jobs:
           submodules: true
           fetch-depth: 0
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4.0
+        uses: pypa/cibuildwheel@v3.4.1
         env:
           CIBW_BUILD: "${{ matrix.python }}-*"
       - uses: actions/upload-artifact@v7
@@ -72,4 +72,4 @@ jobs:
         with:
           merge-multiple: true
           path: dist
-      - uses: pypa/gh-action-pypi-publish@v1.13.0
+      - uses: pypa/gh-action-pypi-publish@v1.14.0
