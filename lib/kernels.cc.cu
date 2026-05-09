@@ -7,6 +7,8 @@
 
 #include <complex>
 #include <cstdint>
+#include <cub/cub.cuh>
+#include <vector>
 
 #include "cufinufft_wrapper.h"
 #include "kernels.h"
@@ -18,21 +20,69 @@ namespace jax_finufft {
 namespace gpu {
 
 // =============================================================================
-// Core NUFFT execution logic
+// Core NUFFT execution logic for masked and unmasked
 // =============================================================================
 
-/// Execute NUFFT transform for a batch of inputs on GPU.
-template <int ndim, typename T, int type>
-ffi::Error run_nufft(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag, int64_t n_tot,
-                     int n_transf, int64_t n_j, const int64_t* n_k, T* x, T* y, T* z,
-                     std::complex<T>* c, T* s, T* t, T* u, std::complex<T>* F) {
-  int64_t n_k_total = 1;
-  if constexpr (type != 3) {
-    for (int d = 0; d < ndim; ++d) {
-      n_k_total *= n_k[d];
-    }
+__global__ void cast_mask_kernel(const int8_t* mask, int64_t* mask_int64, int64_t n_j) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n_j) {
+    mask_int64[i] = mask[i];
+  }
+}
+
+__global__ void get_mask_total_kernel(const int8_t* mask, const int64_t* prefix, int64_t n_j,
+                                      int64_t* total) {
+  if (n_j > 0) {
+    *total = prefix[n_j - 1] + (mask[n_j - 1] ? 1 : 0);
   } else {
-    n_k_total = n_k[0];
+    *total = 0;
+  }
+}
+
+template <int ndim, typename T, int type>
+__global__ void pack_kernel(const int8_t* mask, const int64_t* prefix, int64_t n_j, const T* x,
+                            const T* y, const T* z, const std::complex<T>* c, T* Q_x, T* Q_y,
+                            T* Q_z, std::complex<T>* Q_c, int n_transf, int64_t Q_size) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n_j && mask[i]) {
+    int64_t p = prefix[i];
+    Q_x[p] = x[i];
+    if constexpr (ndim > 1) Q_y[p] = y[i];
+    if constexpr (ndim > 2) Q_z[p] = z[i];
+    if constexpr (type != 2) {
+      for (int t = 0; t < n_transf; t++) Q_c[t * Q_size + p] = c[t * n_j + i];
+    }
+  }
+}
+
+template <typename T>
+__global__ void unpack_kernel(const int8_t* mask, const int64_t* prefix, int64_t n_j,
+                              const std::complex<T>* Q_c, std::complex<T>* c, int n_transf,
+                              int64_t Q_size) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n_j) {
+    if (mask[i]) {
+      int64_t p = prefix[i];
+      for (int t = 0; t < n_transf; t++) c[t * n_j + i] = Q_c[t * Q_size + p];
+    } else {
+      for (int t = 0; t < n_transf; t++) {
+        T* c_ptr = reinterpret_cast<T*>(&c[t * n_j + i]);
+        c_ptr[0] = T(0.0);
+        c_ptr[1] = T(0.0);
+      }
+    }
+  }
+}
+
+// Execute NUFFT transform for a batch of inputs on GPU.
+template <int ndim, typename T, int type>
+ffi::Error run_nufft_masked(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag,
+                            int64_t n_tot, int n_transf, int64_t n_j, const int64_t* n_k, T* x,
+                            T* y, T* z, const int8_t* mask, std::complex<T>* c,
+                            std::complex<T>* F) {
+  int64_t n_k_total = 1;
+  for (int d = 0; d < ndim; ++d) {
+    n_k_total *= n_k[d];
   }
 
   // Set stream and device in options
@@ -43,6 +93,7 @@ ffi::Error run_nufft(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag,
     return ffi::Error::Internal("cudaGetDevice failed: " +
                                 std::string(cudaGetErrorString(cuda_err)));
   }
+
   device_type device{device_ordinal};
   update_opts<T>(&opts, ndim, device);
 
@@ -54,40 +105,146 @@ ffi::Error run_nufft(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag,
     return ffi::Error::Internal("cuFINUFFT makeplan failed with code " + std::to_string(ret));
   }
 
+  T *Q_x = nullptr, *Q_y = nullptr, *Q_z = nullptr;
+  std::complex<T>* Q_c = nullptr;
+  int64_t* d_prefix = nullptr;
+  int64_t* d_Q_size = nullptr;
+  int64_t* d_mask_int64 = nullptr;
+  void* d_temp_storage = nullptr;
+  size_t temp_storage_bytes = 0;
+
+  cudaMallocAsync(&Q_x, n_j * sizeof(T), stream);
+  if constexpr (ndim > 1) cudaMallocAsync(&Q_y, n_j * sizeof(T), stream);
+  if constexpr (ndim > 2) cudaMallocAsync(&Q_z, n_j * sizeof(T), stream);
+  cudaMallocAsync(&Q_c, n_j * n_transf * sizeof(std::complex<T>), stream);
+  cudaMallocAsync(&d_prefix, n_j * sizeof(int64_t), stream);
+  cudaMallocAsync(&d_Q_size, sizeof(int64_t), stream);
+  cudaMallocAsync(&d_mask_int64, n_j * sizeof(int64_t), stream);
+
+  // Get temp storage size for CUB scan
+  cub::DeviceScan::ExclusiveSum(nullptr, temp_storage_bytes, static_cast<int64_t*>(nullptr),
+                                static_cast<int64_t*>(nullptr), n_j, stream);
+  cudaMallocAsync(&d_temp_storage, temp_storage_bytes, stream);
+
   for (int64_t index = 0; index < n_tot; ++index) {
-    int64_t i = index * n_j;
-    int64_t j = index * n_j * n_transf;
-    int64_t k = index * n_k_total * n_transf;
+    int64_t i_start = index * n_j;
+    int64_t c_start = index * n_j * n_transf;
+    int64_t k_start = index * n_k_total * n_transf;
 
-    if constexpr (type != 3) {
-      ret = setpts<T>(plan, n_j, &x[i], y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), 0, nullptr,
-                      nullptr, nullptr);
-    } else {
-      int64_t i_target = index * n_k_total;
-      ret = setpts<T>(plan, n_j, &x[i], y_index<ndim, T>(y, i), z_index<ndim, T>(z, i), n_k_total,
-                      &s[i_target], y_index<ndim, T>(t, i_target), z_index<ndim, T>(u, i_target));
-    }
-    if (ret != 0) {
-      destroy<T>(plan);
-      return ffi::Error::Internal("cuFINUFFT setpts failed with code " + std::to_string(ret));
+    int threads = 256;
+    int blocks = (n_j + threads - 1) / threads;
+
+    if (blocks > 0) {
+      cast_mask_kernel<<<blocks, threads, 0, stream>>>(mask + i_start, d_mask_int64, n_j);
     }
 
-    ret = execute<T>(plan, &c[j], &F[k]);
+    // Perform scan and get total on GPU
+    cub::DeviceScan::ExclusiveSum(d_temp_storage, temp_storage_bytes, d_mask_int64, d_prefix, n_j,
+                                  stream);
+    get_mask_total_kernel<<<1, 1, 0, stream>>>(mask + i_start, d_prefix, n_j, d_Q_size);
+
+    // Copy back only the total number of active points
+    int64_t Q_size = 0;
+    cudaMemcpyAsync(&Q_size, d_Q_size, sizeof(int64_t), cudaMemcpyDeviceToHost, stream);
+    // This sync is required because setpts is a host call that needs Q_size
+    cudaStreamSynchronize(stream);
+
+    if (blocks > 0) {
+      pack_kernel<ndim, T, type><<<blocks, threads, 0, stream>>>(
+          mask + i_start, d_prefix, n_j, &x[i_start], ndim > 1 ? &y[i_start] : nullptr,
+          ndim > 2 ? &z[i_start] : nullptr, &c[c_start], Q_x, Q_y, Q_z, Q_c, n_transf, Q_size);
+    }
+
+    ret = setpts<T>(plan, Q_size, Q_x, Q_y, Q_z, 0, nullptr, nullptr, nullptr);
+    const char* failed_stage = "setpts";
+
+    if (ret == 0) {
+      failed_stage = "execute";
+      ret = execute<T>(plan, Q_c, &F[k_start]);
+
+      if (ret == 0 && type == 2 && blocks > 0) {
+        unpack_kernel<<<blocks, threads, 0, stream>>>(mask + i_start, d_prefix, n_j, Q_c,
+                                                      &c[c_start], n_transf, Q_size);
+      }
+    }
+
     if (ret != 0) {
+      cudaFreeAsync(Q_x, stream);
+      if constexpr (ndim > 1) cudaFreeAsync(Q_y, stream);
+      if constexpr (ndim > 2) cudaFreeAsync(Q_z, stream);
+      cudaFreeAsync(Q_c, stream);
+      cudaFreeAsync(d_prefix, stream);
+      cudaFreeAsync(d_Q_size, stream);
+      cudaFreeAsync(d_temp_storage, stream);
+      cudaFreeAsync(d_mask_int64, stream);
       destroy<T>(plan);
-      return ffi::Error::Internal("cuFINUFFT execute failed with code " + std::to_string(ret));
+      return ffi::Error::Internal("cuFINUFFT " + std::string(failed_stage) + " failed with code " +
+                                  std::to_string(ret));
     }
   }
+
+  cudaFreeAsync(Q_x, stream);
+  if constexpr (ndim > 1) cudaFreeAsync(Q_y, stream);
+  if constexpr (ndim > 2) cudaFreeAsync(Q_z, stream);
+  cudaFreeAsync(Q_c, stream);
+  cudaFreeAsync(d_prefix, stream);
+  cudaFreeAsync(d_Q_size, stream);
+  cudaFreeAsync(d_temp_storage, stream);
+  cudaFreeAsync(d_mask_int64, stream);
 
   // Synchronize before destroying the plan
   cudaStreamSynchronize(stream);
   destroy<T>(plan);
+  return ffi::Error::Success();
+}
 
-  cuda_err = cudaGetLastError();
+template <int ndim, typename T>
+ffi::Error run_nufft_unmasked(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag,
+                              int64_t n_tot, int n_transf, int64_t n_j, const int64_t* n_k, T* x,
+                              T* y, T* z, std::complex<T>* c, T* s, T* t, T* u,
+                              std::complex<T>* F) {
+  int64_t n_k_total = n_k[0];
+
+  update_opts<T>(&opts, ndim, stream);
+  int device_ordinal;
+  cudaError_t cuda_err = cudaGetDevice(&device_ordinal);
   if (cuda_err != cudaSuccess) {
-    return ffi::Error::Internal("CUDA error: " + std::string(cudaGetErrorString(cuda_err)));
+    return ffi::Error::Internal("cudaGetDevice failed: " +
+                                std::string(cudaGetErrorString(cuda_err)));
   }
 
+  device_type device{device_ordinal};
+  update_opts<T>(&opts, ndim, device);
+
+  typename plan_type<T>::type plan;
+  int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
+  int ret = makeplan<T>(3, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
+  // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
+  if (ret > 1) {
+    return ffi::Error::Internal("cuFINUFFT makeplan failed with code " + std::to_string(ret));
+  }
+
+  for (int64_t index = 0; index < n_tot; ++index) {
+    int64_t i_start = index * n_j;
+    int64_t i_target = index * n_k_total;
+    int64_t c_start = index * n_j * n_transf;
+    int64_t k_start = index * n_k_total * n_transf;
+
+    ret = setpts<T>(plan, n_j, &x[i_start], ndim > 1 ? &y[i_start] : nullptr,
+                    ndim > 2 ? &z[i_start] : nullptr, n_k_total, &s[i_target],
+                    ndim > 1 ? &t[i_target] : nullptr, ndim > 2 ? &u[i_target] : nullptr);
+
+    if (ret == 0) ret = execute<T>(plan, &c[c_start], &F[k_start]);
+
+    if (ret != 0) {
+      destroy<T>(plan);
+      return ffi::Error::Internal("cuFINUFFT setpts or execute failed with code " +
+                                  std::to_string(ret));
+    }
+  }
+
+  cudaStreamSynchronize(stream);
+  destroy<T>(plan);
   return ffi::Error::Success();
 }
 
@@ -119,28 +276,25 @@ ffi::Error nufft1_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot,
                        int64_t n_j, int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
                        double upsampfac, int64_t gpu_method, int64_t gpu_sort,
                        int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize, int64_t debug,
-                       ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                       ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+                       ffi::AnyBuffer source, ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                       ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                       ffi::Result<ffi::AnyBuffer> output) {
   cufinufft_opts opts = build_opts<T>(modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
                                       gpu_maxbatchsize, debug);
 
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
 
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* mask = reinterpret_cast<const int8_t*>(points_mask.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
   T* y = nullptr;
   T* z = nullptr;
-  if constexpr (ndim > 1) {
-    y = reinterpret_cast<T*>(points_y.untyped_data());
-  }
-  if constexpr (ndim > 2) {
-    z = reinterpret_cast<T*>(points_z.untyped_data());
-  }
+  if constexpr (ndim > 1) y = reinterpret_cast<T*>(points_y.untyped_data());
+  if constexpr (ndim > 2) z = reinterpret_cast<T*>(points_z.untyped_data());
   auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
 
-  return run_nufft<ndim, T, 1>(stream, opts, eps, static_cast<int>(iflag), n_tot,
-                               static_cast<int>(n_transf), n_j, n_k, x, y, z, c, nullptr, nullptr,
-                               nullptr, F);
+  return run_nufft_masked<ndim, T, 1>(stream, opts, eps, static_cast<int>(iflag), n_tot,
+                                      static_cast<int>(n_transf), n_j, n_k, x, y, z, mask, c, F);
 }
 
 // =============================================================================
@@ -152,28 +306,24 @@ ffi::Error nufft2_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot,
                        int64_t n_j, int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
                        double upsampfac, int64_t gpu_method, int64_t gpu_sort,
                        int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize, int64_t debug,
-                       ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                       ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+                       ffi::AnyBuffer source, ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                       ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                       ffi::Result<ffi::AnyBuffer> output) {
   cufinufft_opts opts = build_opts<T>(modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
                                       gpu_maxbatchsize, debug);
-
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
 
   auto* F = reinterpret_cast<std::complex<T>*>(source.untyped_data());
+  auto* mask = reinterpret_cast<const int8_t*>(points_mask.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
   T* y = nullptr;
   T* z = nullptr;
-  if constexpr (ndim > 1) {
-    y = reinterpret_cast<T*>(points_y.untyped_data());
-  }
-  if constexpr (ndim > 2) {
-    z = reinterpret_cast<T*>(points_z.untyped_data());
-  }
+  if constexpr (ndim > 1) y = reinterpret_cast<T*>(points_y.untyped_data());
+  if constexpr (ndim > 2) z = reinterpret_cast<T*>(points_z.untyped_data());
   auto* c = reinterpret_cast<std::complex<T>*>(output->untyped_data());
 
-  return run_nufft<ndim, T, 2>(stream, opts, eps, static_cast<int>(iflag), n_tot,
-                               static_cast<int>(n_transf), n_j, n_k, x, y, z, c, nullptr, nullptr,
-                               nullptr, F);
+  return run_nufft_masked<ndim, T, 2>(stream, opts, eps, static_cast<int>(iflag), n_tot,
+                                      static_cast<int>(n_transf), n_j, n_k, x, y, z, mask, c, F);
 }
 
 // =============================================================================
@@ -190,7 +340,6 @@ ffi::Error nufft3_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot,
                        ffi::AnyBuffer target_z, ffi::Result<ffi::AnyBuffer> output) {
   cufinufft_opts opts = build_opts<T>(modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
                                       gpu_maxbatchsize, debug);
-
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
 
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
@@ -210,8 +359,8 @@ ffi::Error nufft3_impl(cudaStream_t stream, T eps, int64_t iflag, int64_t n_tot,
   }
   auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
 
-  return run_nufft<ndim, T, 3>(stream, opts, eps, static_cast<int>(iflag), n_tot,
-                               static_cast<int>(n_transf), n_j, n_k, x, y, z, c, s, t, u, F);
+  return run_nufft_unmasked<ndim, T>(stream, opts, eps, static_cast<int>(iflag), n_tot,
+                                     static_cast<int>(n_transf), n_j, n_k, x, y, z, c, s, t, u, F);
 }
 
 // =============================================================================
@@ -222,78 +371,78 @@ ffi::Error nufft1d1f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                           int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                           int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                          ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                          ffi::Result<ffi::AnyBuffer> output) {
+                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                          ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                          ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   return nufft1_impl<1, float>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                               gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                               output);
+                               gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                               points_z, output);
 }
 
 ffi::Error nufft1d1_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
                          int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                          int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                         ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                         ffi::AnyBuffer points_x, ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
                          ffi::Result<ffi::AnyBuffer> output) {
   return nufft1_impl<1, double>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                 modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                                gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                                output);
+                                gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                                points_z, output);
 }
 
 ffi::Error nufft2d1f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t n_tot,
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                           int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                           int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                          ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                          ffi::Result<ffi::AnyBuffer> output) {
+                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                          ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                          ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   return nufft1_impl<2, float>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                               gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                               output);
+                               gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                               points_z, output);
 }
 
 ffi::Error nufft2d1_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
                          int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                          int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                         ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                         ffi::AnyBuffer points_x, ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
                          ffi::Result<ffi::AnyBuffer> output) {
   return nufft1_impl<2, double>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                 modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                                gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                                output);
+                                gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                                points_z, output);
 }
 
 ffi::Error nufft3d1f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t n_tot,
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                           int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                           int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                          ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                          ffi::Result<ffi::AnyBuffer> output) {
+                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                          ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                          ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   return nufft1_impl<3, float>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                               gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                               output);
+                               gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                               points_z, output);
 }
 
 ffi::Error nufft3d1_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
                          int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                          int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                         ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                         ffi::AnyBuffer points_x, ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
                          ffi::Result<ffi::AnyBuffer> output) {
   return nufft1_impl<3, double>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                 modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                                gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                                output);
+                                gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                                points_z, output);
 }
 
 // =============================================================================
@@ -304,78 +453,78 @@ ffi::Error nufft1d2f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                           int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                           int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                          ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                          ffi::Result<ffi::AnyBuffer> output) {
+                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                          ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                          ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   return nufft2_impl<1, float>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                               gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                               output);
+                               gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                               points_z, output);
 }
 
 ffi::Error nufft1d2_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
                          int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                          int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                         ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                         ffi::AnyBuffer points_x, ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
                          ffi::Result<ffi::AnyBuffer> output) {
   return nufft2_impl<1, double>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                 modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                                gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                                output);
+                                gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                                points_z, output);
 }
 
 ffi::Error nufft2d2f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t n_tot,
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                           int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                           int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                          ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                          ffi::Result<ffi::AnyBuffer> output) {
+                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                          ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                          ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   return nufft2_impl<2, float>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                               gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                               output);
+                               gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                               points_z, output);
 }
 
 ffi::Error nufft2d2_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
                          int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                          int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                         ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                         ffi::AnyBuffer points_x, ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
                          ffi::Result<ffi::AnyBuffer> output) {
   return nufft2_impl<2, double>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                 modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                                gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                                output);
+                                gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                                points_z, output);
 }
 
 ffi::Error nufft3d2f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t n_tot,
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                           int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                           int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                          ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                          ffi::Result<ffi::AnyBuffer> output) {
+                          int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                          ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                          ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   return nufft2_impl<3, float>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                               gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                               output);
+                               gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                               points_z, output);
 }
 
 ffi::Error nufft3d2_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
                          int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                          int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
-                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                         ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                         int64_t debug, ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                         ffi::AnyBuffer points_x, ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
                          ffi::Result<ffi::AnyBuffer> output) {
   return nufft2_impl<3, double>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
                                 modeord, upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth,
-                                gpu_maxbatchsize, debug, source, points_x, points_y, points_z,
-                                output);
+                                gpu_maxbatchsize, debug, source, points_mask, points_x, points_y,
+                                points_z, output);
 }
 
 // =============================================================================
