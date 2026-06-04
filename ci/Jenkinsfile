@@ -4,17 +4,17 @@ properties([
 ])
 
 timeout(time: 1, unit: 'HOURS') {
-  def cudas = ['12.9.1', '13.1.1']
-  cudas.each { CUDA ->
-    buildPod(tag: CUDA,
-      context: 'ci',
-      buildArgs: "--build-arg CUDA=$CUDA",
-      gpus: 1) {
-      withEnv([
-        "HOME=$WORKSPACE",
-        "PY_CUDA_EXTRA=cuda${CUDA.split('\\.')[0]}-local",
-        "CMAKE_ARGS=-DJAX_FINUFFT_USE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=${CUDA.startsWith('13.') ? '80' : 'native'}"
-      ]) {
+  def cudas = ['12.9.1', '13.1.1'].collectEntries { CUDA ->
+    [CUDA, { ->
+      buildPod(tag: CUDA,
+        context: 'ci',
+        buildArgs: "--build-arg CUDA=$CUDA",
+        gpus: 1) {
+        withEnv([
+          "HOME=$WORKSPACE",
+          "PY_CUDA_EXTRA=cuda${CUDA.split('\\.')[0]}-local",
+          "CMAKE_ARGS=-DJAX_FINUFFT_USE_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native"
+        ]) {
                     stage('Build') {
                             sh '''
                                 uv sync
@@ -45,7 +45,9 @@ timeout(time: 1, unit: 'HOURS') {
                             '''
                         }
                     }
+        }
       }
-    }
+    }]
   }
+  parallel cudas
 }
