@@ -9,7 +9,8 @@ timeout(time: 1, unit: 'HOURS') {
       buildPod(tag: CUDA,
         context: 'ci',
         buildArgs: "--build-arg CUDA=$CUDA",
-        gpus: 1) {
+        gpus: 1,
+        gpuType: 'a100') {
         withEnv([
           "HOME=$WORKSPACE",
           "PY_CUDA_EXTRA=cuda${CUDA.split('\\.')[0]}-local",
