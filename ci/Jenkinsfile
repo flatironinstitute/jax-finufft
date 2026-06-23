@@ -42,7 +42,7 @@ timeout(time: 1, unit: 'HOURS') {
                         withEnv(["JAX_PLATFORMS=cuda"]) {
                             sh '''
                                 export OMP_NUM_THREADS=$PARALLEL
-                                uv run -p 3.13t --extra test --extra ${PY_CUDA_EXTRA} pytest -vs
+                                uv run -p 3.14t --extra test --extra ${PY_CUDA_EXTRA} pytest -vs
                             '''
                         }
                     }
