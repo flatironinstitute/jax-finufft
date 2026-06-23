@@ -289,8 +289,8 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
 
     # If none of the points are being mapped, we can get a faster computation using
     # a single transform with num_transforms * num_repeats
-    if all(bx is batching.not_mapped for bx in bpoints):
-        assert bsource is not batching.not_mapped
+    if all(bx is None for bx in bpoints):
+        assert bsource is not None
         source = batching.moveaxis(source, bsource, 0)
         mapped_points = tuple(p[None] for p in points)
 
@@ -298,11 +298,9 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
         # Otherwise move the batching dimension to the front and repeat the arrays
         # to the right shape
         if bsource is None:
-            assert any(bx is not batching.not_mapped for bx in bpoints)
+            assert any(bx is not None for bx in bpoints)
             num_repeats = next(
-                x.shape[bx]
-                for x, bx in zip(points, bpoints)
-                if bx is not batching.not_mapped
+                x.shape[bx] for x, bx in zip(points, bpoints) if bx is not None
             )
             source = jnp.repeat(source[jnp.newaxis], num_repeats, axis=0)
         else:
@@ -311,7 +309,7 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
 
         mapped_points = []
         for x, bx in zip(points, bpoints):
-            if bx is batching.not_mapped:
+            if bx is None:
                 mapped_points.append(jnp.repeat(x[None], num_repeats, axis=0))
             else:
                 mapped_points.append(batching.moveaxis(x, bx, 0))
