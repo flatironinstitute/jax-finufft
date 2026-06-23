@@ -18,6 +18,34 @@ elif jax.version.__version_info__ >= (0, 4, 34):
 else:
     p2tz = ad.Zero.from_value
 
+try:
+    from jax._src.core import auto_insert_reshard as _insert_reshard  # jax >= 0.10.1
+except ImportError:
+    try:
+        from jax._src.core import (
+            standard_insert_pvary as _insert_reshard,
+        )  # 0.6.0-0.10.0
+    except ImportError:
+        _insert_reshard = (
+            None  # jax < 0.6.0: no vma tracking, may work with check_rep=False
+        )
+
+
+def reconcile_vma(source, points):
+    """Bring all inputs to a common set of varying manual axes (vma) before
+    binding.
+
+    Under ``jax.shard_map`` this inserts a ``pvary`` on any input that is
+    replicated over a manual mesh axis that the other inputs vary over. Because
+    ``pvary`` transposes to ``psum``, this supplies the cross-device gradient
+    accumulation for a replicated input -- e.g. the grid in a data-parallel
+    type-2 transform. Outside manual mode it is a no-op.
+    """
+    if _insert_reshard is None:
+        return source, points
+    source, *points = _insert_reshard(source, *points)
+    return source, points
+
 
 @partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps", "opts"))
 def nufft1(output_shape, source, *points, iflag=1, eps=1e-6, opts=None):
@@ -39,6 +67,7 @@ def nufft1(output_shape, source, *points, iflag=1, eps=1e-6, opts=None):
     )
 
     # Execute the transform primitive
+    source, points = reconcile_vma(source, points)
     result = nufft1_p.bind(
         source,
         *points,
@@ -67,6 +96,7 @@ def nufft2(source, *points, iflag=-1, eps=1e-6, opts=None):
     )
 
     # Execute the transform primitive
+    source, points = reconcile_vma(source, points)
     result = nufft2_p.bind(
         source,
         *points,
@@ -110,6 +140,7 @@ def nufft3(source, *points, iflag=-1, eps=1e-6, opts=None):
     )
 
     # Execute the transform primitive
+    source, points = reconcile_vma(source, points)
     result = nufft3_p.bind(
         source,
         *points,
