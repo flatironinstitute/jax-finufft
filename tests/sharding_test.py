@@ -10,6 +10,8 @@ varying manual axes (vma) or registers a rep rule. Without it the forward is
 correct but the gradient is silently wrong.
 """
 
+import os
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -42,8 +44,18 @@ else:
     enable_x64 = jax.enable_x64
 
 
-# All tests in this module need a multi-device mesh.
-pytestmark = pytest.mark.skipif(jax.device_count() < 2, reason="requires >=2 devices")
+# CI uses JAX_FINUFFT_REQUIRE_SHARDING to ensure the tests are not skipped
+_MIN_DEVICES = 2
+if jax.device_count() < _MIN_DEVICES and os.environ.get("JAX_FINUFFT_REQUIRE_SHARDING"):
+    raise RuntimeError(
+        f"JAX_FINUFFT_REQUIRE_SHARDING is set, but only {jax.device_count()} "
+        f"device(s) are available; the sharding tests need >= {_MIN_DEVICES}."
+    )
+pytestmark = pytest.mark.skipif(
+    jax.device_count() < _MIN_DEVICES,
+    reason=f"requires >= {_MIN_DEVICES} devices "
+    "(set JAX_FINUFFT_REQUIRE_SHARDING to make this an error instead)",
+)
 
 
 @pytest.fixture(autouse=True)
