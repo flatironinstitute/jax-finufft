@@ -214,3 +214,110 @@ def test_nufft3_shard_map_grad(ndim, iflag):
             primal_spec=P("s"),
             mesh=mesh,
         )
+
+
+@pytest.mark.parametrize("ndim, iflag", product([1, 2, 3], [-1, 1]))
+def test_nufft3_shard_map_grad_rep_source_shard_target(ndim, iflag):
+    # Data-parallel type 3, complementary pattern: source coeffs + source points
+    # replicated, target points (and the loss) sharded. Each device evaluates all
+    # sources at its slice of targets, so no forward collective is needed.
+    # Differentiate w.r.t. the *replicated* coeffs -- their cotangent must be
+    # psum'd over the target shards (the pvary path), analogous to the type-2
+    # replicated-grid case.
+    random = np.random.default_rng(657)
+    eps = 1e-10
+    n = jax.device_count()
+    num_source = 20
+    num_target = 32 * n
+
+    x = [jnp.asarray(random.uniform(-1.0, 1.0, size=num_source)) for _ in range(ndim)]
+    s = [jnp.asarray(random.uniform(-1.0, 1.0, size=num_target)) for _ in range(ndim)]
+    c = jnp.asarray(
+        random.normal(size=num_source) + 1j * random.normal(size=num_source)
+    )
+    target = jnp.asarray(
+        random.normal(size=num_target) + 1j * random.normal(size=num_target)
+    )
+
+    with enable_x64():
+        mesh = _mesh()
+        rows = NamedSharding(mesh, P("s"))
+        repl = NamedSharding(mesh, P())
+        xs = [jax.device_put(xi, repl) for xi in x]  # sources replicated
+        ss = [jax.device_put(si, rows) for si in s]  # targets sharded
+        tgt = jax.device_put(target, rows)  # target data sharded
+
+        def single(c):
+            f = nufft3(c, *x, *s, iflag=iflag, eps=eps)
+            return jnp.sum(jnp.abs(f - target) ** 2)
+
+        def local(c, *pts_and_tgt):
+            xp = pts_and_tgt[:ndim]
+            sp = pts_and_tgt[ndim : 2 * ndim]
+            tg = pts_and_tgt[2 * ndim]
+            f = nufft3(
+                c, *xp, *sp, iflag=iflag, eps=eps
+            )  # all sources -> local targets
+            return jax.lax.psum(jnp.sum(jnp.abs(f - tg) ** 2), "s")
+
+        sm = shard_map(
+            local,
+            mesh=mesh,
+            in_specs=(P(),) + (P(),) * ndim + (P("s"),) * ndim + (P("s"),),
+            out_specs=P(),
+        )
+
+        _check(
+            single=single,
+            sharded=lambda c: sm(c, *xs, *ss, tgt),
+            primal=c,
+            primal_spec=P(),
+            mesh=mesh,
+        )
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="sharding type-3 on sources and targets simultaneously not supported",
+)
+def test_nufft3_shard_map_shard_source_and_target():
+    # NOT a valid data-parallel pattern for the type-3 transform: with
+    # both point sets sharded, each device computes only its local sources'
+    # contribution to its local targets, so the forward result is wrong.
+    # Kept as xfail to (1) document the limitation, (2) check that we're
+    # correctly blocking this execution, and (3) leave it as a breadcrumb
+    # for future work.
+    ndim, iflag = 2, -1
+    random = np.random.default_rng(657)
+    eps = 1e-10
+    n = jax.device_count()
+    num_source = 32 * n
+    num_target = 32 * n
+
+    x = [jnp.asarray(random.uniform(-1.0, 1.0, size=num_source)) for _ in range(ndim)]
+    s = [jnp.asarray(random.uniform(-1.0, 1.0, size=num_target)) for _ in range(ndim)]
+    c = jnp.asarray(
+        random.normal(size=num_source) + 1j * random.normal(size=num_source)
+    )
+
+    with enable_x64():
+        mesh = _mesh()
+        rows = NamedSharding(mesh, P("s"))
+        cs = jax.device_put(c, rows)
+        xs = [jax.device_put(xi, rows) for xi in x]
+        ss = [jax.device_put(si, rows) for si in s]
+
+        def local(c, *pts):
+            xp, sp = pts[:ndim], pts[ndim:]
+            return nufft3(c, *xp, *sp, iflag=iflag, eps=eps)
+
+        sm = shard_map(
+            local,
+            mesh=mesh,
+            in_specs=(P("s"),) + (P("s"),) * ndim + (P("s"),) * ndim,
+            out_specs=P("s"),
+        )
+
+        f_sharded = sm(cs, *xs, *ss)
+        f_ref = nufft3(c, *x, *s, iflag=iflag, eps=eps)
+        check_close(f_sharded, f_ref)  # missing cross-shard source contributions
