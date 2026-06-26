@@ -336,6 +336,104 @@ f = nufft1(N, c, x)
 If you compiled jax-finufft with GPU support, you can force it to use a particular
 backend by setting the environment variable `JAX_PLATFORMS=cpu` or `JAX_PLATFORMS=cuda`.
 
+## Sharding
+
+jax-finufft transforms can be distributed across multiple devices, but with
+caveats that come from how the underlying FINUFFT calls interact with JAX's
+parallelism model. The transforms are XLA custom calls (via the
+[FFI](https://docs.jax.dev/en/latest/ffi.html)), which are opaque to XLA's
+partitioner. As the [FFI sharding
+docs](https://docs.jax.dev/en/latest/ffi.html#sharding) explain, this means that
+under automatic parallelization — a plain `jax.jit` over sharded inputs —
+the inputs are **gathered onto every device** and the full transform is run
+redundantly on each (see
+[#179](https://github.com/flatironinstitute/jax-finufft/issues/179)). To actually
+distribute the work, drive the transforms with manual sharding, i.e.
+[`jax.shard_map`](https://docs.jax.dev/en/latest/sharded-computation.html); the
+rest of this section assumes that.
+
+### What can and cannot be sharded
+
+jax-finufft supports **data parallelism over the nonuniform points**. The points
+(and their strengths/coefficients) are the naturally shardable axis: each point is
+processed independently, apart from the grid sum inherent in a type-1 transform.
+
+The **uniform grid** (the mode array) must be **replicated**: it is the operand of
+the FFT, which is performed locally on each device. Sharding the grid would require
+a distributed FFT, which is out of scope for now. Any **leading batch
+dimensions** (stacked transforms; see [Stacked Transforms and
+Broadcasting](#stacked-transforms-and-broadcasting)) shard trivially, since those
+transforms are independent.
+
+### Data-parallel patterns by transform type
+
+Within a `shard_map`, each pattern below runs the transform on every device's local
+shard of the points and combines the results with at most one collective:
+
+| Transform | shard | replicate | combine |
+|---|---|---|---|
+| **Type 1** (nonuniform → uniform) | points + strengths | — | `psum` the output grid (spreading is additive over points) |
+| **Type 2** (uniform → nonuniform) | points | grid | none (each device evaluates the grid at its own points) |
+| **Type 3** (nonuniform → nonuniform) | source points + strengths | target points | `psum` the output |
+| **Type 3** (alternative) | target points | source points + strengths | none (each device evaluates all sources at its own targets) |
+
+For example, a data-parallel type 2 with the grid replicated and the points sharded
+across the mesh comes down to wrapping `nufft2` in a `shard_map`:
+
+```python
+from jax import shard_map  # jax.experimental.shard_map on JAX < 0.10
+from jax.sharding import Mesh, PartitionSpec as P
+
+mesh = Mesh(np.array(jax.devices()), ("i",))  # plain Mesh -> manual (shard_map) axes
+
+# grid replicated; points (and the output) sharded along "i"
+sharded_nufft2 = shard_map(
+    nufft2, mesh=mesh, in_specs=(P(), P("i"), P("i")), out_specs=P("i")
+)
+c = sharded_nufft2(grid, x, y)  # c.shape == (n_pts,), sharded over the points
+```
+
+<details>
+<summary>Full example</summary>
+
+```python
+import jax
+import jax.numpy as jnp
+import numpy as np
+from jax import shard_map  # jax.experimental.shard_map on JAX < 0.10
+from jax.sharding import Mesh, PartitionSpec as P
+from jax_finufft import nufft2
+
+mesh = Mesh(np.array(jax.devices()), ("i",))  # plain Mesh -> manual (shard_map) axes
+n_pts = 1000 * jax.device_count()  # must be divisible by the mesh size
+
+rng = np.random.default_rng(0)
+grid = jnp.asarray(rng.standard_normal((64, 64)) + 1j * rng.standard_normal((64, 64)))
+x = jnp.asarray(rng.uniform(-np.pi, np.pi, n_pts))  # nonuniform points
+y = jnp.asarray(rng.uniform(-np.pi, np.pi, n_pts))
+
+sharded_nufft2 = shard_map(
+    nufft2, mesh=mesh, in_specs=(P(), P("i"), P("i")), out_specs=P("i")
+)
+c = sharded_nufft2(grid, x, y)  # c.shape == (n_pts,), sharded over the points
+```
+</details>
+
+Type 3 maps nonuniform *sources* to nonuniform *targets*, and every target depends
+on every source — hence the two alternatives above, sharding one side and
+replicating the other. Sharding *both* sources and targets is currently **not supported**: this requires more complex communication patterns that are not presently implemented.
+
+### Gradients
+
+These patterns differentiate correctly with plain `jax.grad` / `jax.value_and_grad`
+under `shard_map`: both the value and the gradient match the single-device result.
+Note that the cotangent of a **replicated** input — the
+grid in the type-2 pattern, or the coefficients in the type-1 pattern — must be
+summed across devices. jax-finufft inserts this sum for you,
+via JAX's varying manual axes (vma) model on **JAX >= 0.6.0**,
+and via a replication rule it registers for the older `check_rep`-based `shard_map`
+on **JAX < 0.6.0**.
+
 ## Advanced usage
 
 ### Options
