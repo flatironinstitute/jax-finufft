@@ -6,7 +6,7 @@ uniform grid is replicated, and the result is reduced across devices with
 ``jax.lax.psum``. The forward transform shards trivially -- each device runs a
 local transform on its slice of points -- but the gradient of a *replicated*
 input requires a cross-device ``psum`` that is only inserted when JAX tracks
-varying manual axes (vma), i.e. jax >= 0.6.0. Without it the forward is
+varying manual axes (vma) or registers a rep rule. Without it the forward is
 correct but the gradient is silently wrong.
 """
 
