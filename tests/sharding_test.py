@@ -29,7 +29,10 @@ except ImportError:
 
 
 def check_close(a, b, **kwargs):
-    kwargs["rtol"] = kwargs.get("rtol", {"complex128": 1e-7, "complex64": 1e-4})
+    kwargs["rtol"] = kwargs.get(
+        "rtol",
+        {"float64": 1e-7, "complex128": 1e-7, "float32": 1e-4, "complex64": 1e-4},
+    )
     return jtu.check_close(a, b, **kwargs)
 
 
@@ -41,6 +44,13 @@ else:
 
 # All tests in this module need a multi-device mesh.
 pytestmark = pytest.mark.skipif(jax.device_count() < 2, reason="requires >=2 devices")
+
+
+@pytest.fixture(autouse=True)
+def _enable_x64():
+    # Run the whole module in double precision
+    with enable_x64():
+        yield
 
 
 def _mesh():
@@ -83,30 +93,29 @@ def test_nufft2_shard_map_grad(ndim):
     def chi(g, *pts, d):
         return jnp.sum(jnp.abs(nufft2(g, *pts, eps=eps) - d) ** 2)
 
-    with enable_x64():
-        mesh = _mesh()
-        rows = NamedSharding(mesh, P("s"))
-        xs = [jax.device_put(xi, rows) for xi in x]
-        ds = jax.device_put(data, rows)
+    mesh = _mesh()
+    rows = NamedSharding(mesh, P("s"))
+    xs = [jax.device_put(xi, rows) for xi in x]
+    ds = jax.device_put(data, rows)
 
-        def local(g, *pts_and_data):
-            *pts, d = pts_and_data
-            return jax.lax.psum(chi(g, *pts, d=d), "s")
+    def local(g, *pts_and_data):
+        *pts, d = pts_and_data
+        return jax.lax.psum(chi(g, *pts, d=d), "s")
 
-        sm = shard_map(
-            local,
-            mesh=mesh,
-            in_specs=(P(),) + (P("s"),) * (ndim + 1),
-            out_specs=P(),
-        )
+    sm = shard_map(
+        local,
+        mesh=mesh,
+        in_specs=(P(),) + (P("s"),) * (ndim + 1),
+        out_specs=P(),
+    )
 
-        _check(
-            single=lambda g: chi(g, *x, d=data),
-            sharded=lambda g: sm(g, *xs, ds),
-            primal=grid,
-            primal_spec=P(),
-            mesh=mesh,
-        )
+    _check(
+        single=lambda g: chi(g, *x, d=data),
+        sharded=lambda g: sm(g, *xs, ds),
+        primal=grid,
+        primal_spec=P(),
+        mesh=mesh,
+    )
 
 
 @pytest.mark.parametrize("ndim", [1, 2, 3])
@@ -132,33 +141,32 @@ def test_nufft1_shard_map_grad(ndim):
         random.normal(size=num_uniform) + 1j * random.normal(size=num_uniform)
     )
 
-    with enable_x64():
-        mesh = _mesh()
-        rows = NamedSharding(mesh, P("s"))
-        xs = [jax.device_put(xi, rows) for xi in x]
+    mesh = _mesh()
+    rows = NamedSharding(mesh, P("s"))
+    xs = [jax.device_put(xi, rows) for xi in x]
 
-        def single(c):
-            f = nufft1(num_uniform, c, *x, eps=eps)
-            return jnp.sum(jnp.abs(f - target) ** 2)
+    def single(c):
+        f = nufft1(num_uniform, c, *x, eps=eps)
+        return jnp.sum(jnp.abs(f - target) ** 2)
 
-        def local(c, *pts):
-            f = jax.lax.psum(nufft1(num_uniform, c, *pts, eps=eps), "s")
-            return jnp.sum(jnp.abs(f - target) ** 2)
+    def local(c, *pts):
+        f = jax.lax.psum(nufft1(num_uniform, c, *pts, eps=eps), "s")
+        return jnp.sum(jnp.abs(f - target) ** 2)
 
-        sm = shard_map(
-            local,
-            mesh=mesh,
-            in_specs=(P("s"),) * (ndim + 1),
-            out_specs=P(),
-        )
+    sm = shard_map(
+        local,
+        mesh=mesh,
+        in_specs=(P("s"),) * (ndim + 1),
+        out_specs=P(),
+    )
 
-        _check(
-            single=single,
-            sharded=lambda c: sm(c, *xs),
-            primal=c,
-            primal_spec=P("s"),
-            mesh=mesh,
-        )
+    _check(
+        single=single,
+        sharded=lambda c: sm(c, *xs),
+        primal=c,
+        primal_spec=P("s"),
+        mesh=mesh,
+    )
 
 
 @pytest.mark.parametrize("ndim", [1, 2, 3])
@@ -182,36 +190,35 @@ def test_nufft3_shard_map_grad(ndim):
         random.normal(size=num_target) + 1j * random.normal(size=num_target)
     )
 
-    with enable_x64():
-        mesh = _mesh()
-        rows = NamedSharding(mesh, P("s"))
-        repl = NamedSharding(mesh, P())
-        xs = [jax.device_put(xi, rows) for xi in x]
-        ss = [jax.device_put(si, repl) for si in s]
+    mesh = _mesh()
+    rows = NamedSharding(mesh, P("s"))
+    repl = NamedSharding(mesh, P())
+    xs = [jax.device_put(xi, rows) for xi in x]
+    ss = [jax.device_put(si, repl) for si in s]
 
-        def single(c):
-            f = nufft3(c, *x, *s, eps=eps)
-            return jnp.sum(jnp.abs(f - target) ** 2)
+    def single(c):
+        f = nufft3(c, *x, *s, eps=eps)
+        return jnp.sum(jnp.abs(f - target) ** 2)
 
-        def local(c, *pts):
-            xp, sp = pts[:ndim], pts[ndim:]
-            f = jax.lax.psum(nufft3(c, *xp, *sp, eps=eps), "s")
-            return jnp.sum(jnp.abs(f - target) ** 2)
+    def local(c, *pts):
+        xp, sp = pts[:ndim], pts[ndim:]
+        f = jax.lax.psum(nufft3(c, *xp, *sp, eps=eps), "s")
+        return jnp.sum(jnp.abs(f - target) ** 2)
 
-        sm = shard_map(
-            local,
-            mesh=mesh,
-            in_specs=(P("s"),) + (P("s"),) * ndim + (P(),) * ndim,
-            out_specs=P(),
-        )
+    sm = shard_map(
+        local,
+        mesh=mesh,
+        in_specs=(P("s"),) + (P("s"),) * ndim + (P(),) * ndim,
+        out_specs=P(),
+    )
 
-        _check(
-            single=single,
-            sharded=lambda c: sm(c, *xs, *ss),
-            primal=c,
-            primal_spec=P("s"),
-            mesh=mesh,
-        )
+    _check(
+        single=single,
+        sharded=lambda c: sm(c, *xs, *ss),
+        primal=c,
+        primal_spec=P("s"),
+        mesh=mesh,
+    )
 
 
 @pytest.mark.parametrize("ndim", [1, 2, 3])
@@ -237,39 +244,38 @@ def test_nufft3_shard_map_grad_rep_source_shard_target(ndim):
         random.normal(size=num_target) + 1j * random.normal(size=num_target)
     )
 
-    with enable_x64():
-        mesh = _mesh()
-        rows = NamedSharding(mesh, P("s"))
-        repl = NamedSharding(mesh, P())
-        xs = [jax.device_put(xi, repl) for xi in x]  # sources replicated
-        ss = [jax.device_put(si, rows) for si in s]  # targets sharded
-        tgt = jax.device_put(target, rows)  # target data sharded
+    mesh = _mesh()
+    rows = NamedSharding(mesh, P("s"))
+    repl = NamedSharding(mesh, P())
+    xs = [jax.device_put(xi, repl) for xi in x]  # sources replicated
+    ss = [jax.device_put(si, rows) for si in s]  # targets sharded
+    tgt = jax.device_put(target, rows)  # target data sharded
 
-        def single(c):
-            f = nufft3(c, *x, *s, eps=eps)
-            return jnp.sum(jnp.abs(f - target) ** 2)
+    def single(c):
+        f = nufft3(c, *x, *s, eps=eps)
+        return jnp.sum(jnp.abs(f - target) ** 2)
 
-        def local(c, *pts_and_tgt):
-            xp = pts_and_tgt[:ndim]
-            sp = pts_and_tgt[ndim : 2 * ndim]
-            tg = pts_and_tgt[2 * ndim]
-            f = nufft3(c, *xp, *sp, eps=eps)  # all sources -> local targets
-            return jax.lax.psum(jnp.sum(jnp.abs(f - tg) ** 2), "s")
+    def local(c, *pts_and_tgt):
+        xp = pts_and_tgt[:ndim]
+        sp = pts_and_tgt[ndim : 2 * ndim]
+        tg = pts_and_tgt[2 * ndim]
+        f = nufft3(c, *xp, *sp, eps=eps)  # all sources -> local targets
+        return jax.lax.psum(jnp.sum(jnp.abs(f - tg) ** 2), "s")
 
-        sm = shard_map(
-            local,
-            mesh=mesh,
-            in_specs=(P(),) + (P(),) * ndim + (P("s"),) * ndim + (P("s"),),
-            out_specs=P(),
-        )
+    sm = shard_map(
+        local,
+        mesh=mesh,
+        in_specs=(P(),) + (P(),) * ndim + (P("s"),) * ndim + (P("s"),),
+        out_specs=P(),
+    )
 
-        _check(
-            single=single,
-            sharded=lambda c: sm(c, *xs, *ss, tgt),
-            primal=c,
-            primal_spec=P(),
-            mesh=mesh,
-        )
+    _check(
+        single=single,
+        sharded=lambda c: sm(c, *xs, *ss, tgt),
+        primal=c,
+        primal_spec=P(),
+        mesh=mesh,
+    )
 
 
 @pytest.mark.xfail(
@@ -296,24 +302,23 @@ def test_nufft3_shard_map_shard_source_and_target():
         random.normal(size=num_source) + 1j * random.normal(size=num_source)
     )
 
-    with enable_x64():
-        mesh = _mesh()
-        rows = NamedSharding(mesh, P("s"))
-        cs = jax.device_put(c, rows)
-        xs = [jax.device_put(xi, rows) for xi in x]
-        ss = [jax.device_put(si, rows) for si in s]
+    mesh = _mesh()
+    rows = NamedSharding(mesh, P("s"))
+    cs = jax.device_put(c, rows)
+    xs = [jax.device_put(xi, rows) for xi in x]
+    ss = [jax.device_put(si, rows) for si in s]
 
-        def local(c, *pts):
-            xp, sp = pts[:ndim], pts[ndim:]
-            return nufft3(c, *xp, *sp, eps=eps)
+    def local(c, *pts):
+        xp, sp = pts[:ndim], pts[ndim:]
+        return nufft3(c, *xp, *sp, eps=eps)
 
-        sm = shard_map(
-            local,
-            mesh=mesh,
-            in_specs=(P("s"),) + (P("s"),) * ndim + (P("s"),) * ndim,
-            out_specs=P("s"),
-        )
+    sm = shard_map(
+        local,
+        mesh=mesh,
+        in_specs=(P("s"),) + (P("s"),) * ndim + (P("s"),) * ndim,
+        out_specs=P("s"),
+    )
 
-        f_sharded = sm(cs, *xs, *ss)
-        f_ref = nufft3(c, *x, *s, eps=eps)
-        check_close(f_sharded, f_ref)  # missing cross-shard source contributions
+    f_sharded = sm(cs, *xs, *ss)
+    f_ref = nufft3(c, *x, *s, eps=eps)
+    check_close(f_sharded, f_ref)  # missing cross-shard source contributions
