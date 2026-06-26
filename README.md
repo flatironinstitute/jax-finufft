@@ -1,7 +1,7 @@
 # JAX bindings to FINUFFT
 
 [![GitHub Tests](https://github.com/flatironinstitute/jax-finufft/actions/workflows/tests.yml/badge.svg)](https://github.com/flatironinstitute/jax-finufft/actions/workflows/tests.yml)
-[![Jenkins Tests](https://jenkins.flatironinstitute.org/buildStatus/icon?job=jax-finufft%2Fmain&subject=Jenkins%20Tests)](https://jenkins.flatironinstitute.org/job/jax-finufft/job/main/)
+[![Jenkins Tests](https://jenkins-new.flatironinstitute.org/job/SCC/job/jax-finufft/job/main/badge/icon?subject=Jenkins+CI)](https://jenkins-new.flatironinstitute.org/job/SCC/job/jax-finufft/job/main/)
 
 This package provides a [JAX](https://github.com/google/jax) interface to the [Flatiron Institute Non-uniform Fast Fourier Transform (FINUFFT)
 library](https://github.com/flatironinstitute/finufft). Take a look at the
