@@ -27,7 +27,7 @@ except ImportError:
         )  # 0.6.0-0.10.0
     except ImportError:
         _insert_reshard = (
-            None  # jax < 0.6.0: no vma tracking, may work with check_rep=False
+            None  # jax < 0.6.0: no vma tracking, rep rule registered below
         )
 
 
@@ -384,3 +384,20 @@ if lowering.jax_finufft_gpu is not None:
 ad.primitive_jvps[nufft3_p] = partial(jvp, nufft3_p)
 ad.primitive_transposes[nufft3_p] = transpose
 batching.primitive_batchers[nufft3_p] = batch
+
+
+# Register replication rules for the pre-vma `jax.shard_map`. This is only relevant
+# on jax < 0.6.0. We reuse jax's standard rule, which inserts a `pbroadcast`
+# (transposing to `psum`) on replicated inputs.
+if jax.version.__version_info__ < (0, 6, 0):
+    try:
+        from jax.experimental.shard_map import (
+            register_standard_check,
+            register_standard_rewrite,
+        )
+
+        for _p in (nufft1_p, nufft2_p, nufft3_p):
+            register_standard_check(_p)
+            register_standard_rewrite(_p)
+    except ImportError:
+        pass
