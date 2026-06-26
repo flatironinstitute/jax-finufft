@@ -22,7 +22,7 @@ timeout(time: 1, unit: 'HOURS') {
                             '''
                     }
                     stage('CPU Tests') {
-                        withEnv(["JAX_PLATFORMS=cpu"]) {
+                        withEnv(["JAX_PLATFORMS=cpu", "JAX_FINUFFT_REQUIRE_SHARDING=1"]) {
                             sh '''
                                 export OMP_NUM_THREADS=$PARALLEL
                                 uv run --extra test pytest -n 8
