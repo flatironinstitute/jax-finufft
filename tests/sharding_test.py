@@ -10,8 +10,6 @@ varying manual axes (vma) or registers a rep rule. Without it the forward is
 correct but the gradient is silently wrong.
 """
 
-from itertools import product
-
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -61,8 +59,8 @@ def _check(single, sharded, primal, primal_spec, mesh):
     check_close(g1, g0)  # gradient (wrong without the fix)
 
 
-@pytest.mark.parametrize("ndim, iflag", product([1, 2, 3], [-1, 1]))
-def test_nufft2_shard_map_grad(ndim, iflag):
+@pytest.mark.parametrize("ndim", [1, 2, 3])
+def test_nufft2_shard_map_grad(ndim):
     # Data-parallel type 2: grid replicated, points + data sharded (the #226 repro).
     # Differentiate w.r.t. the *replicated* grid -- this is the reported bug.
     random = np.random.default_rng(657)
@@ -83,7 +81,7 @@ def test_nufft2_shard_map_grad(ndim, iflag):
     )
 
     def chi(g, *pts, d):
-        return jnp.sum(jnp.abs(nufft2(g, *pts, iflag=iflag, eps=eps) - d) ** 2)
+        return jnp.sum(jnp.abs(nufft2(g, *pts, eps=eps) - d) ** 2)
 
     with enable_x64():
         mesh = _mesh()
@@ -111,8 +109,8 @@ def test_nufft2_shard_map_grad(ndim, iflag):
         )
 
 
-@pytest.mark.parametrize("ndim, iflag", product([1, 2, 3], [-1, 1]))
-def test_nufft1_shard_map_grad(ndim, iflag):
+@pytest.mark.parametrize("ndim", [1, 2, 3])
+def test_nufft1_shard_map_grad(ndim):
     # Data-parallel type 1: coeffs + points sharded; the type-1 sum over points is
     # additive across shards, so the local results are combined with psum. The
     # transpose of type 1 is a replicated->sharded type 2, exercising the vma path
@@ -140,11 +138,11 @@ def test_nufft1_shard_map_grad(ndim, iflag):
         xs = [jax.device_put(xi, rows) for xi in x]
 
         def single(c):
-            f = nufft1(num_uniform, c, *x, iflag=iflag, eps=eps)
+            f = nufft1(num_uniform, c, *x, eps=eps)
             return jnp.sum(jnp.abs(f - target) ** 2)
 
         def local(c, *pts):
-            f = jax.lax.psum(nufft1(num_uniform, c, *pts, iflag=iflag, eps=eps), "s")
+            f = jax.lax.psum(nufft1(num_uniform, c, *pts, eps=eps), "s")
             return jnp.sum(jnp.abs(f - target) ** 2)
 
         sm = shard_map(
@@ -163,8 +161,8 @@ def test_nufft1_shard_map_grad(ndim, iflag):
         )
 
 
-@pytest.mark.parametrize("ndim, iflag", product([1, 2, 3], [-1, 1]))
-def test_nufft3_shard_map_grad(ndim, iflag):
+@pytest.mark.parametrize("ndim", [1, 2, 3])
+def test_nufft3_shard_map_grad(ndim):
     # Data-parallel type 3: source coeffs + source points sharded, target points
     # replicated. Each shard contributes all targets; combined with psum. The
     # replicated target points force a pvary up to the sharded axis inside the
@@ -192,12 +190,12 @@ def test_nufft3_shard_map_grad(ndim, iflag):
         ss = [jax.device_put(si, repl) for si in s]
 
         def single(c):
-            f = nufft3(c, *x, *s, iflag=iflag, eps=eps)
+            f = nufft3(c, *x, *s, eps=eps)
             return jnp.sum(jnp.abs(f - target) ** 2)
 
         def local(c, *pts):
             xp, sp = pts[:ndim], pts[ndim:]
-            f = jax.lax.psum(nufft3(c, *xp, *sp, iflag=iflag, eps=eps), "s")
+            f = jax.lax.psum(nufft3(c, *xp, *sp, eps=eps), "s")
             return jnp.sum(jnp.abs(f - target) ** 2)
 
         sm = shard_map(
@@ -216,8 +214,8 @@ def test_nufft3_shard_map_grad(ndim, iflag):
         )
 
 
-@pytest.mark.parametrize("ndim, iflag", product([1, 2, 3], [-1, 1]))
-def test_nufft3_shard_map_grad_rep_source_shard_target(ndim, iflag):
+@pytest.mark.parametrize("ndim", [1, 2, 3])
+def test_nufft3_shard_map_grad_rep_source_shard_target(ndim):
     # Data-parallel type 3, complementary pattern: source coeffs + source points
     # replicated, target points (and the loss) sharded. Each device evaluates all
     # sources at its slice of targets, so no forward collective is needed.
@@ -248,16 +246,14 @@ def test_nufft3_shard_map_grad_rep_source_shard_target(ndim, iflag):
         tgt = jax.device_put(target, rows)  # target data sharded
 
         def single(c):
-            f = nufft3(c, *x, *s, iflag=iflag, eps=eps)
+            f = nufft3(c, *x, *s, eps=eps)
             return jnp.sum(jnp.abs(f - target) ** 2)
 
         def local(c, *pts_and_tgt):
             xp = pts_and_tgt[:ndim]
             sp = pts_and_tgt[ndim : 2 * ndim]
             tg = pts_and_tgt[2 * ndim]
-            f = nufft3(
-                c, *xp, *sp, iflag=iflag, eps=eps
-            )  # all sources -> local targets
+            f = nufft3(c, *xp, *sp, eps=eps)  # all sources -> local targets
             return jax.lax.psum(jnp.sum(jnp.abs(f - tg) ** 2), "s")
 
         sm = shard_map(
@@ -287,7 +283,7 @@ def test_nufft3_shard_map_shard_source_and_target():
     # Kept as xfail to (1) document the limitation, (2) check that we're
     # correctly blocking this execution, and (3) leave it as a breadcrumb
     # for future work.
-    ndim, iflag = 2, -1
+    ndim = 2
     random = np.random.default_rng(657)
     eps = 1e-10
     n = jax.device_count()
@@ -309,7 +305,7 @@ def test_nufft3_shard_map_shard_source_and_target():
 
         def local(c, *pts):
             xp, sp = pts[:ndim], pts[ndim:]
-            return nufft3(c, *xp, *sp, iflag=iflag, eps=eps)
+            return nufft3(c, *xp, *sp, eps=eps)
 
         sm = shard_map(
             local,
@@ -319,5 +315,5 @@ def test_nufft3_shard_map_shard_source_and_target():
         )
 
         f_sharded = sm(cs, *xs, *ss)
-        f_ref = nufft3(c, *x, *s, iflag=iflag, eps=eps)
+        f_ref = nufft3(c, *x, *s, eps=eps)
         check_close(f_sharded, f_ref)  # missing cross-shard source contributions
