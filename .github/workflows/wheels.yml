@@ -27,7 +27,7 @@ jobs:
         python: ["cp311", "cp312", "cp313", "cp314", "cp314t"]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: true
           fetch-depth: 0
@@ -43,7 +43,7 @@ jobs:
   build_sdist:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: true
           fetch-depth: 0
