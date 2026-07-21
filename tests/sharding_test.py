@@ -66,8 +66,7 @@ def _enable_x64():
 
 
 def _mesh():
-    # Plain Mesh (Auto axis types); shard_map then enters manual mode. Avoid
-    # jax.make_mesh, which now defaults to Explicit axes (sharding-in-types).
+    # Plain Mesh (Auto axis types); shard_map then enters manual mode.
     return jax.sharding.Mesh(np.array(jax.devices()), ("s",))
 
 
@@ -77,8 +76,8 @@ def _check(single, sharded, primal, primal_spec, mesh):
     v0, g0 = jax.value_and_grad(single)(primal)
     primal = jax.device_put(primal, NamedSharding(mesh, primal_spec))
     v1, g1 = jax.value_and_grad(sharded)(primal)
-    check_close(v1, v0)  # forward (correct even without the fix)
-    check_close(g1, g0)  # gradient (wrong without the fix)
+    check_close(v1, v0)  # forward
+    check_close(g1, g0)  # gradient
 
 
 @pytest.mark.parametrize("ndim", [1, 2, 3])
@@ -298,9 +297,8 @@ def test_nufft3_shard_map_shard_source_and_target():
     # NOT a valid data-parallel pattern for the type-3 transform: with
     # both point sets sharded, each device computes only its local sources'
     # contribution to its local targets, so the forward result is wrong.
-    # Kept as xfail to (1) document the limitation, (2) check that we're
-    # correctly blocking this execution, and (3) leave it as a breadcrumb
-    # for future work.
+    # Kept as xfail to (1) document the limitation, and (2) leave it as a
+    # breadcrumb for future work.
     ndim = 2
     random = np.random.default_rng(657)
     eps = 1e-10
