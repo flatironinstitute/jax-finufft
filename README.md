@@ -360,7 +360,8 @@ processed independently, apart from the grid sum inherent in a type-1 transform.
 
 The **uniform grid** (the mode array) must be **replicated**: it is the operand of
 the FFT, which is performed locally on each device. Sharding the grid would require
-a distributed FFT, which is out of scope for now. Any **leading batch
+a distributed FFT, which is out of scope for now (but please open an issue if this
+is of interest to you). Any **leading batch
 dimensions** (stacked transforms; see [Stacked Transforms and
 Broadcasting](#stacked-transforms-and-broadcasting)) shard trivially, since those
 transforms are independent.
@@ -421,7 +422,8 @@ c = sharded_nufft2(grid, x, y)  # c.shape == (n_pts,), sharded over the points
 
 Type 3 maps nonuniform *sources* to nonuniform *targets*, and every target depends
 on every source — hence the two alternatives above, sharding one side and
-replicating the other. Sharding *both* sources and targets is currently **not supported**: this requires more complex communication patterns that are not presently implemented.
+replicating the other. Sharding *both* sources and targets is currently **not supported**: this requires more complex communication patterns that are not presently implemented (please open
+an issue if this is of interest to you).
 
 ### Gradients
 
