@@ -25,7 +25,7 @@ jobs:
         python-version: [3.14, 3.14t]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: true
           fetch-depth: 0

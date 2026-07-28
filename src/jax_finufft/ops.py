@@ -18,6 +18,33 @@ elif jax.version.__version_info__ >= (0, 4, 34):
 else:
     p2tz = ad.Zero.from_value
 
+try:
+    from jax._src.core import auto_insert_reshard as _insert_reshard  # jax >= 0.10.1
+except ImportError:
+    try:
+        from jax._src.core import (
+            standard_insert_pvary as _insert_reshard,
+        )  # 0.6.0-0.10.0
+    except ImportError:
+        _insert_reshard = (
+            None  # jax < 0.6.0: no vma tracking, rep rule registered below
+        )
+
+
+def reconcile_vma(*args):
+    """Bring all inputs to a common set of varying manual axes (vma) before
+    binding.
+
+    Under ``jax.shard_map`` this inserts a ``pvary`` on any input that is
+    replicated over a manual mesh axis that the other inputs vary over. Because
+    ``pvary`` transposes to ``psum``, this supplies the cross-device gradient
+    accumulation for a replicated input -- e.g. the grid in a data-parallel
+    type-2 transform. Outside manual mode it is a no-op.
+    """
+    if _insert_reshard is None:
+        return args
+    return _insert_reshard(*args)
+
 
 @partial(jit, static_argnums=(0,), static_argnames=("iflag", "eps", "opts"))
 def nufft1(
@@ -70,6 +97,8 @@ def nufft1(
     index, source, points_mask = res[0], res[1], res[2]
     points = res[3:]
 
+    # Execute the transform primitive
+    source, points_mask, *points = reconcile_vma(source, points_mask, *points)
     result = nufft1_p.bind(
         source,
         points_mask,
@@ -126,6 +155,8 @@ def nufft2(source, *points, points_mask=None, iflag=-1, eps=1e-6, opts=None):
     index, source, points_mask = res[0], res[1], res[2]
     points = res[3:]
 
+    # Execute the transform primitive
+    source, points_mask, *points = reconcile_vma(source, points_mask, *points)
     result = nufft2_p.bind(
         source,
         points_mask,
@@ -200,6 +231,8 @@ def nufft3(source, *points, iflag=-1, eps=1e-6, opts=None):
     index, source = res[0], res[1]
     points = res[2:]
 
+    # Execute the transform primitive
+    source, *points = reconcile_vma(source, *points)
     result = nufft3_p.bind(
         source,
         *points,
@@ -498,19 +531,19 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
 
         # If none of the points are being mapped, we can get a faster computation using
         # a single transform with num_transforms * num_repeats
-        if all(bx is batching.not_mapped for bx in bpoints):
-            assert bsource is not batching.not_mapped
+        if all(bx is None for bx in bpoints):
+            assert bsource is not None
             source = batching.moveaxis(source, bsource, 0)
             mapped_points = tuple(p[None] for p in points)
         else:
             # Otherwise move the batching dimension to the front and repeat the arrays
             # to the right shape
             if bsource is None:
-                assert any(bx is not batching.not_mapped for bx in bpoints)
+                assert any(bx is not None for bx in bpoints)
                 num_repeats = next(
                     x.shape[bx]
                     for x, bx in zip(points, bpoints)
-                    if bx is not batching.not_mapped
+                    if bx is not None
                 )
                 source = jnp.repeat(source[jnp.newaxis], num_repeats, axis=0)
             else:
@@ -519,7 +552,7 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
 
             mapped_points = []
             for x, bx in zip(points, bpoints):
-                if bx is batching.not_mapped:
+                if bx is None:
                     mapped_points.append(jnp.repeat(x[None], num_repeats, axis=0))
                 else:
                     mapped_points.append(batching.moveaxis(x, bx, 0))
@@ -532,10 +565,10 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
 
         # If none of the points are being mapped, we can get a faster computation using
         # a single transform with num_transforms * num_repeats
-        if all(bx is batching.not_mapped for bx in bpoints):
-            assert bsource is not batching.not_mapped
+        if all(bx is None for bx in bpoints):
+            assert bsource is not None
             source = batching.moveaxis(source, bsource, 0)
-            if bpoints_mask is batching.not_mapped:
+            if bpoints_mask is None:
                 points_mask = points_mask[None]
             else:
                 points_mask = batching.moveaxis(points_mask, bpoints_mask, 0)
@@ -545,25 +578,25 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
             # Otherwise move the batching dimension to the front and repeat the arrays
             # to the right shape
             if bsource is None:
-                assert any(bx is not batching.not_mapped for bx in bpoints)
+                assert any(bx is not None for bx in bpoints)
                 num_repeats = next(
                     x.shape[bx]
                     for x, bx in zip(points, bpoints)
-                    if bx is not batching.not_mapped
+                    if bx is not None
                 )
                 source = jnp.repeat(source[jnp.newaxis], num_repeats, axis=0)
             else:
                 num_repeats = source.shape[bsource]
                 source = batching.moveaxis(source, bsource, 0)
 
-            if bpoints_mask is batching.not_mapped:
+            if bpoints_mask is None:
                 points_mask = jnp.repeat(points_mask[None], num_repeats, axis=0)
             else:
                 points_mask = batching.moveaxis(points_mask, bpoints_mask, 0)
 
             mapped_points = []
             for x, bx in zip(points, bpoints):
-                if bx is batching.not_mapped:
+                if bx is None:
                     mapped_points.append(jnp.repeat(x[None], num_repeats, axis=0))
                 else:
                     mapped_points.append(batching.moveaxis(x, bx, 0))
@@ -614,3 +647,20 @@ if lowering.jax_finufft_gpu is not None:
 ad.primitive_jvps[nufft3_p] = partial(jvp, nufft3_p)
 ad.primitive_transposes[nufft3_p] = transpose
 batching.primitive_batchers[nufft3_p] = batch
+
+
+# Register replication rules for the pre-vma `jax.shard_map`. This is only relevant
+# on jax < 0.6.0. We reuse jax's standard rule, which inserts a `pbroadcast`
+# (transposing to `psum`) on replicated inputs.
+if jax.version.__version_info__ < (0, 6, 0):
+    try:
+        from jax.experimental.shard_map import (
+            register_standard_check,
+            register_standard_rewrite,
+        )
+
+        for _p in (nufft1_p, nufft2_p, nufft3_p):
+            register_standard_check(_p)
+            register_standard_rewrite(_p)
+    except ImportError:
+        pass
