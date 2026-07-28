@@ -541,9 +541,7 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
             if bsource is None:
                 assert any(bx is not None for bx in bpoints)
                 num_repeats = next(
-                    x.shape[bx]
-                    for x, bx in zip(points, bpoints)
-                    if bx is not None
+                    x.shape[bx] for x, bx in zip(points, bpoints) if bx is not None
                 )
                 source = jnp.repeat(source[jnp.newaxis], num_repeats, axis=0)
             else:
@@ -580,9 +578,7 @@ def batch(args, axes, *, output_shape, nufft_type, **kwargs):
             if bsource is None:
                 assert any(bx is not None for bx in bpoints)
                 num_repeats = next(
-                    x.shape[bx]
-                    for x, bx in zip(points, bpoints)
-                    if bx is not None
+                    x.shape[bx] for x, bx in zip(points, bpoints) if bx is not None
                 )
                 source = jnp.repeat(source[jnp.newaxis], num_repeats, axis=0)
             else:
