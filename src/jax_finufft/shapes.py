@@ -10,37 +10,11 @@ from jax import dtypes
 
 @dataclass
 class BroadcastIndex:
-    """
-    Index mapping for reverting broadcast and flattened shapes.
-
-    Attributes
-    ----------
-    broadcast_from : Sequence[int]
-        The source broadcast axes.
-    broadcast_to : Sequence[int]
-        The destination broadcast axes.
-    expected_output_shape : Sequence[int]
-        The expected output shape.
-    """
-
     broadcast_from: Sequence[int]
     broadcast_to: Sequence[int]
     expected_output_shape: Sequence[int]
 
     def unflatten(self, result):
-        """
-        Unflattens a result tensor.
-
-        Parameters
-        ----------
-        result : jnp.ndarray
-            The flat result tensor to be unflattened.
-
-        Returns
-        -------
-        jnp.ndarray
-            The tensor reshaped and axes moved to match expected outputs.
-        """
         if len(self.broadcast_to):
             return jnp.moveaxis(
                 jnp.reshape(result, self.expected_output_shape),
@@ -53,31 +27,10 @@ class BroadcastIndex:
 def broadcast_and_flatten_inputs(
     nufft_type, output_shape, source, *points, points_mask=None
 ):
-    """
-    Broadcasts and flattens inputs for FINUFFT primitives.
+    # This function searches for "points" dimensions that are broadcast over
+    # "source" dimensions. These dimensions are packed together so they can use
+    # finufft batch mode.
 
-    This function searches for ``points`` dimensions that are broadcast over
-    ``source`` dimensions. These dimensions are packed together so they can use
-    finufft batch mode.
-
-    Parameters
-    ----------
-    nufft_type : int
-        The type of NUFFT.
-    output_shape : tuple or None
-        The expected output shape.
-    source : jnp.ndarray
-        The source coefficient array.
-    *points : tuple of jnp.ndarray
-        The spatial point coordinate arrays.
-    points_mask : jnp.ndarray, optional
-        The boolean mask corresponding to valid non-uniform points.
-
-    Returns
-    -------
-    tuple
-        BroadcastIndex, flattened source, optional flattened mask, and flattened points.
-    """
     if nufft_type == 3:
         num_dim = len(points) // 2
         points3 = points[num_dim:]  # type-3 target points
@@ -86,12 +39,13 @@ def broadcast_and_flatten_inputs(
         num_dim = len(points)
     assert num_dim
 
-    # Coerce the points into the appropriate shape
-    points = jnp.broadcast_arrays(*points)
-
     has_mask = points_mask is not None and nufft_type != 3
     if has_mask:
-        points_mask = jnp.broadcast_to(points_mask, points[0].shape)
+        # The mask participates in point broadcasting, so a batched mask can be
+        # used with shared point coordinates.
+        *points, points_mask = jnp.broadcast_arrays(*points, points_mask)
+    else:
+        points = jnp.broadcast_arrays(*points)
 
     *input_shape, num_points = points[0].shape
 
@@ -174,49 +128,20 @@ def broadcast_and_flatten_inputs(
         points_mask = jnp.reshape(points_mask, (size_in, num_points))
     points3 = tuple(jnp.reshape(p, (size_in, num_points3)) for p in points3)
 
+    result = (
+        BroadcastIndex(
+            broadcast_from=broadcast_from,
+            broadcast_to=broadcast_to,
+            expected_output_shape=expected_output_shape,
+        ),
+        source,
+    )
     if has_mask:
-        return (
-            BroadcastIndex(
-                broadcast_from=broadcast_from,
-                broadcast_to=broadcast_to,
-                expected_output_shape=expected_output_shape,
-            ),
-            source,
-            points_mask,
-            *points,
-            *points3,
-        )
-    else:
-        return (
-            BroadcastIndex(
-                broadcast_from=broadcast_from,
-                broadcast_to=broadcast_to,
-                expected_output_shape=expected_output_shape,
-            ),
-            source,
-            *points,
-            *points3,
-        )
+        result += (points_mask,)
+    return result + (*points, *points3)
 
 
 def abstract_eval(*args, output_shape, nufft_type, **_):
-    """
-    Evaluates the primitive shape and dtype.
-
-    Parameters
-    ----------
-    *args : tuple
-        Arguments passed to the primitive.
-    output_shape : tuple
-        The output shape.
-    nufft_type : int
-        The NUFFT type.
-
-    Returns
-    -------
-    ShapedArray
-        The evaluated shaped array.
-    """
     if nufft_type == 3:
         source = args[0]
         points = args[1:]

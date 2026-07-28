@@ -377,6 +377,102 @@ def test_nufft3_vmap(ndim, num_source, num_target, iflag):
             )
 
 
+@pytest.mark.parametrize("num_transforms", [1, 2])
+@pytest.mark.parametrize("mask_kind", ["prefix", "sparse", "full", "empty"])
+def test_points_mask(num_transforms, mask_kind):
+    random = np.random.default_rng(216)
+    num_points = 12
+    output_shape = (9, 7)
+
+    x = random.uniform(-np.pi, np.pi, size=(2, num_points))
+    c = random.normal(size=(num_transforms, num_points)) + 1j * random.normal(
+        size=(num_transforms, num_points)
+    )
+    f = random.normal(size=(num_transforms,) + output_shape) + 1j * random.normal(
+        size=(num_transforms,) + output_shape
+    )
+
+    if mask_kind == "prefix":
+        mask = np.arange(num_points) < 7
+    elif mask_kind == "sparse":
+        mask = np.arange(num_points) % 3 != 1
+    elif mask_kind == "full":
+        mask = np.ones(num_points, dtype=bool)
+    else:
+        mask = np.zeros(num_points, dtype=bool)
+
+    with enable_x64():
+        calc1 = nufft1(output_shape, c, *x, points_mask=mask)
+        calc2 = nufft2(f, *x, points_mask=mask)
+
+        if mask.any():
+            expect1 = nufft1(output_shape, c[:, mask], *(p[mask] for p in x))
+            active2 = nufft2(f, *(p[mask] for p in x))
+            expect2 = jnp.zeros_like(calc2).at[:, mask].set(active2)
+        else:
+            expect1 = jnp.zeros_like(calc1)
+            expect2 = jnp.zeros_like(calc2)
+
+        check_close(calc1, expect1)
+        check_close(calc2, expect2)
+
+
+def test_points_mask_is_dynamic():
+    random = np.random.default_rng(216)
+    x = random.uniform(-np.pi, np.pi, size=20)
+    f = random.normal(size=16) + 1j * random.normal(size=16)
+    masks = [np.arange(20) < 6, np.arange(20) % 3 == 0, np.arange(20) < 13]
+
+    with enable_x64():
+        x = jnp.asarray(x)
+        f = jnp.asarray(f)
+        masks = jnp.asarray(masks)
+        transform = jax.jit(lambda mask: nufft2(f, x, points_mask=mask))
+        compiled = transform.lower(masks[0]).compile()
+        calc = jnp.stack([compiled(mask) for mask in masks])
+        expect = jnp.stack(
+            [
+                jnp.zeros(20, dtype=f.dtype).at[mask].set(nufft2(f, x[mask]))
+                for mask in masks
+            ]
+        )
+        check_close(calc, expect)
+
+
+def test_points_mask_vmap_and_grad():
+    random = np.random.default_rng(216)
+    x = random.uniform(-np.pi, np.pi, size=12)
+    f = random.normal(size=10) + 1j * random.normal(size=10)
+    masks = [np.arange(12) < 5, np.arange(12) % 2 == 0]
+
+    with enable_x64():
+        x = jnp.asarray(x)
+        f = jnp.asarray(f)
+        masks = jnp.asarray(masks)
+        calc = jax.vmap(lambda mask: nufft2(f, x, points_mask=mask))(masks)
+        expect = jnp.stack(
+            [
+                jnp.zeros(12, dtype=f.dtype).at[mask].set(nufft2(f, x[mask]))
+                for mask in masks
+            ]
+        )
+        check_close(calc, expect)
+        broadcast_calc = nufft2(
+            jnp.broadcast_to(f, (2,) + f.shape), x, points_mask=masks
+        )
+        check_close(broadcast_calc, expect)
+
+        mask = masks[1]
+        grad = jax.grad(
+            lambda points: jnp.real(nufft2(f, points, points_mask=mask)).sum()
+        )(x)
+        active_grad = jax.grad(lambda points: jnp.real(nufft2(f, points)).sum())(
+            x[mask]
+        )
+        expect_grad = jnp.zeros_like(x).at[mask].set(active_grad)
+        check_close(grad, expect_grad)
+
+
 def test_multi_transform():
     random = np.random.default_rng(314)
 
