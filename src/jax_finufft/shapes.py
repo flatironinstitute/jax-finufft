@@ -1,7 +1,7 @@
 __all__ = ["abstract_eval", "broadcast_and_flatten_inputs"]
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 import jax.numpy as jnp
 import numpy as np

@@ -5,8 +5,8 @@ to XLA custom calls targeting the FINUFFT library using the typed FFI API.
 Uses jax.ffi.ffi_lowering to avoid private MLIR imports.
 """
 
-import numpy as np
 import jax
+import numpy as np
 
 from jax_finufft import options
 
