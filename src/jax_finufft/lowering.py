@@ -5,8 +5,8 @@ to XLA custom calls targeting the FINUFFT library using the typed FFI API.
 Uses jax.ffi.ffi_lowering to avoid private MLIR imports.
 """
 
-import numpy as np
 import jax
+import numpy as np
 
 from jax_finufft import options
 
@@ -28,7 +28,7 @@ for _name, _value in jax_finufft_cpu.registrations().items():
 def lowering(
     ctx,
     source,
-    *points,
+    *args,
     output_shape,
     iflag,
     eps,
@@ -42,7 +42,7 @@ def lowering(
     Args:
         ctx: The MLIR lowering rule context.
         source: The source array (complex coefficients or frequency values).
-        *points: Non-uniform point coordinates.
+        *args: The point mask, when present, followed by non-uniform point coordinates.
         output_shape: Shape of the output array (for type 1 transforms).
         iflag: Sign of the imaginary unit in the exponential (+1 or -1).
         eps: Requested precision tolerance.
@@ -64,9 +64,15 @@ def lowering(
         raise ValueError("jax-finufft was not compiled with GPU support")
 
     if nufft_type == 3:
+        points = args
         ndim = len(points) // 2
+        points_avals = ctx.avals_in[1:]
+        points_mask = None
     else:
+        points_mask, *points = args
+        points = tuple(points)
         ndim = len(points)
+        points_avals = ctx.avals_in[2:]
     assert 1 <= ndim <= 3
 
     source_aval = ctx.avals_in[0]
@@ -75,7 +81,7 @@ def lowering(
 
     # Use aval shapes for computing dimensions - these should match MLIR value shapes
     source_shape = source_aval.shape
-    points_shape = tuple(x.shape for x in ctx.avals_in[1:])
+    points_shape = tuple(x.shape for x in points_avals)
     n_tot = source_shape[0]
     n_transf = source_shape[1]
     n_j = points_shape[0][1]
@@ -118,8 +124,8 @@ def lowering(
         # Type 3 has both source points and target points
         operands = [source] + list(points_fortran[:ndim]) + list(points_fortran[ndim:])
     else:
-        # Type 1 and 2: source + points
-        operands = [source] + list(points_fortran)
+        # Type 1 and 2: source + mask + points
+        operands = [source, points_mask] + list(points_fortran)
 
     if platform == "cpu":
         # Build FFI attributes dictionary for typed FFI

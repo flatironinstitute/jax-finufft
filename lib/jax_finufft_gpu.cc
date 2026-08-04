@@ -67,6 +67,7 @@ inline auto MakeNufft1dBinding12Float() {
   return ffi::Ffi::Bind()
       .Ctx<ffi::PlatformStream<cudaStream_t>>() NUFFT_COMMON_ATTRS_FLOAT
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Ret<ffi::AnyBuffer>();  // output
 }
@@ -75,6 +76,7 @@ inline auto MakeNufft1dBinding12Double() {
   return ffi::Ffi::Bind()
       .Ctx<ffi::PlatformStream<cudaStream_t>>() NUFFT_COMMON_ATTRS_DOUBLE
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Ret<ffi::AnyBuffer>();  // output
 }
@@ -105,6 +107,7 @@ inline auto MakeNufft2dBinding12Float() {
   return ffi::Ffi::Bind()
       .Ctx<ffi::PlatformStream<cudaStream_t>>() NUFFT_COMMON_ATTRS_FLOAT
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Arg<ffi::AnyBuffer>()   // points_y
       .Ret<ffi::AnyBuffer>();  // output
@@ -114,6 +117,7 @@ inline auto MakeNufft2dBinding12Double() {
   return ffi::Ffi::Bind()
       .Ctx<ffi::PlatformStream<cudaStream_t>>() NUFFT_COMMON_ATTRS_DOUBLE
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Arg<ffi::AnyBuffer>()   // points_y
       .Ret<ffi::AnyBuffer>();  // output
@@ -149,6 +153,7 @@ inline auto MakeNufft3dBinding12Float() {
   return ffi::Ffi::Bind()
       .Ctx<ffi::PlatformStream<cudaStream_t>>() NUFFT_COMMON_ATTRS_FLOAT
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Arg<ffi::AnyBuffer>()   // points_y
       .Arg<ffi::AnyBuffer>()   // points_z
@@ -159,6 +164,7 @@ inline auto MakeNufft3dBinding12Double() {
   return ffi::Ffi::Bind()
       .Ctx<ffi::PlatformStream<cudaStream_t>>() NUFFT_COMMON_ATTRS_DOUBLE
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Arg<ffi::AnyBuffer>()   // points_y
       .Arg<ffi::AnyBuffer>()   // points_z
@@ -201,10 +207,11 @@ ffi::Error nufft1d1f_1d_wrapper(cudaStream_t stream, float eps, int64_t iflag, i
                                 int64_t n_k_3, int64_t modeord, double upsampfac,
                                 int64_t gpu_method, int64_t gpu_sort, int64_t gpu_kerevalmeth,
                                 int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
-                                ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+                                ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                                ffi::Result<ffi::AnyBuffer> output) {
   return nufft1d1f_impl(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3, modeord,
                         upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth, gpu_maxbatchsize, debug,
-                        source, points_x, points_x, points_x, output);
+                        source, points_mask, points_x, points_x, points_x, output);
 }
 
 ffi::Error nufft1d1_1d_wrapper(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
@@ -212,10 +219,11 @@ ffi::Error nufft1d1_1d_wrapper(cudaStream_t stream, double eps, int64_t iflag, i
                                int64_t n_k_3, int64_t modeord, double upsampfac,
                                int64_t gpu_method, int64_t gpu_sort, int64_t gpu_kerevalmeth,
                                int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
-                               ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+                               ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                               ffi::Result<ffi::AnyBuffer> output) {
   return nufft1d1_impl(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3, modeord,
                        upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth, gpu_maxbatchsize, debug,
-                       source, points_x, points_x, points_x, output);
+                       source, points_mask, points_x, points_x, points_x, output);
 }
 
 // Type 2 1D wrappers
@@ -224,10 +232,11 @@ ffi::Error nufft1d2f_1d_wrapper(cudaStream_t stream, float eps, int64_t iflag, i
                                 int64_t n_k_3, int64_t modeord, double upsampfac,
                                 int64_t gpu_method, int64_t gpu_sort, int64_t gpu_kerevalmeth,
                                 int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
-                                ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+                                ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                                ffi::Result<ffi::AnyBuffer> output) {
   return nufft1d2f_impl(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3, modeord,
                         upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth, gpu_maxbatchsize, debug,
-                        source, points_x, points_x, points_x, output);
+                        source, points_mask, points_x, points_x, points_x, output);
 }
 
 ffi::Error nufft1d2_1d_wrapper(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
@@ -235,10 +244,11 @@ ffi::Error nufft1d2_1d_wrapper(cudaStream_t stream, double eps, int64_t iflag, i
                                int64_t n_k_3, int64_t modeord, double upsampfac,
                                int64_t gpu_method, int64_t gpu_sort, int64_t gpu_kerevalmeth,
                                int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
-                               ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+                               ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                               ffi::Result<ffi::AnyBuffer> output) {
   return nufft1d2_impl(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3, modeord,
                        upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth, gpu_maxbatchsize, debug,
-                       source, points_x, points_x, points_x, output);
+                       source, points_mask, points_x, points_x, points_x, output);
 }
 
 // Type 3 1D wrappers
@@ -277,11 +287,11 @@ ffi::Error nufft2d1f_2d_wrapper(cudaStream_t stream, float eps, int64_t iflag, i
                                 int64_t n_k_3, int64_t modeord, double upsampfac,
                                 int64_t gpu_method, int64_t gpu_sort, int64_t gpu_kerevalmeth,
                                 int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
-                                ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                                ffi::Result<ffi::AnyBuffer> output) {
+                                ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                                ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
   return nufft2d1f_impl(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3, modeord,
                         upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth, gpu_maxbatchsize, debug,
-                        source, points_x, points_y, points_x, output);
+                        source, points_mask, points_x, points_y, points_x, output);
 }
 
 ffi::Error nufft2d1_2d_wrapper(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
@@ -289,11 +299,11 @@ ffi::Error nufft2d1_2d_wrapper(cudaStream_t stream, double eps, int64_t iflag, i
                                int64_t n_k_3, int64_t modeord, double upsampfac,
                                int64_t gpu_method, int64_t gpu_sort, int64_t gpu_kerevalmeth,
                                int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
-                               ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                               ffi::Result<ffi::AnyBuffer> output) {
+                               ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                               ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
   return nufft2d1_impl(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3, modeord,
                        upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth, gpu_maxbatchsize, debug,
-                       source, points_x, points_y, points_x, output);
+                       source, points_mask, points_x, points_y, points_x, output);
 }
 
 // Type 2 2D wrappers
@@ -302,11 +312,11 @@ ffi::Error nufft2d2f_2d_wrapper(cudaStream_t stream, float eps, int64_t iflag, i
                                 int64_t n_k_3, int64_t modeord, double upsampfac,
                                 int64_t gpu_method, int64_t gpu_sort, int64_t gpu_kerevalmeth,
                                 int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
-                                ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                                ffi::Result<ffi::AnyBuffer> output) {
+                                ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                                ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
   return nufft2d2f_impl(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3, modeord,
                         upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth, gpu_maxbatchsize, debug,
-                        source, points_x, points_y, points_x, output);
+                        source, points_mask, points_x, points_y, points_x, output);
 }
 
 ffi::Error nufft2d2_2d_wrapper(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
@@ -314,11 +324,11 @@ ffi::Error nufft2d2_2d_wrapper(cudaStream_t stream, double eps, int64_t iflag, i
                                int64_t n_k_3, int64_t modeord, double upsampfac,
                                int64_t gpu_method, int64_t gpu_sort, int64_t gpu_kerevalmeth,
                                int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
-                               ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                               ffi::Result<ffi::AnyBuffer> output) {
+                               ffi::AnyBuffer points_mask, ffi::AnyBuffer points_x,
+                               ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
   return nufft2d2_impl(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3, modeord,
                        upsampfac, gpu_method, gpu_sort, gpu_kerevalmeth, gpu_maxbatchsize, debug,
-                       source, points_x, points_y, points_x, output);
+                       source, points_mask, points_x, points_y, points_x, output);
 }
 
 // Type 3 2D wrappers

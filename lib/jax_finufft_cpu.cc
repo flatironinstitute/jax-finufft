@@ -10,9 +10,11 @@
 #include <nanobind/stl/tuple.h>
 #include <xla/ffi/api/ffi.h>
 
+#include <algorithm>
 #include <complex>
 #include <cstdint>
 #include <type_traits>
+#include <vector>
 
 namespace ffi = xla::ffi;
 namespace nb = nanobind;
@@ -73,6 +75,143 @@ ffi::Error run_nufft(finufft_opts opts, T eps, int iflag, int64_t n_tot, int n_t
 
   destroy<T>(plan);
   return ffi::Error::Success();
+}
+
+template <int ndim, typename T, int type>
+ffi::Error run_nufft_masked(finufft_opts opts, T eps, int iflag, int64_t n_tot, int n_transf,
+                            int64_t n_j, const int64_t* n_k, T* x, T* y, T* z, const int8_t* mask,
+                            std::complex<T>* c, std::complex<T>* F) {
+  int64_t n_k_total = 1;
+  for (int d = 0; d < ndim; ++d) {
+    n_k_total *= n_k[d];
+  }
+
+  typename plan_type<T>::type plan;
+  bool plan_created = false;
+  int ret = 0;
+
+  std::vector<T> Q_x;
+  std::vector<T> Q_y;
+  std::vector<T> Q_z;
+  std::vector<std::complex<T>> Q_c;
+  std::vector<int64_t> active_indices;
+
+  for (int64_t index = 0; index < n_tot; ++index) {
+    int64_t i_start = index * n_j;
+    int64_t c_start = index * n_j * n_transf;
+    int64_t k_start = index * n_k_total * n_transf;
+
+    int64_t Q_size = 0;
+    bool is_prefix = true;
+    for (int64_t i = 0; i < n_j; ++i) {
+      if (mask[i_start + i]) {
+        is_prefix &= i == Q_size;
+        ++Q_size;
+      }
+    }
+
+    if (Q_size == 0) {
+      if constexpr (type == 1) {
+        std::fill(F + k_start, F + k_start + n_transf * n_k_total, std::complex<T>(0.0, 0.0));
+      } else {
+        std::fill(c + c_start, c + c_start + n_transf * n_j, std::complex<T>(0.0, 0.0));
+      }
+      continue;
+    }
+
+    if (!plan_created) {
+      int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
+      ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
+      // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
+      if (ret > 1) {
+        return ffi::Error::Internal("FINUFFT makeplan failed with code " + std::to_string(ret));
+      }
+      plan_created = true;
+    }
+
+    if (!is_prefix) {
+      active_indices.resize(Q_size);
+      int64_t p = 0;
+      for (int64_t i = 0; i < n_j; ++i) {
+        if (mask[i_start + i]) active_indices[p++] = i;
+      }
+
+      Q_x.resize(Q_size);
+      if constexpr (ndim > 1) Q_y.resize(Q_size);
+      if constexpr (ndim > 2) Q_z.resize(Q_size);
+      for (int64_t p = 0; p < Q_size; ++p) {
+        int64_t i = active_indices[p];
+        Q_x[p] = x[i_start + i];
+        if constexpr (ndim > 1) Q_y[p] = y[i_start + i];
+        if constexpr (ndim > 2) Q_z[p] = z[i_start + i];
+      }
+    }
+
+    bool direct_coefficients = Q_size == n_j || (is_prefix && n_transf == 1);
+    if (!direct_coefficients) {
+      Q_c.resize(Q_size * n_transf);
+      if constexpr (type == 1) {
+        for (int t = 0; t < n_transf; ++t) {
+          for (int64_t p = 0; p < Q_size; ++p) {
+            int64_t i = is_prefix ? p : active_indices[p];
+            Q_c[t * Q_size + p] = c[c_start + t * n_j + i];
+          }
+        }
+      }
+    }
+
+    T* Q_x_ptr = is_prefix ? &x[i_start] : Q_x.data();
+    T* Q_y_ptr = nullptr;
+    T* Q_z_ptr = nullptr;
+    if constexpr (ndim > 1) Q_y_ptr = is_prefix ? &y[i_start] : Q_y.data();
+    if constexpr (ndim > 2) Q_z_ptr = is_prefix ? &z[i_start] : Q_z.data();
+    std::complex<T>* Q_c_ptr = direct_coefficients ? &c[c_start] : Q_c.data();
+
+    ret = setpts<T>(plan, Q_size, Q_x_ptr, Q_y_ptr, Q_z_ptr, 0, nullptr, nullptr, nullptr);
+    if (ret != 0) {
+      destroy<T>(plan);
+      return ffi::Error::Internal("FINUFFT setpts failed with code " + std::to_string(ret));
+    }
+
+    ret = execute<T>(plan, Q_c_ptr, &F[k_start]);
+    if (ret != 0) {
+      destroy<T>(plan);
+      return ffi::Error::Internal("FINUFFT execute failed with code " + std::to_string(ret));
+    }
+
+    if constexpr (type == 2) {
+      if (Q_size == n_j) continue;
+
+      if (is_prefix && n_transf == 1) {
+        std::fill(c + c_start + Q_size, c + c_start + n_j, std::complex<T>(0.0, 0.0));
+      } else {
+        std::fill(c + c_start, c + c_start + n_transf * n_j, std::complex<T>(0.0, 0.0));
+        for (int t = 0; t < n_transf; ++t) {
+          for (int64_t p = 0; p < Q_size; ++p) {
+            int64_t i = is_prefix ? p : active_indices[p];
+            c[c_start + t * n_j + i] = Q_c[t * Q_size + p];
+          }
+        }
+      }
+    }
+  }
+
+  if (plan_created) destroy<T>(plan);
+  return ffi::Error::Success();
+}
+
+template <int ndim, typename T, int type>
+ffi::Error run_nufft_optional_mask(finufft_opts opts, T eps, int iflag, int64_t n_tot,
+                                   int n_transf, int64_t n_j, const int64_t* n_k, T* x, T* y, T* z,
+                                   std::complex<T>* c, ffi::AnyBuffer points_mask,
+                                   std::complex<T>* F) {
+  if (points_mask.element_count() == 0) {
+    return run_nufft<ndim, T, type>(opts, eps, iflag, n_tot, n_transf, n_j, n_k, x, y, z, c,
+                                    nullptr, nullptr, nullptr, F);
+  }
+  auto* mask = reinterpret_cast<const int8_t*>(points_mask.untyped_data());
+  return run_nufft_masked<ndim, T, type>(opts, eps, iflag, n_tot, n_transf, n_j, n_k, x, y, z,
+                                         mask, c, F);
 }
 
 // =============================================================================
@@ -267,8 +406,8 @@ ffi::Error nufft1d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
                             int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::Result<ffi::AnyBuffer> output) {
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                            ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -276,8 +415,9 @@ ffi::Error nufft1d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
   auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
-  return run_nufft<1, T, 1>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
-                            n_j, n_k, x, nullptr, nullptr, c, nullptr, nullptr, nullptr, F);
+  return run_nufft_optional_mask<1, T, 1>(opts, eps, static_cast<int>(iflag), n_tot,
+                                          static_cast<int>(n_transf), n_j, n_k, x, nullptr,
+                                          nullptr, c, points_mask, F);
 }
 
 // 2D Type 1 wrapper (points_x, points_y)
@@ -289,8 +429,9 @@ ffi::Error nufft2d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
                             int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -299,8 +440,9 @@ ffi::Error nufft2d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
   auto* y = reinterpret_cast<T*>(points_y.untyped_data());
   auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
-  return run_nufft<2, T, 1>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
-                            n_j, n_k, x, y, nullptr, c, nullptr, nullptr, nullptr, F);
+  return run_nufft_optional_mask<2, T, 1>(opts, eps, static_cast<int>(iflag), n_tot,
+                                          static_cast<int>(n_transf), n_j, n_k, x, y, nullptr, c,
+                                          points_mask, F);
 }
 
 // 3D Type 1 wrapper (points_x, points_y, points_z) - same as original nufft1_impl<3, T>
@@ -312,9 +454,9 @@ ffi::Error nufft3d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
                             int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                            ffi::Result<ffi::AnyBuffer> output) {
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -324,8 +466,9 @@ ffi::Error nufft3d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
   auto* y = reinterpret_cast<T*>(points_y.untyped_data());
   auto* z = reinterpret_cast<T*>(points_z.untyped_data());
   auto* F = reinterpret_cast<std::complex<T>*>(output->untyped_data());
-  return run_nufft<3, T, 1>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
-                            n_j, n_k, x, y, z, c, nullptr, nullptr, nullptr, F);
+  return run_nufft_optional_mask<3, T, 1>(opts, eps, static_cast<int>(iflag), n_tot,
+                                          static_cast<int>(n_transf), n_j, n_k, x, y, z, c,
+                                          points_mask, F);
 }
 
 // 1D Type 2 wrapper (only points_x)
@@ -337,8 +480,8 @@ ffi::Error nufft1d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
                             int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::Result<ffi::AnyBuffer> output) {
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                            ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -346,8 +489,9 @@ ffi::Error nufft1d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
   auto* F = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
   auto* c = reinterpret_cast<std::complex<T>*>(output->untyped_data());
-  return run_nufft<1, T, 2>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
-                            n_j, n_k, x, nullptr, nullptr, c, nullptr, nullptr, nullptr, F);
+  return run_nufft_optional_mask<1, T, 2>(opts, eps, static_cast<int>(iflag), n_tot,
+                                          static_cast<int>(n_transf), n_j, n_k, x, nullptr,
+                                          nullptr, c, points_mask, F);
 }
 
 // 2D Type 2 wrapper (points_x, points_y)
@@ -359,8 +503,9 @@ ffi::Error nufft2d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
                             int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -369,8 +514,9 @@ ffi::Error nufft2d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
   auto* y = reinterpret_cast<T*>(points_y.untyped_data());
   auto* c = reinterpret_cast<std::complex<T>*>(output->untyped_data());
-  return run_nufft<2, T, 2>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
-                            n_j, n_k, x, y, nullptr, c, nullptr, nullptr, nullptr, F);
+  return run_nufft_optional_mask<2, T, 2>(opts, eps, static_cast<int>(iflag), n_tot,
+                                          static_cast<int>(n_transf), n_j, n_k, x, y, nullptr, c,
+                                          points_mask, F);
 }
 
 // 3D Type 2 wrapper (points_x, points_y, points_z)
@@ -382,9 +528,9 @@ ffi::Error nufft3d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
                             int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                            ffi::Result<ffi::AnyBuffer> output) {
+                            ffi::AnyBuffer source, ffi::AnyBuffer points_mask,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
                             spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
                             maxbatchsize, spread_nthr_atomic, spread_max_sp_size);
@@ -394,8 +540,9 @@ ffi::Error nufft3d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
   auto* y = reinterpret_cast<T*>(points_y.untyped_data());
   auto* z = reinterpret_cast<T*>(points_z.untyped_data());
   auto* c = reinterpret_cast<std::complex<T>*>(output->untyped_data());
-  return run_nufft<3, T, 2>(opts, eps, static_cast<int>(iflag), n_tot, static_cast<int>(n_transf),
-                            n_j, n_k, x, y, z, c, nullptr, nullptr, nullptr, F);
+  return run_nufft_optional_mask<3, T, 2>(opts, eps, static_cast<int>(iflag), n_tot,
+                                          static_cast<int>(n_transf), n_j, n_k, x, y, z, c,
+                                          points_mask, F);
 }
 
 // =============================================================================
@@ -537,10 +684,11 @@ ffi::Error nufft3d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 // Dimension-specific bindings for Type 1/2 (1D: 1 point, 2D: 2 points, 3D: 3)
 // -----------------------------------------------------------------------------
 
-// 1D bindings (source + x)
+// 1D bindings (source + mask + x)
 inline auto MakeNufft1dBinding12Float() {
   return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Ret<ffi::AnyBuffer>();  // output
 }
@@ -548,14 +696,16 @@ inline auto MakeNufft1dBinding12Float() {
 inline auto MakeNufft1dBinding12Double() {
   return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Ret<ffi::AnyBuffer>();  // output
 }
 
-// 2D bindings (source + x + y)
+// 2D bindings (source + mask + x + y)
 inline auto MakeNufft2dBinding12Float() {
   return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Arg<ffi::AnyBuffer>()   // points_y
       .Ret<ffi::AnyBuffer>();  // output
@@ -564,15 +714,17 @@ inline auto MakeNufft2dBinding12Float() {
 inline auto MakeNufft2dBinding12Double() {
   return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Arg<ffi::AnyBuffer>()   // points_y
       .Ret<ffi::AnyBuffer>();  // output
 }
 
-// 3D bindings (source + x + y + z)
+// 3D bindings (source + mask + x + y + z)
 inline auto MakeNufft3dBinding12Float() {
   return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_FLOAT
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Arg<ffi::AnyBuffer>()   // points_y
       .Arg<ffi::AnyBuffer>()   // points_z
@@ -582,6 +734,7 @@ inline auto MakeNufft3dBinding12Float() {
 inline auto MakeNufft3dBinding12Double() {
   return ffi::Ffi::Bind() NUFFT_COMMON_ATTRS_DOUBLE
       .Arg<ffi::AnyBuffer>()   // source
+      .Arg<ffi::AnyBuffer>()   // points_mask
       .Arg<ffi::AnyBuffer>()   // points_x
       .Arg<ffi::AnyBuffer>()   // points_y
       .Arg<ffi::AnyBuffer>()   // points_z

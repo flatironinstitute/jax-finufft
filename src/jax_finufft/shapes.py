@@ -1,7 +1,7 @@
 __all__ = ["abstract_eval", "broadcast_and_flatten_inputs"]
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 import jax.numpy as jnp
 import numpy as np
@@ -24,7 +24,9 @@ class BroadcastIndex:
         return jnp.reshape(result, self.expected_output_shape)
 
 
-def broadcast_and_flatten_inputs(nufft_type, output_shape, source, *points):
+def broadcast_and_flatten_inputs(
+    nufft_type, output_shape, source, *points, points_mask=None
+):
     # This function searches for "points" dimensions that are broadcast over
     # "source" dimensions. These dimensions are packed together so they can use
     # finufft batch mode.
@@ -37,8 +39,14 @@ def broadcast_and_flatten_inputs(nufft_type, output_shape, source, *points):
         num_dim = len(points)
     assert num_dim
 
-    # Coerce the points into the appropriate shape
-    points = jnp.broadcast_arrays(*points)
+    has_mask = points_mask is not None and nufft_type != 3
+    if has_mask:
+        # The mask participates in point broadcasting, so a batched mask can be
+        # used with shared point coordinates.
+        *points, points_mask = jnp.broadcast_arrays(*points, points_mask)
+    else:
+        points = jnp.broadcast_arrays(*points)
+
     *input_shape, num_points = points[0].shape
 
     # Broadcast source points and target points, except the number of points
@@ -61,6 +69,8 @@ def broadcast_and_flatten_inputs(nufft_type, output_shape, source, *points):
     ):
         input_shape = tuple(input_shape) + (1,)
         points = tuple(p[..., None, :] for p in points)
+        if has_mask:
+            points_mask = points_mask[..., None, :]
 
     # Work out a consistent shape for the broadcastable dimensions
     target_shape = jnp.broadcast_shapes(source.shape[: len(input_shape)], input_shape)
@@ -85,6 +95,8 @@ def broadcast_and_flatten_inputs(nufft_type, output_shape, source, *points):
     if len(broadcast_to):
         source = jnp.moveaxis(source, broadcast_from, broadcast_to)
         points = tuple(jnp.moveaxis(p, broadcast_from, broadcast_to) for p in points)
+        if has_mask:
+            points_mask = jnp.moveaxis(points_mask, broadcast_from, broadcast_to)
         points3 = tuple(jnp.moveaxis(p, broadcast_from, broadcast_to) for p in points3)
 
     # Compute some dimensions of the flattened problem
@@ -112,24 +124,31 @@ def broadcast_and_flatten_inputs(nufft_type, output_shape, source, *points):
     # Flatten all the inputs
     source = jnp.reshape(source, (size_in, size_bcast) + source_extra_shape)
     points = tuple(jnp.reshape(p, (size_in, num_points)) for p in points)
+    if has_mask:
+        points_mask = jnp.reshape(points_mask, (size_in, num_points))
     points3 = tuple(jnp.reshape(p, (size_in, num_points3)) for p in points3)
 
-    return (
+    result = (
         BroadcastIndex(
             broadcast_from=broadcast_from,
             broadcast_to=broadcast_to,
             expected_output_shape=expected_output_shape,
         ),
         source,
-        *points,
-        *points3,
     )
+    if has_mask:
+        result += (points_mask,)
+    return result + (*points, *points3)
 
 
-def abstract_eval(source, *points, output_shape, nufft_type, **_):
+def abstract_eval(*args, output_shape, nufft_type, **_):
     if nufft_type == 3:
+        source = args[0]
+        points = args[1:]
         ndim = len(points) // 2
     else:
+        source = args[0]
+        points = args[2:]
         ndim = len(points)
     assert 1 <= ndim <= 3
 
