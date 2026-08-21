@@ -593,3 +593,68 @@ def test_batched_points_grad():
     jax.grad(norm_nufft3, argnums=0)(c, xyz, stu)
     jax.grad(norm_nufft3, argnums=1)(c, xyz, stu)
     jax.grad(norm_nufft3, argnums=2)(c, xyz, stu)
+
+
+@pytest.mark.parametrize("Nf", [32, 33], ids=["even", "odd"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
+@pytest.mark.parametrize("nufft_type", [1, 2], ids=["t1", "t2"])
+def test_spreadinterponly(Nf, ndim, nufft_type):
+    random = np.random.default_rng(657)
+
+    iflag = 1
+    num_uniform = tuple(Nf + 5 * np.arange(ndim))
+    num_nonnuniform = 50
+    eps = 1e-10
+    dtype = np.double
+    cdtype = np.cdouble
+
+    if nufft_type == 1:
+        x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(dtype)
+        c = random.normal(size=num_nonnuniform) + 1j * random.normal(
+            size=num_nonnuniform
+        )
+        c = c.astype(cdtype)
+
+        opts = Opts(spreadinterponly=1, gpu_spreadinterponly=1)
+
+        with enable_x64():
+            func = partial(nufft1, num_uniform, eps=eps, iflag=iflag, opts=opts)
+            jtu.check_grads(
+                lambda source: func(source, *x), (c,), 1, modes=("fwd", "rev")
+            )
+
+            for mode in ("fwd", "rev"):
+                with pytest.raises(
+                    NotImplementedError,
+                    match=(
+                        "Point derivatives are not supported when spreadinterponly "
+                        "is enabled"
+                    ),
+                ):
+                    jtu.check_grads(
+                        lambda *points: func(c, *points), tuple(x), 1, modes=(mode,)
+                    )
+    else:
+        x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(dtype)
+        f = random.normal(size=num_uniform) + 1j * random.normal(size=num_uniform)
+        f = f.astype(cdtype)
+
+        opts = Opts(spreadinterponly=1, gpu_spreadinterponly=1)
+
+        with enable_x64():
+            func = partial(nufft2, eps=eps, iflag=iflag, opts=opts)
+            jtu.check_grads(
+                lambda source: func(source, *x), (f,), 1, modes=("fwd", "rev")
+            )
+
+            for mode in ("fwd", "rev"):
+                with pytest.raises(
+                    NotImplementedError,
+                    match=(
+                        "Point derivatives are not supported when spreadinterponly "
+                        "is enabled"
+                    ),
+                ):
+                    jtu.check_grads(
+                        lambda *points: func(f, *points), tuple(x), 1, modes=(mode,)
+                    )
