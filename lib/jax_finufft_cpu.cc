@@ -85,9 +85,10 @@ ffi::Error nufft1_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, in
                        int64_t spread_debug, int64_t showwarn, int64_t nthreads, int64_t fftw,
                        int64_t spread_sort, int64_t spread_kerevalmeth, int64_t spread_kerpad,
                        double upsampfac, int64_t spread_thread, int64_t maxbatchsize,
-                       int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                       ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                       ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+                       int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                       int64_t spreadinterponly, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                       ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                       ffi::Result<ffi::AnyBuffer> output) {
   finufft_opts opts;
   default_opts<T>(&opts);
   opts.modeord = static_cast<int>(modeord);
@@ -135,9 +136,10 @@ ffi::Error nufft2_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, in
                        int64_t spread_debug, int64_t showwarn, int64_t nthreads, int64_t fftw,
                        int64_t spread_sort, int64_t spread_kerevalmeth, int64_t spread_kerpad,
                        double upsampfac, int64_t spread_thread, int64_t maxbatchsize,
-                       int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                       ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                       ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+                       int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                       int64_t spreadinterponly, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                       ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
+                       ffi::Result<ffi::AnyBuffer> output) {
   finufft_opts opts;
   default_opts<T>(&opts);
   opts.modeord = static_cast<int>(modeord);
@@ -185,10 +187,11 @@ ffi::Error nufft3_impl(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, in
                        int64_t spread_debug, int64_t showwarn, int64_t nthreads, int64_t fftw,
                        int64_t spread_sort, int64_t spread_kerevalmeth, int64_t spread_kerpad,
                        double upsampfac, int64_t spread_thread, int64_t maxbatchsize,
-                       int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                       ffi::AnyBuffer source, ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
-                       ffi::AnyBuffer points_z, ffi::AnyBuffer targets_s, ffi::AnyBuffer targets_t,
-                       ffi::AnyBuffer targets_u, ffi::Result<ffi::AnyBuffer> output) {
+                       int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                       int64_t spreadinterponly, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+                       ffi::AnyBuffer points_y, ffi::AnyBuffer points_z, ffi::AnyBuffer targets_s,
+                       ffi::AnyBuffer targets_t, ffi::AnyBuffer targets_u,
+                       ffi::Result<ffi::AnyBuffer> output) {
   finufft_opts opts;
   default_opts<T>(&opts);
   opts.modeord = static_cast<int>(modeord);
@@ -270,12 +273,13 @@ ffi::Error nufft1d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t nthreads, int64_t fftw, int64_t spread_sort,
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
-                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::Result<ffi::AnyBuffer> output) {
-  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
-                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
-                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            int64_t spreadinterponly, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+  auto opts =
+      setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                    spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread, maxbatchsize,
+                    spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
@@ -292,12 +296,14 @@ ffi::Error nufft2d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t nthreads, int64_t fftw, int64_t spread_sort,
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
-                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
-  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
-                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
-                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            int64_t spreadinterponly, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::Result<ffi::AnyBuffer> output) {
+  auto opts =
+      setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                    spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread, maxbatchsize,
+                    spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
@@ -315,13 +321,14 @@ ffi::Error nufft3d1_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t nthreads, int64_t fftw, int64_t spread_sort,
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
-                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                            ffi::Result<ffi::AnyBuffer> output) {
-  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
-                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
-                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            int64_t spreadinterponly, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+  auto opts =
+      setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                    spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread, maxbatchsize,
+                    spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
@@ -340,12 +347,13 @@ ffi::Error nufft1d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t nthreads, int64_t fftw, int64_t spread_sort,
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
-                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::Result<ffi::AnyBuffer> output) {
-  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
-                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
-                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            int64_t spreadinterponly, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::Result<ffi::AnyBuffer> output) {
+  auto opts =
+      setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                    spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread, maxbatchsize,
+                    spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
   auto* F = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
@@ -362,12 +370,14 @@ ffi::Error nufft2d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t nthreads, int64_t fftw, int64_t spread_sort,
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
-                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::Result<ffi::AnyBuffer> output) {
-  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
-                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
-                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            int64_t spreadinterponly, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::Result<ffi::AnyBuffer> output) {
+  auto opts =
+      setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                    spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread, maxbatchsize,
+                    spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
   auto* F = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
@@ -385,13 +395,14 @@ ffi::Error nufft3d2_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t nthreads, int64_t fftw, int64_t spread_sort,
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
-                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                            ffi::Result<ffi::AnyBuffer> output) {
-  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
-                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
-                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            int64_t spreadinterponly, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
+  auto opts =
+      setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                    spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread, maxbatchsize,
+                    spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
   auto* F = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
@@ -414,12 +425,14 @@ ffi::Error nufft1d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t nthreads, int64_t fftw, int64_t spread_sort,
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
-                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer targets_s, ffi::Result<ffi::AnyBuffer> output) {
-  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
-                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
-                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            int64_t spreadinterponly, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer targets_s,
+                            ffi::Result<ffi::AnyBuffer> output) {
+  auto opts =
+      setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                    spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread, maxbatchsize,
+                    spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
@@ -437,13 +450,15 @@ ffi::Error nufft2d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
                             int64_t nthreads, int64_t fftw, int64_t spread_sort,
                             int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
                             int64_t spread_thread, int64_t maxbatchsize,
-                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::AnyBuffer targets_s,
-                            ffi::AnyBuffer targets_t, ffi::Result<ffi::AnyBuffer> output) {
-  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
-                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
-                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
+                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+                            int64_t spreadinterponly, ffi::AnyBuffer source,
+                            ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
+                            ffi::AnyBuffer targets_s, ffi::AnyBuffer targets_t,
+                            ffi::Result<ffi::AnyBuffer> output) {
+  auto opts =
+      setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                    spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread, maxbatchsize,
+                    spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
@@ -457,20 +472,19 @@ ffi::Error nufft2d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_trans
 
 // 3D Type 3 wrapper (all point arrays)
 template <typename T>
-ffi::Error nufft3d3_wrapper(T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j,
-                            int64_t n_k_1, int64_t n_k_2, int64_t n_k_3, int64_t modeord,
-                            int64_t debug, int64_t spread_debug, int64_t showwarn,
-                            int64_t nthreads, int64_t fftw, int64_t spread_sort,
-                            int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac,
-                            int64_t spread_thread, int64_t maxbatchsize,
-                            int64_t spread_nthr_atomic, int64_t spread_max_sp_size, int64_t spreadinterponly,
-                            ffi::AnyBuffer source, ffi::AnyBuffer points_x,
-                            ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
-                            ffi::AnyBuffer targets_s, ffi::AnyBuffer targets_t,
-                            ffi::AnyBuffer targets_u, ffi::Result<ffi::AnyBuffer> output) {
-  auto opts = setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
-                            spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread,
-                            maxbatchsize, spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
+ffi::Error nufft3d3_wrapper(
+    T eps, int64_t iflag, int64_t n_tot, int64_t n_transf, int64_t n_j, int64_t n_k_1,
+    int64_t n_k_2, int64_t n_k_3, int64_t modeord, int64_t debug, int64_t spread_debug,
+    int64_t showwarn, int64_t nthreads, int64_t fftw, int64_t spread_sort,
+    int64_t spread_kerevalmeth, int64_t spread_kerpad, double upsampfac, int64_t spread_thread,
+    int64_t maxbatchsize, int64_t spread_nthr_atomic, int64_t spread_max_sp_size,
+    int64_t spreadinterponly, ffi::AnyBuffer source, ffi::AnyBuffer points_x,
+    ffi::AnyBuffer points_y, ffi::AnyBuffer points_z, ffi::AnyBuffer targets_s,
+    ffi::AnyBuffer targets_t, ffi::AnyBuffer targets_u, ffi::Result<ffi::AnyBuffer> output) {
+  auto opts =
+      setup_opts<T>(modeord, debug, spread_debug, showwarn, nthreads, fftw, spread_sort,
+                    spread_kerevalmeth, spread_kerpad, upsampfac, spread_thread, maxbatchsize,
+                    spread_nthr_atomic, spread_max_sp_size, spreadinterponly);
   int64_t n_k[3] = {n_k_1, n_k_2, n_k_3};
   auto* c = reinterpret_cast<std::complex<T>*>(source.untyped_data());
   auto* x = reinterpret_cast<T*>(points_x.untyped_data());
