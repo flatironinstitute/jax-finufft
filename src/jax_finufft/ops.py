@@ -155,6 +155,19 @@ def nufft3(source, *points, iflag=-1, eps=1e-6, opts=None):
     return index.unflatten(result)
 
 
+def spreadinterponly_enabled(opts, nufft_type):
+    opts = options.unpack_opts(opts, nufft_type, True)
+    if opts is None:
+        return False
+
+    name = (
+        "gpu_spreadinterponly"
+        if jax.default_backend() in ("gpu", "cuda")
+        else "spreadinterponly"
+    )
+    return bool(getattr(opts, name, False))
+
+
 def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
     # Type 1:
     # f_k = sum_j c_j * exp(iflag * i * k * x_j)
@@ -215,6 +228,10 @@ def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
         dx = dpoints[dim]
         if type(dx) is ad.Zero:
             continue
+        if spreadinterponly_enabled(opts, nufft_type):
+            raise NotImplementedError(
+                "Point derivatives are not supported when spreadinterponly is enabled"
+            )
 
         if nufft_type == 3:
             s = points[ndim + dim]
