@@ -60,16 +60,12 @@ CFLAGS = "-I$(brew --prefix libomp)/include"
 LDFLAGS = "-L$(brew --prefix libomp)/lib -L$(brew --prefix llvm)/lib/c++"
 MACOSX_DEPLOYMENT_TARGET = "14.0"
 
-[tool.black]
-target-version = ["py39"]
-line-length = 88
-
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py311"
 exclude = []
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["jax-finufft"]
 combine-as-imports = true
 

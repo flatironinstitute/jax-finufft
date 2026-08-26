@@ -1,5 +1,5 @@
 from enum import IntEnum
-from typing import Optional, Union
+from typing import Union
 
 from pydantic.dataclasses import dataclass
 
@@ -123,12 +123,12 @@ class Opts:
 
 @dataclass(frozen=True)
 class NestedOpts:
-    type1: Optional[Opts] = None
-    type2: Optional[Opts] = None
-    type3: Optional[Opts] = None
+    type1: Opts | None = None
+    type2: Opts | None = None
+    type3: Opts | None = None
 
-    forward: Optional[Opts] = None
-    backward: Optional[Union[Opts, "NestedOpts"]] = None
+    forward: Opts | None = None
+    backward: Union[Opts, "NestedOpts"] | None = None
 
 
 def unpack_opts(opts, finufft_type, forward):
