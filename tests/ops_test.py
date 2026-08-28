@@ -22,10 +22,11 @@ else:
     enable_x64 = jax.enable_x64
 
 
-@pytest.mark.parametrize(
-    "ndim, x64, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [75], ids=["N75"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("x64", [False, True], ids=["f32", "f64"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
@@ -54,10 +55,11 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
         check_close(f_calc, f_expect)
 
 
-@pytest.mark.parametrize(
-    "ndim, x64, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [75], ids=["N75"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("x64", [False, True], ids=["f32", "f64"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
@@ -93,10 +95,11 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
         check_close(c_calc, c_expect)
 
 
-@pytest.mark.parametrize(
-    "ndim, x64, num_sources, num_targets, iflag",
-    product([1, 2, 3], [False, True], [25], [20], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_targets", [20], ids=["N20"])
+@pytest.mark.parametrize("num_sources", [25], ids=["M25"])
+@pytest.mark.parametrize("x64", [False, True], ids=["f32", "f64"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft3_forward(ndim, x64, num_sources, num_targets, iflag):
     random = np.random.default_rng(657)
 
@@ -125,10 +128,10 @@ def test_nufft3_forward(ndim, x64, num_sources, num_targets, iflag):
         check_close(f_calc, f_expect, rtol={"complex128": 1e-7, "complex64": 1e-3})
 
 
-@pytest.mark.parametrize(
-    "ndim, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [35], ids=["N35"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
@@ -157,10 +160,10 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
             check_close(jax.grad(scalar_func, argnums=(n,))(c, *x)[0], g)
 
 
-@pytest.mark.parametrize(
-    "ndim, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [35], ids=["N35"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
@@ -189,10 +192,10 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
             check_close(jax.grad(scalar_func, argnums=(n,))(f, *x)[0], g)
 
 
-@pytest.mark.parametrize(
-    "ndim, num_source, num_target, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_target", [35], ids=["N35"])
+@pytest.mark.parametrize("num_source", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft3_grad(ndim, num_source, num_target, iflag):
     random = np.random.default_rng(657)
 
@@ -219,10 +222,10 @@ def test_nufft3_grad(ndim, num_source, num_target, iflag):
             check_close(jax.grad(scalar_func, argnums=(n,))(c, *x, *s)[0], g)
 
 
-@pytest.mark.parametrize(
-    "ndim, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [35], ids=["N35"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
@@ -267,10 +270,10 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
             )
 
 
-@pytest.mark.parametrize(
-    "ndim, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [35], ids=["N35"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
@@ -315,10 +318,10 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
             )
 
 
-@pytest.mark.parametrize(
-    "ndim, num_source, num_target, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_target", [35], ids=["N35"])
+@pytest.mark.parametrize("num_source", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft3_vmap(ndim, num_source, num_target, iflag):
     random = np.random.default_rng(657)
 

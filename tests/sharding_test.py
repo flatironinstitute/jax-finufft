@@ -80,7 +80,7 @@ def _check(single, sharded, primal, primal_spec, mesh):
     check_close(g1, g0)  # gradient
 
 
-@pytest.mark.parametrize("ndim", [1, 2, 3])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft2_shard_map_grad(ndim):
     # Data-parallel type 2: grid replicated, points + data sharded (the #226 repro).
     # Differentiate w.r.t. the *replicated* grid -- this is the reported bug.
@@ -129,7 +129,7 @@ def test_nufft2_shard_map_grad(ndim):
     )
 
 
-@pytest.mark.parametrize("ndim", [1, 2, 3])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft1_shard_map_grad(ndim):
     # Data-parallel type 1: coeffs + points sharded; the type-1 sum over points is
     # additive across shards, so the local results are combined with psum. The
@@ -180,7 +180,7 @@ def test_nufft1_shard_map_grad(ndim):
     )
 
 
-@pytest.mark.parametrize("ndim", [1, 2, 3])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft3_shard_map_grad(ndim):
     # Data-parallel type 3: source coeffs + source points sharded, target points
     # replicated. Each shard contributes all targets; combined with psum. The
@@ -232,7 +232,7 @@ def test_nufft3_shard_map_grad(ndim):
     )
 
 
-@pytest.mark.parametrize("ndim", [1, 2, 3])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft3_shard_map_grad_rep_source_shard_target(ndim):
     # Data-parallel type 3, complementary pattern: source coeffs + source points
     # replicated, target points (and the loss) sharded. Each device evaluates all
