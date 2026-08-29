@@ -278,8 +278,8 @@ ffi::Error nufft2d1_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t
 ffi::Error nufft3d1f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t n_tot,
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                           int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
-                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_spreadinterponly,
-                          int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
+                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
+                          int64_t debug, int64_t gpu_spreadinterponly, ffi::AnyBuffer source,
                           ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
                           ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   return nufft1_impl<3, float>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
@@ -291,8 +291,8 @@ ffi::Error nufft3d1f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t
 ffi::Error nufft3d1_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
                          int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                          int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
-                         int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_spreadinterponly,
-                         int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
+                         int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
+                         int64_t debug, int64_t gpu_spreadinterponly, ffi::AnyBuffer source,
                          ffi::AnyBuffer points_x, ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
                          ffi::Result<ffi::AnyBuffer> output) {
   return nufft1_impl<3, double>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
@@ -360,8 +360,8 @@ ffi::Error nufft2d2_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t
 ffi::Error nufft3d2f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t n_tot,
                           int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                           int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
-                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_spreadinterponly,
-                          int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
+                          int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
+                          int64_t debug, int64_t gpu_spreadinterponly, ffi::AnyBuffer source,
                           ffi::AnyBuffer points_x, ffi::AnyBuffer points_y,
                           ffi::AnyBuffer points_z, ffi::Result<ffi::AnyBuffer> output) {
   return nufft2_impl<3, float>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
@@ -373,8 +373,8 @@ ffi::Error nufft3d2f_impl(cudaStream_t stream, float eps, int64_t iflag, int64_t
 ffi::Error nufft3d2_impl(cudaStream_t stream, double eps, int64_t iflag, int64_t n_tot,
                          int64_t n_transf, int64_t n_j, int64_t n_k_1, int64_t n_k_2,
                          int64_t n_k_3, int64_t modeord, double upsampfac, int64_t gpu_method,
-                         int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_spreadinterponly,
-                         int64_t gpu_maxbatchsize, int64_t debug, ffi::AnyBuffer source,
+                         int64_t gpu_sort, int64_t gpu_kerevalmeth, int64_t gpu_maxbatchsize,
+                         int64_t debug, int64_t gpu_spreadinterponly, ffi::AnyBuffer source,
                          ffi::AnyBuffer points_x, ffi::AnyBuffer points_y, ffi::AnyBuffer points_z,
                          ffi::Result<ffi::AnyBuffer> output) {
   return nufft2_impl<3, double>(stream, eps, iflag, n_tot, n_transf, n_j, n_k_1, n_k_2, n_k_3,
