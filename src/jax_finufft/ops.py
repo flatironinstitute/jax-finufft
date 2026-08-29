@@ -133,7 +133,8 @@ def nufft3(source, *points, iflag=-1, eps=1e-6, opts=None):
     ndim = twice_ndim // 2
     if not 1 <= ndim <= 3:
         raise ValueError("Only 1-, 2-, and 3-dimensions are supported")
-
+    if spreadinterponly_enabled(opts, 3):
+        raise ValueError("spreadinterponly is not supported for nufft3")
     # Handle broadcasting and reshaping of inputs
     index, source, *points = shapes.broadcast_and_flatten_inputs(
         3, None, source, *points
@@ -160,12 +161,10 @@ def spreadinterponly_enabled(opts, nufft_type):
     if opts is None:
         return False
 
-    name = (
-        "gpu_spreadinterponly"
-        if jax.default_backend() in ("gpu", "cuda")
-        else "spreadinterponly"
+    return bool(
+        getattr(opts, "spreadinterponly", False)
+        or getattr(opts, "gpu_spreadinterponly", False)
     )
-    return bool(getattr(opts, name, False))
 
 
 def jvp(prim, args, tangents, *, output_shape, iflag, eps, opts, nufft_type):
