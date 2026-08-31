@@ -1,5 +1,5 @@
 from enum import IntEnum
-from typing import Optional, Union
+from typing import Union
 
 from pydantic.dataclasses import dataclass
 
@@ -45,7 +45,6 @@ class GpuMethod(IntEnum):
 
 @dataclass(frozen=True)
 class Opts:
-
     # These correspond to the default cufinufft options
     # set in vendor/finufft/src/cuda/cufinufft.cu
     modeord: bool = False
@@ -57,6 +56,7 @@ class Opts:
     spread_sort: SpreadSort = SpreadSort.Heuristic
     spread_kerevalmeth: bool = True
     spread_kerpad: bool = True
+    spreadinterponly: bool = False
     upsampfac: float = 0.0
     spread_thread: SpreadThread = SpreadThread.Auto
     maxbatchsize: int = 0
@@ -95,6 +95,7 @@ class Opts:
         opts.spread_sort = int(self.spread_sort)
         opts.spread_kerevalmeth = int(self.spread_kerevalmeth)
         opts.spread_kerpad = int(self.spread_kerpad)
+        opts.spreadinterponly = int(self.spreadinterponly)
         opts.upsampfac = float(self.upsampfac)
         opts.spread_thread = int(self.spread_thread)
         opts.maxbatchsize = int(self.maxbatchsize)
@@ -114,6 +115,7 @@ class Opts:
         opts.gpu_method = int(self.gpu_method)
         opts.gpu_sort = int(self.gpu_sort)
         opts.gpu_kerevalmeth = int(self.gpu_kerevalmeth)
+        opts.gpu_spreadinterponly = int(self.gpu_spreadinterponly)
         opts.gpu_maxbatchsize = int(self.gpu_maxbatchsize)
         opts.debug = int(self.gpu_debug)
         return opts
@@ -121,12 +123,12 @@ class Opts:
 
 @dataclass(frozen=True)
 class NestedOpts:
-    type1: Optional[Opts] = None
-    type2: Optional[Opts] = None
-    type3: Optional[Opts] = None
+    type1: Opts | None = None
+    type2: Opts | None = None
+    type3: Opts | None = None
 
-    forward: Optional[Opts] = None
-    backward: Optional[Union[Opts, "NestedOpts"]] = None
+    forward: Opts | None = None
+    backward: Union[Opts, "NestedOpts"] | None = None
 
 
 def unpack_opts(opts, finufft_type, forward):

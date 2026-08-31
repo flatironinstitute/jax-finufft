@@ -5,8 +5,8 @@ to XLA custom calls targeting the FINUFFT library using the typed FFI API.
 Uses jax.ffi.ffi_lowering to avoid private MLIR imports.
 """
 
-import numpy as np
 import jax
+import numpy as np
 
 from jax_finufft import options
 
@@ -149,6 +149,7 @@ def lowering(
             "maxbatchsize": np.int64(opts_native.maxbatchsize),
             "spread_nthr_atomic": np.int64(opts_native.spread_nthr_atomic),
             "spread_max_sp_size": np.int64(opts_native.spread_max_sp_size),
+            "spreadinterponly": np.int64(opts_native.spreadinterponly),
         }
     else:
         # GPU path
@@ -171,6 +172,7 @@ def lowering(
             "gpu_kerevalmeth": np.int64(opts_native.gpu_kerevalmeth),
             "gpu_maxbatchsize": np.int64(opts_native.gpu_maxbatchsize),
             "debug": np.int64(opts_native.debug),
+            "gpu_spreadinterponly": np.int64(opts_native.gpu_spreadinterponly),
         }
 
     # Use jax.ffi.ffi_lowering to create and call the lowering rule

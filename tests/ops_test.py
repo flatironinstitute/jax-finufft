@@ -599,3 +599,136 @@ def test_batched_points_grad():
     jax.block_until_ready(jax.grad(norm_nufft3, argnums=0)(c, xyz, stu))
     jax.block_until_ready(jax.grad(norm_nufft3, argnums=1)(c, xyz, stu))
     jax.block_until_ready(jax.grad(norm_nufft3, argnums=2)(c, xyz, stu))
+
+
+@pytest.mark.parametrize("Nf", [32, 33], ids=["even", "odd"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
+@pytest.mark.parametrize("nufft_type", [1, 2], ids=["t1", "t2"])
+def test_spreadinterponly_grad(Nf, ndim, nufft_type):
+    random = np.random.default_rng(657)
+
+    iflag = 1
+    num_uniform = tuple(Nf + 5 * np.arange(ndim))
+    num_nonnuniform = 50
+    eps = 1e-10
+    dtype = np.double
+    cdtype = np.cdouble
+
+    if nufft_type == 1:
+        x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(dtype)
+        c = random.normal(size=num_nonnuniform) + 1j * random.normal(
+            size=num_nonnuniform
+        )
+        c = c.astype(cdtype)
+
+        opts = Opts(spreadinterponly=1, gpu_spreadinterponly=1)
+
+        with enable_x64():
+            func = partial(nufft1, num_uniform, eps=eps, iflag=iflag, opts=opts)
+            jtu.check_grads(
+                lambda source: func(source, *x), (c,), 1, modes=("fwd", "rev")
+            )
+
+            for mode in ("fwd", "rev"):
+                with pytest.raises(
+                    NotImplementedError,
+                    match=(
+                        "Point derivatives are not supported when spreadinterponly "
+                        "is enabled"
+                    ),
+                ):
+                    jtu.check_grads(
+                        lambda *points: func(c, *points), tuple(x), 1, modes=(mode,)
+                    )
+    else:
+        x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(dtype)
+        f = random.normal(size=num_uniform) + 1j * random.normal(size=num_uniform)
+        f = f.astype(cdtype)
+
+        opts = Opts(spreadinterponly=1, gpu_spreadinterponly=1)
+
+        with enable_x64():
+            func = partial(nufft2, eps=eps, iflag=iflag, opts=opts)
+            jtu.check_grads(
+                lambda source: func(source, *x), (f,), 1, modes=("fwd", "rev")
+            )
+
+            for mode in ("fwd", "rev"):
+                with pytest.raises(
+                    NotImplementedError,
+                    match=(
+                        "Point derivatives are not supported when spreadinterponly "
+                        "is enabled"
+                    ),
+                ):
+                    jtu.check_grads(
+                        lambda *points: func(f, *points), tuple(x), 1, modes=(mode,)
+                    )
+
+
+@pytest.mark.parametrize("Nf", [100, 201], ids=["even", "odd"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
+@pytest.mark.parametrize("nufft_type", [1, 2, 3], ids=["t1", "t2", "t3"])
+def test_spreadinterponly(Nf, ndim, nufft_type):
+    # see https://github.com/flatironinstitute/finufft/blob/master/test/spreadinterp1d_test.cpp
+    random = np.random.default_rng(657)
+
+    iflag = 1
+    num_uniform = tuple(Nf + 5 * np.arange(ndim))
+    num_nonnuniform = 50
+    eps = 1e-10
+    dtype = np.double
+    cdtype = np.cdouble
+    opts = Opts(spreadinterponly=1, gpu_spreadinterponly=1)
+
+    with enable_x64():
+        if nufft_type == 1:
+            func = partial(nufft1, num_uniform, eps=eps, iflag=iflag, opts=opts)
+            # Compute kernel mass (spread a delta pulse at the origin)
+            unit_x = np.zeros((ndim, 1), dtype=dtype)
+            unit_c = np.ones(1, dtype=cdtype)
+            kernel_mass = np.sum(func(unit_c, *unit_x))
+            # Spread
+            x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(
+                dtype
+            )
+            c = random.normal(size=num_nonnuniform) + 1j * random.normal(
+                size=num_nonnuniform
+            )
+            c = c.astype(cdtype)
+            output = func(c, *x)
+            # Check that sum of spreaded values is equal to kernel mass times sum of source strengths.
+            assert np.allclose(np.sum(output), kernel_mass * np.sum(c))
+
+        elif nufft_type == 2:
+            # Compute kernel mass (spread a delta pulse at the origin)
+            func = partial(nufft1, num_uniform, eps=eps, iflag=iflag, opts=opts)
+            unit_x = np.zeros((ndim, 1), dtype=dtype)
+            unit_c = np.ones(1, dtype=cdtype)
+            kernel_mass = np.sum(func(unit_c, *unit_x))
+            # Interpolate constant 1 function at random points
+            func = partial(nufft2, eps=eps, iflag=iflag, opts=opts)
+            x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(
+                dtype
+            )
+            f = np.ones(num_uniform, dtype=cdtype)
+            output = func(f, *x)
+            # Check that interpolated values are equal to kernel mass everywhere
+            assert np.allclose(output, kernel_mass)
+        else:
+            num_uniform = tuple(n + (n % 2) for n in num_uniform)
+
+            x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(
+                dtype
+            )
+            c = random.normal(size=num_nonnuniform) + 1j * random.normal(
+                size=num_nonnuniform
+            )
+            s = random.uniform(-1.0, 1.0, size=(ndim, *num_uniform)).astype(dtype)
+            func = partial(nufft3, eps=eps, iflag=iflag, opts=opts)
+            # Check if type 3 raises an error when spreadinterponly is enabled, since it is not supported.
+            with pytest.raises(
+                ValueError,
+                match="spreadinterponly is not supported for nufft3",
+            ):
+                func(c, *x, *s)
