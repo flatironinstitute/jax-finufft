@@ -150,6 +150,7 @@ def lowering(
             "spread_nthr_atomic": np.int64(opts_native.spread_nthr_atomic),
             "spread_max_sp_size": np.int64(opts_native.spread_max_sp_size),
             "spreadinterponly": np.int64(opts_native.spreadinterponly),
+            "allow_eps_too_small": np.int64(opts_native.allow_eps_too_small),
         }
     else:
         # GPU path
@@ -169,6 +170,14 @@ def lowering(
             "upsampfac": float(opts_native.upsampfac),
             "gpu_method": np.int64(opts_native.gpu_method),
             "gpu_sort": np.int64(opts_native.gpu_sort),
+            "gpu_binsizex": np.int64(opts_native.gpu_binsizex),
+            "gpu_binsizey": np.int64(opts_native.gpu_binsizey),
+            "gpu_binsizez": np.int64(opts_native.gpu_binsizez),
+            "gpu_obinsizex": np.int64(opts_native.gpu_obinsizex),
+            "gpu_obinsizey": np.int64(opts_native.gpu_obinsizey),
+            "gpu_obinsizez": np.int64(opts_native.gpu_obinsizez),
+            "gpu_maxsubprobsize": np.int64(opts_native.gpu_maxsubprobsize),
+            "gpu_np": np.int64(opts_native.gpu_np),
             "gpu_kerevalmeth": np.int64(opts_native.gpu_kerevalmeth),
             "gpu_maxbatchsize": np.int64(opts_native.gpu_maxbatchsize),
             "debug": np.int64(opts_native.debug),
