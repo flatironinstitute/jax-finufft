@@ -50,8 +50,7 @@ ffi::Error run_nufft(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag,
   typename plan_type<T>::type plan;
   int64_t n_k_mutable[3] = {n_k[0], n_k[1], n_k[2]};
   int ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
-  // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
-  if (ret > 1) {
+  if (ret != 0) {
     return ffi::Error::Internal(error_message("cuFINUFFT makeplan", ret));
   }
 
