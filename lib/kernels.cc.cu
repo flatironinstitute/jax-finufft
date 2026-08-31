@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "cufinufft_wrapper.h"
+#include "finufft_error.h"
 #include "kernels.h"
 
 namespace ffi = xla::ffi;
@@ -51,7 +52,7 @@ ffi::Error run_nufft(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag,
   int ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
   // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
   if (ret > 1) {
-    return ffi::Error::Internal("cuFINUFFT makeplan failed with code " + std::to_string(ret));
+    return ffi::Error::Internal(error_message("cuFINUFFT makeplan", ret));
   }
 
   for (int64_t index = 0; index < n_tot; ++index) {
@@ -69,13 +70,13 @@ ffi::Error run_nufft(cudaStream_t stream, cufinufft_opts opts, T eps, int iflag,
     }
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("cuFINUFFT setpts failed with code " + std::to_string(ret));
+      return ffi::Error::Internal(error_message("cuFINUFFT setpts", ret));
     }
 
     ret = execute<T>(plan, &c[j], &F[k]);
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("cuFINUFFT execute failed with code " + std::to_string(ret));
+      return ffi::Error::Internal(error_message("cuFINUFFT execute", ret));
     }
   }
 

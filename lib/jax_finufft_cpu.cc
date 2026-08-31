@@ -14,6 +14,8 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "finufft_error.h"
+
 namespace ffi = xla::ffi;
 namespace nb = nanobind;
 
@@ -43,7 +45,7 @@ ffi::Error run_nufft(finufft_opts opts, T eps, int iflag, int64_t n_tot, int n_t
   int ret = makeplan<T>(type, ndim, n_k_mutable, iflag, n_transf, eps, &plan, &opts);
   // ret == 1 is FINUFFT_WARN_EPS_TOO_SMALL (warning, not error)
   if (ret > 1) {
-    return ffi::Error::Internal("FINUFFT makeplan failed with code " + std::to_string(ret));
+    return ffi::Error::Internal(error_message("FINUFFT makeplan", ret));
   }
 
   for (int64_t index = 0; index < n_tot; ++index) {
@@ -61,13 +63,13 @@ ffi::Error run_nufft(finufft_opts opts, T eps, int iflag, int64_t n_tot, int n_t
     }
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("FINUFFT setpts failed with code " + std::to_string(ret));
+      return ffi::Error::Internal(error_message("FINUFFT setpts", ret));
     }
 
     ret = execute<T>(plan, &c[j], &F[k]);
     if (ret != 0) {
       destroy<T>(plan);
-      return ffi::Error::Internal("FINUFFT execute failed with code " + std::to_string(ret));
+      return ffi::Error::Internal(error_message("FINUFFT execute", ret));
     }
   }
 
