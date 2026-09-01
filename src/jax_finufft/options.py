@@ -2,6 +2,7 @@ import warnings
 from enum import IntEnum
 from typing import Union
 
+from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
 from jax_finufft import jax_finufft_cpu
@@ -54,7 +55,7 @@ DEPRECATED_OPTS = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, config=ConfigDict(extra="forbid"))
 class Opts:
     # Defaults track finufft_default_opts (vendor/finufft/include/finufft/plan.hpp)
     # and cufinufft_default_opts (vendor/finufft/src/cuda/c_interface.cpp).
@@ -149,7 +150,7 @@ class Opts:
         return opts
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, config=ConfigDict(extra="forbid"))
 class NestedOpts:
     type1: Opts | None = None
     type2: Opts | None = None
