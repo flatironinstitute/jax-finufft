@@ -55,7 +55,7 @@ T* y_index(T* y, int64_t index) {
 }
 
 template <int ndim, typename T>
-T* z_index(T* z, int64_t index) {
+T* z_index(T*, int64_t) {
   return NULL;
 }
 

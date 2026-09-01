@@ -115,11 +115,8 @@ class Opts:
         opts.nthreads = self.nthreads if compiled_with_omp else 1
         opts.fftw = int(self.fftw)
         opts.spread_sort = int(self.spread_sort)
-        opts.spread_kerevalmeth = int(self.spread_kerevalmeth)
-        opts.spread_kerpad = int(self.spread_kerpad)
         opts.spreadinterponly = int(self.spreadinterponly)
         opts.upsampfac = float(self.upsampfac)
-        opts.spread_thread = int(self.spread_thread)
         opts.maxbatchsize = int(self.maxbatchsize)
         opts.spread_nthr_atomic = int(self.spread_nthr_atomic)
         opts.spread_max_sp_size = int(self.spread_max_sp_size)
