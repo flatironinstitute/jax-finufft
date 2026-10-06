@@ -4,7 +4,7 @@ import sysconfig
 
 import numpy as np
 import pytest
-from ops_test import check_close
+from utils import check_close, conditioned_eps
 
 import jax_finufft
 
@@ -34,7 +34,7 @@ def test_threaded_pool_nufft1(N_transforms=1000, N_points=1000):
     rng = np.random.default_rng(42)
     modes = 64
     x64 = False
-    eps = 1e-10 if x64 else 1e-7
+    eps = conditioned_eps(x64, (modes,))
 
     x_values = rng.uniform(-np.pi, np.pi, size=(N_transforms, N_points))
     c_values = rng.normal(size=(N_transforms, N_points)) + 1j * rng.normal(

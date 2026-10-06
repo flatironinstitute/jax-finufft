@@ -99,12 +99,12 @@ void destroy<double>(typename plan_type<double>::type plan) {
 }
 
 template <>
-double* y_index<1, double>(double* y, int64_t index) {
+double* y_index<1, double>(double*, int64_t) {
   return NULL;
 }
 
 template <>
-float* y_index<1, float>(float* y, int64_t index) {
+float* y_index<1, float>(float*, int64_t) {
   return NULL;
 }
 
