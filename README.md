@@ -131,10 +131,10 @@ are preferred for jax-finufft as this ensures the CUDA extensions are compiled
 with the same Toolkit version as the CUDA runtime. However, in theory, this is not required
 as long as both JAX and jax-finufft use CUDA with the same major version.
 
-Note that jax is both a build-time and run-time dependency of jax-finufft. If the
-build-time version of jax is different from the run-time version, you may
-encounter issues. Most users will not need to worry about this, but if you do,
-consider installing jax-finufft without build isolation to enforce consistency.
+JAX is only a run-time dependency of jax-finufft. The extensions are compiled
+against a vendored copy of the XLA FFI headers (see
+[`vendor/xla_ffi`](./vendor/xla_ffi)), so one build works with every JAX
+version that jax-finufft supports.
 
 #### Notes on CUDA versions
 While jax-finufft may build with a wide range of CUDA
