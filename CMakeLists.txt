@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.19...3.30)
+cmake_minimum_required(VERSION 3.25...3.30)
 project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
 message(STATUS "Using CMake version: " ${CMAKE_VERSION})
 

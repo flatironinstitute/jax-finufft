@@ -1,6 +1,8 @@
+import warnings
 from enum import IntEnum
 from typing import Union
 
+from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
 from jax_finufft import jax_finufft_cpu
@@ -41,16 +43,26 @@ class GpuMethod(IntEnum):
     Auto = 0
     Driven = 1
     Shared = 2
+    OutputDriven = 3
 
 
-@dataclass(frozen=True)
+# FINUFFT retains these for ABI compatibility but ignores them; it warns at
+# runtime when one is set away from its default, and we mirror that here.
+DEPRECATED_OPTS = {
+    "spread_thread": 0,
+    "spread_kerevalmeth": True,
+    "spread_kerpad": True,
+}
+
+
+@dataclass(frozen=True, config=ConfigDict(extra="forbid"))
 class Opts:
-    # These correspond to the default cufinufft options
-    # set in vendor/finufft/src/cuda/cufinufft.cu
+    # Defaults track finufft_default_opts (vendor/finufft/include/finufft/plan.hpp)
+    # and cufinufft_default_opts (vendor/finufft/src/cuda/c_interface.cpp).
     modeord: bool = False
     debug: DebugLevel = DebugLevel.Silent
     spread_debug: DebugLevel = DebugLevel.Silent
-    showwarn: bool = False
+    showwarn: bool = True
     nthreads: int = 0
     fftw: int = FftwFlags.Estimate
     spread_sort: SpreadSort = SpreadSort.Heuristic
@@ -62,8 +74,9 @@ class Opts:
     maxbatchsize: int = 0
     spread_nthr_atomic: int = -1
     spread_max_sp_size: int = 0
+    allow_eps_too_small: bool = False
 
-    gpu_upsampfac: float = 2.0
+    gpu_upsampfac: float = 0.0
     gpu_method: GpuMethod = 0
     gpu_sort: bool = True
     gpu_binsizex: int = 0
@@ -76,7 +89,17 @@ class Opts:
     gpu_kerevalmeth: bool = True
     gpu_spreadinterponly: bool = False
     gpu_maxbatchsize: int = 0
+    gpu_np: int = 0
     gpu_debug: GpuDebugLevel = GpuDebugLevel.Silent
+
+    def __post_init__(self):
+        for name, default in DEPRECATED_OPTS.items():
+            if getattr(self, name) != default:
+                warnings.warn(
+                    f"opts.{name} is deprecated and ignored by FINUFFT",
+                    DeprecationWarning,
+                    stacklevel=3,
+                )
 
     def to_finufft_opts(self):
         """Return a simple object with native FINUFFT options for FFI."""
@@ -93,14 +116,12 @@ class Opts:
         opts.nthreads = self.nthreads if compiled_with_omp else 1
         opts.fftw = int(self.fftw)
         opts.spread_sort = int(self.spread_sort)
-        opts.spread_kerevalmeth = int(self.spread_kerevalmeth)
-        opts.spread_kerpad = int(self.spread_kerpad)
         opts.spreadinterponly = int(self.spreadinterponly)
         opts.upsampfac = float(self.upsampfac)
-        opts.spread_thread = int(self.spread_thread)
         opts.maxbatchsize = int(self.maxbatchsize)
         opts.spread_nthr_atomic = int(self.spread_nthr_atomic)
         opts.spread_max_sp_size = int(self.spread_max_sp_size)
+        opts.allow_eps_too_small = int(self.allow_eps_too_small)
         return opts
 
     def to_cufinufft_opts(self):
@@ -114,6 +135,14 @@ class Opts:
         opts.upsampfac = float(self.gpu_upsampfac)
         opts.gpu_method = int(self.gpu_method)
         opts.gpu_sort = int(self.gpu_sort)
+        opts.gpu_binsizex = int(self.gpu_binsizex)
+        opts.gpu_binsizey = int(self.gpu_binsizey)
+        opts.gpu_binsizez = int(self.gpu_binsizez)
+        opts.gpu_obinsizex = int(self.gpu_obinsizex)
+        opts.gpu_obinsizey = int(self.gpu_obinsizey)
+        opts.gpu_obinsizez = int(self.gpu_obinsizez)
+        opts.gpu_maxsubprobsize = int(self.gpu_maxsubprobsize)
+        opts.gpu_np = int(self.gpu_np)
         opts.gpu_kerevalmeth = int(self.gpu_kerevalmeth)
         opts.gpu_spreadinterponly = int(self.gpu_spreadinterponly)
         opts.gpu_maxbatchsize = int(self.gpu_maxbatchsize)
@@ -121,7 +150,7 @@ class Opts:
         return opts
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, config=ConfigDict(extra="forbid"))
 class NestedOpts:
     type1: Opts | None = None
     type2: Opts | None = None
