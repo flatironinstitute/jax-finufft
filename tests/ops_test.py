@@ -6,15 +6,10 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 from jax._src import test_util as jtu
+from utils import TARGET_EPS, check_accurate, check_close, conditioned_eps
 
 from jax_finufft import nufft1, nufft2, nufft3
 from jax_finufft.options import Opts
-
-
-def check_close(a, b, **kwargs):
-    kwargs["rtol"] = kwargs.get("rtol", {"complex128": 1e-7, "complex64": 1e-4})
-    return jtu.check_close(a, b, **kwargs)
-
 
 if jax.version.__version_info__ < (0, 8, 0):
     enable_x64 = jax.experimental.enable_x64
@@ -22,18 +17,19 @@ else:
     enable_x64 = jax.enable_x64
 
 
-@pytest.mark.parametrize(
-    "ndim, x64, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [75], ids=["N75"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("x64", [False, True], ids=["f32", "f64"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
-    eps = 1e-10 if x64 else 1e-7
     dtype = np.double if x64 else np.single
     cdtype = np.cdouble if x64 else np.csingle
 
     num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
+    eps = conditioned_eps(x64, num_uniform)
     ks = [np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1)) for n in num_uniform]
 
     x = random.uniform(-np.pi, np.pi, size=(ndim, num_nonnuniform)).astype(dtype)
@@ -46,26 +42,27 @@ def test_nufft1_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
 
     with enable_x64(x64):
         f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag)
-        check_close(f_calc, f_expect)
+        check_accurate(f_calc, f_expect, eps)
 
         f_calc = jax.jit(nufft1, static_argnums=(0,), static_argnames=("eps", "iflag"))(
             num_uniform, c, *x, eps=eps, iflag=iflag
         )
-        check_close(f_calc, f_expect)
+        check_accurate(f_calc, f_expect, eps)
 
 
-@pytest.mark.parametrize(
-    "ndim, x64, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [False, True], [50], [75], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [75], ids=["N75"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("x64", [False, True], ids=["f32", "f64"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
-    eps = 1e-10 if x64 else 1e-7
     dtype = np.double if x64 else np.single
     cdtype = np.cdouble if x64 else np.csingle
 
     num_uniform = tuple(num_uniform // ndim + 5 * np.arange(ndim))
+    eps = conditioned_eps(x64, num_uniform)
     ks = [np.arange(-np.floor(n / 2), np.floor((n - 1) / 2 + 1)) for n in num_uniform]
     x = [
         random.uniform(-np.pi, np.pi, size=num_nonnuniform).astype(dtype)
@@ -85,22 +82,26 @@ def test_nufft2_forward(ndim, x64, num_nonnuniform, num_uniform, iflag):
 
     with enable_x64(x64):
         c_calc = nufft2(f, *x, eps=eps, iflag=iflag)
-        check_close(c_calc, c_expect)
+        check_accurate(c_calc, c_expect, eps)
 
         c_calc = jax.jit(nufft2, static_argnames=("eps", "iflag"))(
             f, *x, eps=eps, iflag=iflag
         )
-        check_close(c_calc, c_expect)
+        check_accurate(c_calc, c_expect, eps)
 
 
-@pytest.mark.parametrize(
-    "ndim, x64, num_sources, num_targets, iflag",
-    product([1, 2, 3], [False, True], [25], [20], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_targets", [20], ids=["N20"])
+@pytest.mark.parametrize("num_sources", [25], ids=["M25"])
+@pytest.mark.parametrize("x64", [False, True], ids=["f32", "f64"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft3_forward(ndim, x64, num_sources, num_targets, iflag):
     random = np.random.default_rng(657)
 
-    eps = 1e-10 if x64 else 1e-7
+    # The conditioning rule keys off the space-bandwidth product, but these
+    # points span so little of it that FINUFFT's minimum fine grid sets the
+    # floor instead, so pin a per-precision value the way upstream does.
+    eps = TARGET_EPS if x64 else 1e-5
     dtype = np.double if x64 else np.single
     cdtype = np.cdouble if x64 else np.csingle
 
@@ -117,22 +118,22 @@ def test_nufft3_forward(ndim, x64, num_sources, num_targets, iflag):
 
     with enable_x64(x64):
         f_calc = nufft3(c, *x, *s, eps=eps, iflag=iflag)
-        check_close(f_calc, f_expect, rtol={"complex128": 1e-7, "complex64": 1e-3})
+        check_accurate(f_calc, f_expect, eps)
 
         f_calc = jax.jit(nufft3, static_argnames=("eps", "iflag"))(
             c, *x, *s, eps=eps, iflag=iflag
         )
-        check_close(f_calc, f_expect, rtol={"complex128": 1e-7, "complex64": 1e-3})
+        check_accurate(f_calc, f_expect, eps)
 
 
-@pytest.mark.parametrize(
-    "ndim, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [35], ids=["N35"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
-    eps = 1e-10
+    eps = TARGET_EPS
     dtype = np.double
     cdtype = np.cdouble
 
@@ -157,14 +158,14 @@ def test_nufft1_grad(ndim, num_nonnuniform, num_uniform, iflag):
             check_close(jax.grad(scalar_func, argnums=(n,))(c, *x)[0], g)
 
 
-@pytest.mark.parametrize(
-    "ndim, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [35], ids=["N35"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
-    eps = 1e-10
+    eps = TARGET_EPS
     dtype = np.double
     cdtype = np.cdouble
 
@@ -189,14 +190,14 @@ def test_nufft2_grad(ndim, num_nonnuniform, num_uniform, iflag):
             check_close(jax.grad(scalar_func, argnums=(n,))(f, *x)[0], g)
 
 
-@pytest.mark.parametrize(
-    "ndim, num_source, num_target, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_target", [35], ids=["N35"])
+@pytest.mark.parametrize("num_source", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft3_grad(ndim, num_source, num_target, iflag):
     random = np.random.default_rng(657)
 
-    eps = 1e-10
+    eps = TARGET_EPS
     dtype = np.double
     cdtype = np.cdouble
 
@@ -219,10 +220,10 @@ def test_nufft3_grad(ndim, num_source, num_target, iflag):
             check_close(jax.grad(scalar_func, argnums=(n,))(c, *x, *s)[0], g)
 
 
-@pytest.mark.parametrize(
-    "ndim, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [35], ids=["N35"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
@@ -267,10 +268,10 @@ def test_nufft1_vmap(ndim, num_nonnuniform, num_uniform, iflag):
             )
 
 
-@pytest.mark.parametrize(
-    "ndim, num_nonnuniform, num_uniform, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_uniform", [35], ids=["N35"])
+@pytest.mark.parametrize("num_nonnuniform", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
     random = np.random.default_rng(657)
 
@@ -315,10 +316,10 @@ def test_nufft2_vmap(ndim, num_nonnuniform, num_uniform, iflag):
             )
 
 
-@pytest.mark.parametrize(
-    "ndim, num_source, num_target, iflag",
-    product([1, 2, 3], [50], [35], [-1, 1]),
-)
+@pytest.mark.parametrize("iflag", [-1, 1], ids=["im1", "ip1"])
+@pytest.mark.parametrize("num_target", [35], ids=["N35"])
+@pytest.mark.parametrize("num_source", [50], ids=["M50"])
+@pytest.mark.parametrize("ndim", [1, 2, 3], ids=["1D", "2D", "3D"])
 def test_nufft3_vmap(ndim, num_source, num_target, iflag):
     random = np.random.default_rng(657)
 
@@ -390,11 +391,11 @@ def test_multi_transform():
 
     calc1 = nufft1(n_k, c, x)
     calc2 = nufft2(f, x)
-    calc3 = nufft3(c, x, x_target)
+    calc3 = nufft3(c, x, x_target, eps=1e-5)
     for n in range(n_tr):
         check_close(calc1[:, n], nufft1(n_k, c[:, n], x), rtol=1e-4)
         check_close(calc2[:, n], nufft2(f[:, n], x), rtol=1e-4)
-        check_close(calc3[:, n], nufft3(c[:, n], x, x_target), rtol=1e-4)
+        check_close(calc3[:, n], nufft3(c[:, n], x, x_target, eps=1e-5), rtol=1e-4)
 
 
 def test_gh14():
@@ -406,17 +407,17 @@ def test_gh14():
     c = random.normal(size=M) + 1j * random.normal(size=M)
 
     def norm_nufft1(c, x):
-        f = nufft1(N, c, x, eps=1e-6, iflag=1)
+        f = nufft1(N, c, x, eps=1e-4, iflag=1)
         return jnp.linalg.norm(f)
 
     def norm_nufft2(c, x):
-        f = nufft2(c, x, eps=1e-6, iflag=1)
+        f = nufft2(c, x, eps=1e-4, iflag=1)
         return jnp.linalg.norm(f)
 
-    jax.grad(norm_nufft2, argnums=(1))(c, x)
-    jax.grad(norm_nufft1, argnums=(0,))(c, x)
-    jax.grad(norm_nufft1, argnums=(0, 1))(c, x)
-    jax.grad(norm_nufft1, argnums=(1,))(c, x)
+    jax.block_until_ready(jax.grad(norm_nufft2, argnums=(1))(c, x))
+    jax.block_until_ready(jax.grad(norm_nufft1, argnums=(0,))(c, x))
+    jax.block_until_ready(jax.grad(norm_nufft1, argnums=(0, 1))(c, x))
+    jax.block_until_ready(jax.grad(norm_nufft1, argnums=(1,))(c, x))
 
 
 def test_gh37():
@@ -434,9 +435,9 @@ def test_gh37():
         ).transpose()
         coords = [xs[..., i] for i in range(ndim)]
 
-        f_hat = nufft1(k_grid_shape, f_, *coords, iflag=-1)
+        f_hat = nufft1(k_grid_shape, f_, *coords, iflag=-1, eps=1e-5)
         c_hat = jnp.einsum("a...,...ab->b...", f_hat, kernel)
-        return nufft2(c_hat, *coords, iflag=1)
+        return nufft2(c_hat, *coords, iflag=1, eps=1e-5)
 
     kernel = jnp.array(np.random.randn(32, 32, 32, 16, 16))
     f = jnp.array(np.random.randn(8, 100, 16))
@@ -454,7 +455,7 @@ def test_gh37():
 def test_gh54():
     @jax.vmap
     def aux(f, x):
-        f_hat = nufft1((32, 32, 32), f, *x, iflag=-1)
+        f_hat = nufft1((32, 32, 32), f, *x, iflag=-1, eps=1e-5)
         return jnp.real(f_hat).mean()
 
     def test(f, x):
@@ -463,18 +464,20 @@ def test_gh54():
     f = np.random.randn(8, 1000).astype(jnp.complex_)
     x = np.random.randn(8, 3, 1000)
 
-    assert (
-        test(f, x).shape
-        == jax.jvp(partial(test, f), (x,), (jnp.ones_like(x),))[0].shape
+    # Shapes are known from tracing alone, so without blocking on the values a
+    # transform that fails at runtime would still satisfy these assertions.
+    primal, _ = jax.block_until_ready(
+        jax.jvp(partial(test, f), (x,), (jnp.ones_like(x),))
     )
-    assert jax.grad(test, argnums=0)(f, x).shape == f.shape
-    assert jax.grad(test, argnums=1)(f, x).shape == x.shape
+    assert jax.block_until_ready(test(f, x)).shape == primal.shape
+    assert jax.block_until_ready(jax.grad(test, argnums=0)(f, x)).shape == f.shape
+    assert jax.block_until_ready(jax.grad(test, argnums=1)(f, x)).shape == x.shape
 
 
 def test_gh54_type2():
     @jax.vmap
     def aux(f, x):
-        f_hat = nufft2(f, *x, iflag=-1)
+        f_hat = nufft2(f, *x, iflag=-1, eps=1e-5)
         return jnp.real(f_hat).mean()
 
     def test(f, x):
@@ -483,12 +486,14 @@ def test_gh54_type2():
     f = np.random.randn(8, 32, 32, 32).astype(jnp.complex_)
     x = np.random.randn(8, 3, 1000)
 
-    assert (
-        test(f, x).shape
-        == jax.jvp(partial(test, f), (x,), (jnp.ones_like(x),))[0].shape
+    # Shapes are known from tracing alone, so without blocking on the values a
+    # transform that fails at runtime would still satisfy these assertions.
+    primal, _ = jax.block_until_ready(
+        jax.jvp(partial(test, f), (x,), (jnp.ones_like(x),))
     )
-    assert jax.grad(test, argnums=0)(f, x).shape == f.shape
-    assert jax.grad(test, argnums=1)(f, x).shape == x.shape
+    assert jax.block_until_ready(test(f, x)).shape == primal.shape
+    assert jax.block_until_ready(jax.grad(test, argnums=0)(f, x)).shape == f.shape
+    assert jax.block_until_ready(jax.grad(test, argnums=1)(f, x)).shape == x.shape
 
 
 @pytest.mark.parametrize("modeord", [0, 1], ids=["mo0", "mo1"])
@@ -501,7 +506,7 @@ def test_modeord(modeord, Nf, ndim, nufft_type):
     iflag = 1
     num_uniform = tuple(Nf // ndim + 5 * np.arange(ndim))
     num_nonnuniform = 50
-    eps = 1e-10
+    eps = TARGET_EPS
     dtype = np.double
     cdtype = np.cdouble
 
@@ -539,7 +544,7 @@ def test_modeord(modeord, Nf, ndim, nufft_type):
 
         with enable_x64():
             f_calc = nufft1(num_uniform, c, *x, eps=eps, iflag=iflag, opts=opts)
-            check_close(f_calc, f_expect)
+            check_accurate(f_calc, f_expect, eps)
 
             func = partial(nufft1, num_uniform, eps=eps, iflag=iflag, opts=opts)
             jtu.check_grads(func, (c, *x), 1, modes=("fwd", "rev"))
@@ -561,7 +566,7 @@ def test_modeord(modeord, Nf, ndim, nufft_type):
 
         with enable_x64():
             c_calc = nufft2(f, *x, eps=eps, iflag=iflag, opts=opts)
-            check_close(c_calc, c_expect)
+            check_accurate(c_calc, c_expect, eps)
 
             func = partial(nufft2, eps=eps, iflag=iflag, opts=opts)
             jtu.check_grads(func, (f, *x), 1, modes=("fwd", "rev"))
@@ -587,12 +592,13 @@ def test_batched_points_grad():
             stu[:, 0, :],
             stu[:, 1, :],
             stu[:, 2, :],
+            eps=1e-5,
         )
         return jnp.linalg.norm(f)
 
-    jax.grad(norm_nufft3, argnums=0)(c, xyz, stu)
-    jax.grad(norm_nufft3, argnums=1)(c, xyz, stu)
-    jax.grad(norm_nufft3, argnums=2)(c, xyz, stu)
+    jax.block_until_ready(jax.grad(norm_nufft3, argnums=0)(c, xyz, stu))
+    jax.block_until_ready(jax.grad(norm_nufft3, argnums=1)(c, xyz, stu))
+    jax.block_until_ready(jax.grad(norm_nufft3, argnums=2)(c, xyz, stu))
 
 
 @pytest.mark.parametrize("Nf", [32, 33], ids=["even", "odd"])

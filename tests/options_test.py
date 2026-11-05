@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from jax_finufft import options
 
@@ -51,3 +52,8 @@ def test_nested_multi():
     assert options.unpack_opts(
         options.unpack_opts(opts, 1, False), 2, True
     ) == options.Opts(debug=True)
+
+
+def test_unknown_opts_rejected():
+    with pytest.raises(ValidationError):
+        options.Opts(gpu_maxsubprobsiz=512)  # typo for gpu_maxsubprobsize
